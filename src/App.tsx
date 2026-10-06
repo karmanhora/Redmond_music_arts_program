@@ -9,6 +9,7 @@ import { Alert, Button, ToastProvider } from "./components/ui";
 import { setClerkTokenGetter } from "./lib/supabase";
 import { ProgramsProvider, usePrograms } from "./hooks/usePrograms";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
+import { AuthScreen } from "./screens/AuthScreen";
 import { JoinProgramScreen } from "./screens/JoinProgramScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
@@ -116,14 +117,11 @@ export default function App() {
   return (
     <ToastProvider>
       <SignedOut>
-        {/*
-          Signed out, every URL shows sign-in. A `/checkin?token=…` deep link
-          still resolves, because WelcomeScreen forwards the token through Clerk
-          and returns the student to that exact check-in afterwards.
-        */}
         <Routes>
-          <Route path="/sign-up/*" element={<WelcomeScreen mode="sign-up" />} />
-          <Route path="*" element={<WelcomeScreen mode="sign-in" />} />
+          <Route path="/" element={<WelcomeScreen />} />
+          <Route path="/sign-in/*" element={<AuthScreen mode="sign-in" />} />
+          <Route path="/sign-up/*" element={<AuthScreen mode="sign-up" />} />
+          <Route path="*" element={<AuthScreen mode="sign-in" />} />
         </Routes>
       </SignedOut>
 
