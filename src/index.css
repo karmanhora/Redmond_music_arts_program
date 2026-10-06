@@ -124,3 +124,54 @@ body {
 .animate-pulse-soft {
   animation: band-pulse 1.6s ease-in-out infinite;
 }
+
+.musical-notes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.musical-notes span {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: var(--size);
+  line-height: 1;
+  transform: translate3d(0, 0, 0) rotate(var(--angle));
+  animation: music-drift var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.musical-notes span:nth-child(3n) {
+  color: rgba(245, 166, 35, 0.52);
+}
+
+.musical-notes span:nth-child(4n) {
+  color: rgba(156, 163, 175, 0.52);
+}
+
+@keyframes music-drift {
+  0%,
+  100% {
+    opacity: 0.14;
+    transform: translate3d(0, 22px, 0) rotate(var(--angle));
+  }
+  42% {
+    opacity: 0.7;
+    transform: translate3d(var(--drift), -38px, 0) rotate(var(--angle-mid));
+  }
+  70% {
+    opacity: 0.38;
+    transform: translate3d(calc(var(--drift) * -0.55), -12px, 0) rotate(var(--angle-late));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .musical-notes span {
+    animation: none !important;
+    opacity: 0.22;
+  }
+}

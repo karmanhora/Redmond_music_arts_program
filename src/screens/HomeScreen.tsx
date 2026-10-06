@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, CheckCircle2, ClipboardCheck, Music, QrCode, Users } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  MapPin,
+  Music,
+  QrCode,
+  Users,
+} from "lucide-react";
 import {
   Alert,
   Badge,
@@ -14,16 +23,24 @@ import {
   cn,
 } from "../components/ui";
 import { fetchAttendance, fetchEvents } from "../lib/queries";
-import { getMyAttendancePct } from "../lib/rpc";
-import type { EventRow } from "../lib/types";
+import type { EmbeddedMembership } from "../lib/queries";
+import { getMyAttendancePct, getMyAttendanceTrend } from "../lib/rpc";
+import type { EventRow, MyAttendanceRow } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
-import { eventTypeLabel } from "../lib/constants";
+import {
+  APP_DESCRIPTION,
+  ATTENDANCE_REQUIREMENT_LABEL,
+  ATTENDANCE_STATUS_CHIP,
+  ATTENDANCE_STATUS_LABEL,
+  eventTypeLabel,
+} from "../lib/constants";
 import { endOfDay, fmtTime, isSameDay, relativeDay, startOfDay, untilLabel } from "../lib/date";
 
+const FUTURE_PROGRAMS = ["Orchestra", "Choir", "Drama"];
+
 /**
- * The home screen answers one question — "do I need to check in right now?" —
- * and puts the answer in a single button. The month grid the old app opened on
- * now lives one tap away in the calendar.
+ * Signed-in student dashboard. It keeps the existing Band implementation alive
+ * below the same routes, but frames it as one program inside the larger hub.
  */
 export function HomeScreen() {
   const app = usePrograms();
@@ -33,6 +50,7 @@ export function HomeScreen() {
   const profileId = app.profile?.id ?? null;
 
   const [events, setEvents] = useState<EventRow[] | null>(null);
+  const [attendanceRows, setAttendanceRows] = useState<MyAttendanceRow[]>([]);
   const [checkedInEventId, setCheckedInEventId] = useState<string | null>(null);
   const [checkedInAt, setCheckedInAt] = useState<string | null>(null);
   const [percentage, setPercentage] = useState<number | null>(null);
@@ -46,8 +64,7 @@ export function HomeScreen() {
       const list = await fetchEvents(programId);
       setEvents(list);
 
-      // Did I already check in today? The answer changes the hero's button.
-      const [todayAttendance, myPct] = await Promise.all([
+      const [todayAttendance, myPct, myTrend] = await Promise.all([
         profileId
           ? fetchAttendance(programId, {
               from: startOfDay(new Date()).toISOString(),
@@ -55,21 +72,21 @@ export function HomeScreen() {
             })
           : Promise.resolve([]),
         getMyAttendancePct(programId),
+        getMyAttendanceTrend(programId, 6),
       ]);
 
       const mine = todayAttendance.find((r) => r.student_id === profileId) ?? null;
       setCheckedInEventId(mine?.event_id ?? null);
       setCheckedInAt(mine?.checked_in_at ?? null);
 
-      if (myPct.result?.ok && typeof myPct.result.percentage === "number") {
-        setPercentage(myPct.result.percentage);
-      } else {
-        // Students see their own number, and a failure here must never look
-        // like a data problem — just hide the card.
-        setPercentage(null);
-      }
+      setPercentage(
+        myPct.result?.ok && typeof myPct.result.percentage === "number"
+          ? myPct.result.percentage
+          : null
+      );
+      setAttendanceRows(myTrend.rows);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load your schedule.");
+      setError(e instanceof Error ? e.message : "Could not load your dashboard.");
     } finally {
       setLoading(false);
     }
@@ -79,7 +96,6 @@ export function HomeScreen() {
     void load();
   }, [load]);
 
-  // A phone sitting in a pocket all day must show today's event when it wakes.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible") void load();
@@ -93,28 +109,20 @@ export function HomeScreen() {
   }, [load]);
 
   const now = Date.now();
+  const firstName =
+    (app.profile?.display_name || app.profile?.full_name || "there").split(/\s+/)[0] ?? "there";
 
   const todayEvent = useMemo(
     () => events?.find((e) => isSameDay(new Date(e.date), new Date())) ?? null,
     [events]
   );
 
-  const nextEvent = useMemo(
-    () =>
-      events?.find(
-        (e) => new Date(e.date).getTime() >= now && !isSameDay(new Date(e.date), new Date())
-      ) ?? null,
+  const upcoming = useMemo(
+    () => (events ?? []).filter((e) => new Date(e.date).getTime() >= now).slice(0, 4),
     [events, now]
   );
 
-  const hero = todayEvent ?? nextEvent;
-  const upcoming = useMemo(
-    () =>
-      (events ?? [])
-        .filter((e) => new Date(e.date).getTime() > now && e.id !== hero?.id)
-        .slice(0, 5),
-    [events, hero?.id, now]
-  );
+  const nextEvent = todayEvent ?? upcoming[0] ?? null;
 
   if (!programId) {
     return (
@@ -126,22 +134,50 @@ export function HomeScreen() {
   }
 
   return (
-    <div className="space-y-4 p-4 pb-6">
+    <div className="space-y-5 p-4 pb-6">
       {error ? <Alert tone="error">{error}</Alert> : null}
+
+      <section className="rounded-2xl bg-zinc-950 p-5 text-white shadow-sm dark:bg-zinc-900">
+        <p className="text-xs font-bold tracking-widest text-amber-200 uppercase">
+          RHS Music & Arts Attendance
+        </p>
+        <h1 className="mt-2 text-3xl font-black tracking-tight">Welcome back, {firstName}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-white/75">{APP_DESCRIPTION}</p>
+      </section>
+
+      <section id="my-programs" className="space-y-2">
+        <SectionTitle>My Programs</SectionTitle>
+        <div className="grid gap-3 md:grid-cols-2">
+          {app.memberships.map((m) => (
+            <ProgramCard
+              key={m.id}
+              membership={m}
+              current={m.ensemble.id === app.program?.id}
+              onOpen={() => {
+                app.setProgram(m.ensemble.id);
+                navigate("/");
+              }}
+            />
+          ))}
+          {FUTURE_PROGRAMS.map((name) => (
+            <FutureProgramCard key={name} name={name} />
+          ))}
+        </div>
+      </section>
 
       {loading && !events ? (
         <>
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-24 w-full" />
         </>
-      ) : hero ? (
-        <HeroCard
-          event={hero}
-          isToday={hero.id === todayEvent?.id}
-          alreadyCheckedIn={checkedInEventId === hero.id}
+      ) : nextEvent ? (
+        <HeroEventCard
+          event={nextEvent}
+          isToday={nextEvent.id === todayEvent?.id}
+          alreadyCheckedIn={checkedInEventId === nextEvent.id}
           checkedInAt={checkedInAt}
           onCheckIn={() => navigate("/checkin")}
-          onStartCheckIn={() => navigate(`/checkin?event=${hero.id}`)}
+          onStartCheckIn={() => navigate(`/checkin?event=${nextEvent.id}`)}
           onMarkAttendance={() => navigate("/attendance")}
           isStaff={app.isStaff}
         />
@@ -149,48 +185,90 @@ export function HomeScreen() {
         <Card>
           <EmptyState
             icon={<Music className="h-6 w-6" />}
-            title="Nothing on the calendar yet"
-            body="When your director adds rehearsals and games, the next one shows up right here."
+            title="No upcoming events yet"
+            body="When your director adds real program events, they will show up here."
           />
         </Card>
       )}
 
-      {percentage !== null && !app.isDirector ? (
-        <Card className="flex items-center gap-4">
-          <ProgressRing value={percentage} size={72} stroke={8} />
-          <div className="min-w-0">
-            <p className="font-semibold">My attendance</p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {percentage >= 80
-                ? "You're in good standing. Keep it up."
-                : "Every rehearsal counts — you've got this."}
-            </p>
-          </div>
-        </Card>
-      ) : null}
-
-      {upcoming.length > 0 ? (
-        <div className="space-y-1">
-          <SectionTitle className="pt-1">Coming up</SectionTitle>
-          <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+      <section className="space-y-2">
+        <SectionTitle action={<button className="text-xs font-bold text-band underline dark:text-emerald-300" onClick={() => navigate("/calendar")}>View calendar</button>}>
+          Your Upcoming Events
+        </SectionTitle>
+        {upcoming.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2">
             {upcoming.map((e) => (
-              <Row
-                key={e.id}
-                icon={<CalendarDays className="h-5 w-5" />}
-                title={e.name}
-                subtitle={`${relativeDay(e.date)} · ${
-                  e.all_day ? "All day" : fmtTime(e.date)
-                } · ${eventTypeLabel(e.event_type)}`}
-                onClick={() => navigate("/calendar")}
-              />
+              <EventCard key={e.id} event={e} programName={app.program?.short_name || app.program?.name || "Program"} />
             ))}
+          </div>
+        ) : (
+          <Card>
+            <EmptyState
+              icon={<CalendarDays className="h-6 w-6" />}
+              title="Nothing scheduled"
+              body="Only actual events from the database appear here."
+            />
+          </Card>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <SectionTitle>{app.program?.short_name ?? "Program"} Attendance</SectionTitle>
+        <div className="grid gap-3 lg:grid-cols-[280px_1fr]">
+          {percentage !== null && !app.isDirector ? (
+            <Card className="flex items-center gap-4">
+              <ProgressRing value={percentage} size={72} stroke={8} />
+              <div className="min-w-0">
+                <p className="font-semibold">Overall attendance</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  Based on your recorded required events.
+                </p>
+              </div>
+            </Card>
+          ) : (
+            <Card>
+              <EmptyState
+                icon={<ClipboardCheck className="h-6 w-6" />}
+                title="Attendance percentage unavailable"
+                body="Your percentage appears once the system has records to calculate."
+              />
+            </Card>
+          )}
+
+          <Card className="overflow-hidden p-0">
+            {attendanceRows.length > 0 ? (
+              <div className="divide-y divide-black/5 dark:divide-white/10">
+                {attendanceRows.map((row) => (
+                  <div key={row.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{row.name}</p>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                        {relativeDay(row.date)} · {eventTypeLabel(row.event_type)}
+                      </p>
+                    </div>
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {new Date(row.date).toLocaleDateString([], { month: "short", day: "numeric" })}
+                    </span>
+                    <Badge className={ATTENDANCE_STATUS_CHIP[row.status]}>
+                      {ATTENDANCE_STATUS_LABEL[row.status]}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={<ClipboardCheck className="h-6 w-6" />}
+                title="No attendance history yet"
+                body="Past required events with recorded attendance will appear here."
+              />
+            )}
           </Card>
         </div>
-      ) : null}
+      </section>
 
       {app.isStaff ? (
-        <div className="space-y-1">
-          <SectionTitle className="pt-1">Staff</SectionTitle>
+        <section className="space-y-2">
+          <SectionTitle>Staff Tools</SectionTitle>
           <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
             <Row
               icon={<ClipboardCheck className="h-5 w-5" />}
@@ -211,13 +289,87 @@ export function HomeScreen() {
               onClick={() => navigate("/checkin")}
             />
           </Card>
-        </div>
+        </section>
       ) : null}
     </div>
   );
 }
 
-function HeroCard({
+function ProgramCard({
+  membership,
+  current,
+  onOpen,
+}: {
+  membership: EmbeddedMembership;
+  current: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <Card className="flex items-center gap-3">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-band/10 text-band dark:bg-band/20 dark:text-emerald-300">
+        <Music className="h-6 w-6" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-black">{membership.ensemble.short_name || membership.ensemble.name}</h3>
+          <Badge className="bg-band text-white">Available</Badge>
+        </div>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Attendance & Events</p>
+      </div>
+      <Button size="sm" variant={current ? "accent" : "secondary"} icon={<ArrowRight className="h-4 w-4" />} onClick={onOpen}>
+        {current ? "Open" : "Switch"}
+      </Button>
+    </Card>
+  );
+}
+
+function FutureProgramCard({ name }: { name: string }) {
+  return (
+    <Card className="flex items-center gap-3 opacity-80">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+        <Music className="h-6 w-6" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3 className="font-black">{name}</h3>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Coming soon</p>
+      </div>
+      <Badge className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">Coming soon</Badge>
+    </Card>
+  );
+}
+
+function EventCard({ event, programName }: { event: EventRow; programName: string }) {
+  const required = ATTENDANCE_REQUIREMENT_LABEL[event.attendance_requirement];
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-black">{event.name}</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{programName}</p>
+        </div>
+        <Badge className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+          {eventTypeLabel(event.event_type)}
+        </Badge>
+      </div>
+      <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+        <p>
+          {relativeDay(event.date)} · {event.all_day ? "All day" : fmtTime(event.date)}
+        </p>
+        {event.location ? (
+          <p className="flex items-center gap-1 truncate">
+            <MapPin className="h-4 w-4 shrink-0 text-zinc-400" />
+            {event.location}
+          </p>
+        ) : null}
+      </div>
+      <Badge className={event.attendance_requirement === "required" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}>
+        Attendance: {required}
+      </Badge>
+    </Card>
+  );
+}
+
+function HeroEventCard({
   event,
   isToday,
   alreadyCheckedIn,
@@ -247,25 +399,22 @@ function HeroCard({
           <Badge className="bg-white/20 text-white">{eventTypeLabel(event.event_type)}</Badge>
           {isToday ? <Badge className="bg-accent text-ink">Today</Badge> : null}
         </div>
-        <h1 className="mt-2 text-xl leading-tight font-extrabold">{event.name}</h1>
+        <h2 className="mt-2 text-xl leading-tight font-extrabold">{event.name}</h2>
         <p className="mt-1 text-sm text-white/85">
           {relativeDay(event.date)} · {event.all_day ? "All day" : fmtTime(event.date)}
           {isToday ? ` · ${untilLabel(event.date)}` : ""}
         </p>
-        {event.location ? (
-          <p className="mt-0.5 truncate text-sm text-white/70">{event.location}</p>
-        ) : null}
+        {event.location ? <p className="mt-0.5 truncate text-sm text-white/70">{event.location}</p> : null}
       </div>
 
       <div className="space-y-2 p-4">
         {noAttendance ? (
-          <Alert tone="info">No attendance is taken for this event — nothing to do.</Alert>
+          <Alert tone="info">No attendance is taken for this event.</Alert>
         ) : alreadyCheckedIn ? (
           <div className="flex items-center gap-2 rounded-xl bg-band/10 px-3 py-3 dark:bg-band/20">
             <CheckCircle2 className="h-5 w-5 text-band dark:text-emerald-300" />
             <p className="text-sm font-semibold">
-              You&rsquo;re checked in
-              {checkedInAt ? ` — ${fmtTime(checkedInAt)}` : ""}
+              You&rsquo;re checked in{checkedInAt ? ` · ${fmtTime(checkedInAt)}` : ""}
             </p>
           </div>
         ) : isStaff ? (
@@ -282,16 +431,12 @@ function HeroCard({
             Check in
           </Button>
         ) : isToggle ? (
-          <Alert tone="info">
-            Your section leader or director marks the roll for this one — nothing to scan.
-          </Alert>
+          <Alert tone="info">Your section leader or director marks the roll for this one.</Alert>
         ) : null}
 
         {isQr && !alreadyCheckedIn ? (
           <p className={cn("text-center text-xs text-zinc-500 dark:text-zinc-400")}>
-            {isStaff
-              ? "Project the screen so everyone can scan it."
-              : "Scan the QR code on screen, or type the 8-character code."}
+            {isStaff ? "Project the screen so students can scan it." : "Scan the QR code on screen, or type the 8-character code."}
           </p>
         ) : null}
       </div>

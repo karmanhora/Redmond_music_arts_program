@@ -84,8 +84,6 @@ export function AppShell() {
     <div className="flex h-full flex-col bg-surface dark:bg-[#0c0f0a]">
       {/* --- app bar: the umbrella, then the program you are actually in --- */}
       <header className="safe-t sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-black/5 bg-surface/95 px-3 backdrop-blur dark:border-white/10 dark:bg-[#0c0f0a]/95">
-        <img src="/logo-light.svg" alt="" className="h-8 w-8 dark:hidden" />
-        <img src="/logo-dark.svg" alt="" className="hidden h-8 w-8 dark:block" />
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
             {ORG_NAME}
@@ -111,6 +109,25 @@ export function AppShell() {
               </span>
             </p>
           )}
+        </div>
+        <div className="hidden items-center gap-1 md:flex">
+          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/">
+            Home
+          </Link>
+          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/#my-programs">
+            My Programs
+          </Link>
+          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/calendar">
+            Events
+          </Link>
+          {app.isStaff ? (
+            <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/attendance">
+              Attendance
+            </Link>
+          ) : null}
+          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/calendar">
+            Calendar
+          </Link>
         </div>
         <IconButton
           label="Notifications"

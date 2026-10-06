@@ -16,14 +16,17 @@ import type {
  * rendered through the labels here (see docs/PLATFORM_PLAN.md §2.4 U2/U14).
  */
 
-/** Home-screen / PWA short name. */
-export const APP_NAME = "RHS Music & Arts";
+/** Full public name for the umbrella platform. */
+export const PLATFORM_NAME = "Redmond High School Music & Arts Program Attendance";
+
+/** Short UI / PWA name. */
+export const APP_NAME = "RHS Music & Arts Attendance";
 
 /** The umbrella, spelled out — welcome screen, About, the app bar's subtitle. */
-export const ORG_NAME = "Redmond High School Music and Arts Program";
+export const ORG_NAME = "Redmond High School Music & Arts";
 
 export const APP_DESCRIPTION =
-  "Attendance, check-in and the event calendar for every RHS music program.";
+  "One attendance platform for Redmond High School's music and arts programs.";
 
 export interface EventTypeOption {
   /** Canonical lowercase key stored in `events.event_type`. */
