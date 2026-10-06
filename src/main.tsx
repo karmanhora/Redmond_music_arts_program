@@ -7,7 +7,9 @@ import { ConfigMissingScreen } from "./screens/ConfigMissingScreen";
 import { isBackendConfigured } from "./lib/supabase";
 import "./index.css";
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const publishableKey =
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
+  import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 const missing: string[] = [];
 if (!isBackendConfigured) {
