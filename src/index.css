@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: <html class="dark"> — toggled by useDark(). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Semantic tokens. The variable *names* are fixed; only the values change per
+ * program (see src/lib/theme.ts, which paints these from the program's
+ * `ensemble_theme_tokens` row). Nothing in the app hardcodes a hex colour.
+ *
+ * The `band` in these names (and in the `band-in` / `band-sheet` / `band-pulse`
+ * keyframes) is the palette this site started life with, before it became the
+ * Music and Arts Program. It is kept on purpose: ~200 class names depend on it,
+ * per-program theming already repaints it, and a renamed class that slipped
+ * through would silently render an unstyled control — which no typecheck sees.
+ */
+@theme {
+  --color-band: var(--band-primary);
+  --color-band-deep: var(--band-primary-deep);
+  --color-accent: var(--band-accent);
+  --color-surface: var(--band-surface);
+  --color-ink: var(--band-ink);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+/* RHS band heritage palette — the default and the fallback. */
+:root {
+  --band-primary: #2d5a1b;
+  --band-primary-deep: #1d3c11;
+  --band-accent: #f5a623;
+  --band-surface: #f6f7f2;
+  --band-ink: #1c2517;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--band-ink);
+  background: var(--band-surface);
+  -webkit-font-smoothing: antialiased;
+  /* The app scrolls inside its own panes; don't rubber-band the whole page. */
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dark body {
+  color: #e4e4e7;
+  background: #0c0f0a;
+}
+
+/* Installed-PWA safe areas (notch / home indicator). */
+.safe-b {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+}
+.safe-t {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Keyboard focus is always visible — never removed, only styled. */
+:focus-visible {
+  outline: 2px solid var(--band-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes band-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: band-in 180ms ease-out both;
+}
+
+@keyframes band-sheet {
+  from {
+    transform: translateY(12px);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.animate-sheet {
+  animation: band-sheet 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes band-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.animate-pulse-soft {
+  animation: band-pulse 1.6s ease-in-out infinite;
+}

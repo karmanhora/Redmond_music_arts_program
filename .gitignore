@@ -1,0 +1,32 @@
+# Secrets & local env (never commit)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Migration dumps & credentials (Phase 1 scripts write here)
+scripts/migrate/out/
+scripts/migrate/*.sql.gz
+*.dump
+*.dump.gz
+
+# Supabase CLI scratch state — was accidentally committed in RHS-BAND;
+# never allowed in this repo.
+supabase/.temp/
+
+# Read-only clone of the live RHS-BAND repo used for reference/audit.
+reference/
+
+# Node / build
+node_modules/
+dist/
+.vercel/
+*.log
+.DS_Store
+
+# Portable tooling (Postgres client binaries, machine-local)
+.tools/
+
+# Freebuff workspace metadata (machine-local)
+.freebuff/
