@@ -33,7 +33,10 @@ export default async function clerkProxy(req, res) {
   }
 
   const incomingUrl = new URL(req.url ?? "/", "https://rhs-musicandarts.vercel.app");
-  const proxyPath = incomingUrl.pathname.replace(/^\/(?:api\/)?_clerk\/?/, "");
+  const proxyPath = incomingUrl.pathname.replace(
+    /^\/(?:api\/)?(?:_clerk|clerk-proxy)\/?/,
+    ""
+  );
   const targetUrl = new URL(`/${proxyPath}${incomingUrl.search}`, CLERK_FRONTEND_API);
   const headers = new Headers();
 
