@@ -29,6 +29,7 @@ if (missing.length > 0) {
     <StrictMode>
       <ClerkProvider
         publishableKey={publishableKey as string}
+        proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL}
         afterSignOutUrl="/"
         signInUrl="/sign-in"
         signUpUrl="/sign-up"
