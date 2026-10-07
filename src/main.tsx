@@ -4,7 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
 import { ConfigMissingScreen } from "./screens/ConfigMissingScreen";
-import { isBackendConfigured } from "./lib/supabase";
+import { isBackendConfigured } from "./lib/backend-config";
+import "@fontsource/barlow-condensed/latin-600.css";
+import "@fontsource/barlow-condensed/latin-700.css";
+import "@fontsource-variable/ibm-plex-sans/wght.css";
 import "./index.css";
 
 const publishableKey =

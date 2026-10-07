@@ -1,12 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import { isBackendConfigured } from "./backend-config";
+
+export { isBackendConfigured };
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-/** True when both Supabase values look real (see ConfigMissingScreen). */
-export const isBackendConfigured = Boolean(
-  url && anonKey && url.startsWith("http") && !url.includes("YOUR-PROJECT")
-);
 
 /**
  * Clerk owns the session. Supabase never stores one, so every request carries a

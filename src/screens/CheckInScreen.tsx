@@ -19,6 +19,7 @@ import {
   SegmentedControl,
   Sheet,
   Skeleton,
+  cn,
 } from "../components/ui";
 import { QrScanner } from "../components/QrScanner";
 import { LiveCheckIn } from "../components/LiveCheckIn";
@@ -29,6 +30,7 @@ import type { EventRow, RpcResult } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import { CHECKIN_CODE_LENGTH, CHECKIN_MODE_LABEL, eventTypeLabel } from "../lib/constants";
 import { fmtTime, parseTokenFromString, relativeDay } from "../lib/date";
+import { hapticCheckIn, hapticCheckInError } from "../lib/motion";
 
 /**
  * `/checkin` — one route, two jobs.
@@ -61,9 +63,33 @@ export function CheckInScreen() {
 /* -------------------------------------------------------------------------- */
 
 function StudentCheckIn({ token }: { token: string | null }) {
+  const app = usePrograms();
   return (
-    <div className="space-y-4 p-4 pb-6">
-      {token ? <TokenResult token={token} /> : <CheckInForm />}
+    <div className="cue-stagger mx-auto max-w-xl space-y-4 p-4 pb-6 sm:p-6">
+      {token ? (
+        <TokenResult token={token} />
+      ) : (
+        <>
+          <div>
+            <p className="font-display text-lg font-bold tracking-wide text-[var(--cue-green)] uppercase">
+              {app.program?.short_name || app.program?.name || "Your program"}
+            </p>
+            <h1 className="font-display text-4xl leading-none font-bold uppercase sm:text-5xl">
+              <span className="cue-line">
+                <span className="cue-line-inner">Check in</span>
+              </span>
+            </h1>
+            <span
+              aria-hidden="true"
+              className="cue-rule-draw mt-3 block h-0.5 w-16 bg-[var(--cue-gold)]"
+            />
+            <p className="mt-2 text-sm text-[var(--cue-muted)]">
+              Scan the code on the rehearsal-room screen, or enter it below.
+            </p>
+          </div>
+          <CheckInForm />
+        </>
+      )}
     </div>
   );
 }
@@ -90,15 +116,27 @@ function TokenResult({ token }: { token: string }) {
     }
     submittedTokens.add(token);
     void (async () => {
-      const { result, error } = await recordAttendance(token);
-      if (error) {
-        setFailure(error.message);
-      } else {
-        if (result) tokenOutcomes.set(token, result);
-        setOutcome(result);
-        if (!result?.ok) setFailure(result?.message ?? "That code didn't work.");
+      try {
+        const { result, error } = await recordAttendance(token);
+        if (error) {
+          setFailure(error.message);
+          hapticCheckInError();
+        } else {
+          if (result) tokenOutcomes.set(token, result);
+          setOutcome(result);
+          if (result?.ok) {
+            hapticCheckIn(Boolean(result.is_late));
+          } else {
+            setFailure(result?.message ?? "That code didn't work.");
+            hapticCheckInError();
+          }
+        }
+      } catch (e) {
+        setFailure(e instanceof Error ? e.message : "Could not check you in. Try again.");
+        hapticCheckInError();
+      } finally {
+        setState("done");
       }
-      setState("done");
     })();
   }, [token]);
 
@@ -115,12 +153,30 @@ function TokenResult({ token }: { token: string }) {
   if (outcome?.ok) {
     return (
       <div className="space-y-3">
-        <Card className="flex flex-col items-center gap-2 py-8 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-band/12 dark:bg-band/25">
-            <CheckCircle2 className="h-9 w-9 text-band dark:text-emerald-300" />
+        <Card
+          role="status"
+          aria-live="polite"
+          className={`checkin-confirmation ${outcome.is_late ? "checkin-confirmation--late" : ""} flex flex-col items-center gap-2 py-8 text-center`}
+        >
+          <span className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-control)] bg-band/12 dark:bg-band/25">
+            <CheckCircle2 className="checkin-mark h-9 w-9 text-[var(--cue-green)]" />
           </span>
-          <p className="text-xl font-extrabold">
-            {outcome.is_late ? "Checked in (late)" : "You're checked in"}
+          <p className="font-display text-3xl font-bold uppercase">
+            <span className="cue-line">
+              <span className="cue-line-inner">
+                {outcome.is_late ? "Checked in · late" : "You’re checked in"}
+              </span>
+            </span>
+          </p>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "cue-rule-draw block h-0.5 w-12",
+              outcome.is_late ? "bg-[var(--cue-gold)]" : "bg-[var(--cue-green)]"
+            )}
+          />
+          <p className="text-sm font-semibold text-[var(--cue-muted)]">
+            {outcome.is_late ? "Marked late for this event." : "Nice and early."}
           </p>
           {outcome.event_name ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -141,7 +197,7 @@ function TokenResult({ token }: { token: string }) {
 
   return (
     <div className="space-y-3">
-      <Alert tone="error">
+      <Alert tone="error" className="checkin-error">
         {failure ?? outcome?.message ?? "That check-in code didn't work."}
       </Alert>
       <Card className="space-y-2">
@@ -169,14 +225,26 @@ function CheckInForm() {
   const submit = useCallback(async (run: () => Promise<RpcResponse>) => {
     setBusy(true);
     setFailure(null);
-    const { result, error } = await run();
-    setBusy(false);
-    if (error) {
-      setFailure(error.message);
-      return;
+    try {
+      const { result, error } = await run();
+      if (error) {
+        setFailure(error.message);
+        hapticCheckInError();
+        return;
+      }
+      setOutcome(result);
+      if (result?.ok) {
+        hapticCheckIn(Boolean(result.is_late));
+      } else {
+        setFailure(result?.message ?? "That didn't work — ask for a fresh code.");
+        hapticCheckInError();
+      }
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : "Could not check you in. Try again.");
+      hapticCheckInError();
+    } finally {
+      setBusy(false);
     }
-    setOutcome(result);
-    if (!result?.ok) setFailure(result?.message ?? "That didn't work — ask for a fresh code.");
   }, []);
 
   const onDecode = useCallback(
@@ -184,6 +252,7 @@ function CheckInForm() {
       const parsed = parseTokenFromString(text);
       if (!parsed) {
         setFailure("That QR code isn't a check-in code for this program.");
+        hapticCheckInError();
         return;
       }
       void submit(() => recordAttendance(parsed));
@@ -196,12 +265,30 @@ function CheckInForm() {
   if (outcome?.ok) {
     return (
       <div className="space-y-3">
-        <Card className="flex flex-col items-center gap-2 py-8 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-band/12 dark:bg-band/25">
-            <CheckCircle2 className="h-9 w-9 text-band dark:text-emerald-300" />
+        <Card
+          role="status"
+          aria-live="polite"
+          className={`checkin-confirmation ${outcome.is_late ? "checkin-confirmation--late" : ""} flex flex-col items-center gap-2 py-8 text-center`}
+        >
+          <span className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-control)] bg-band/12 dark:bg-band/25">
+            <CheckCircle2 className="checkin-mark h-9 w-9 text-[var(--cue-green)]" />
           </span>
-          <p className="text-xl font-extrabold">
-            {outcome.is_late ? "Checked in (late)" : "You're checked in"}
+          <p className="font-display text-3xl font-bold uppercase">
+            <span className="cue-line">
+              <span className="cue-line-inner">
+                {outcome.is_late ? "Checked in · late" : "You’re checked in"}
+              </span>
+            </span>
+          </p>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "cue-rule-draw block h-0.5 w-12",
+              outcome.is_late ? "bg-[var(--cue-gold)]" : "bg-[var(--cue-green)]"
+            )}
+          />
+          <p className="text-sm font-semibold text-[var(--cue-muted)]">
+            {outcome.is_late ? "Marked late for this event." : "Nice and early."}
           </p>
           {outcome.event_name ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -210,7 +297,7 @@ function CheckInForm() {
             </p>
           ) : null}
           {outcome.is_late ? (
-            <Badge className="bg-accent text-ink">Late</Badge>
+            <Badge className="bg-accent text-[var(--cue-gold-ink)]">Late</Badge>
           ) : null}
         </Card>
         <Button block variant="secondary" onClick={() => navigate("/")}>
@@ -221,11 +308,11 @@ function CheckInForm() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="cue-stagger space-y-3">
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
-          <QrCode className="h-5 w-5 text-band dark:text-emerald-300" />
-          <p className="font-semibold">Check in</p>
+          <QrCode className="h-5 w-5 text-[var(--cue-green)]" />
+          <p className="font-display text-2xl font-bold uppercase">Scan or enter your code</p>
         </div>
 
         <SegmentedControl
@@ -237,50 +324,70 @@ function CheckInForm() {
           ]}
         />
 
-        {tab === "scan" ? (
-          <div className="space-y-2">
-            <QrScanner active={!busy} onDecode={onDecode} onError={onScannerError} />
-            <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-              Point your camera at the QR code on the screen.
-            </p>
-          </div>
-        ) : (
-          <form
-            className="space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (code.trim().length < CHECKIN_CODE_LENGTH) return;
-              void submit(() => recordAttendanceByCode(code.trim()));
-            }}
-          >
-            <Field label="Check-in code" hint={`${CHECKIN_CODE_LENGTH} characters, on the screen`}>
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, CHECKIN_CODE_LENGTH))}
-                placeholder="ABCD2345"
-                inputMode="text"
-                autoCapitalize="characters"
-                autoComplete="off"
-                spellCheck={false}
-                className="text-center font-mono text-2xl tracking-[0.3em]"
-                autoFocus
-              />
-            </Field>
-            <Button
-              block
-              size="lg"
-              type="submit"
-              loading={busy}
-              disabled={code.trim().length < CHECKIN_CODE_LENGTH}
-              icon={<ScanLine className="h-5 w-5" />}
+        {/* Keyed by tab so the incoming pane always plays one short,
+            directional reveal; the tab itself never waits on it. */}
+        <div
+          key={tab}
+          className={cn("cue-pane", tab === "scan" && "cue-pane-from-left")}
+        >
+          {tab === "scan" ? (
+            <div className="space-y-2">
+              <QrScanner active={!busy} onDecode={onDecode} onError={onScannerError} />
+              <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+                Point your camera at the QR code on the screen.
+              </p>
+            </div>
+          ) : (
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (code.trim().length < CHECKIN_CODE_LENGTH) return;
+                void submit(() => recordAttendanceByCode(code.trim()));
+              }}
             >
-              Check in
-            </Button>
-          </form>
-        )}
+              <Field label="Check-in code" hint={`${CHECKIN_CODE_LENGTH} characters, on the screen`}>
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, CHECKIN_CODE_LENGTH))}
+                  placeholder="ABCD2345"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="text-center font-mono text-2xl tracking-[0.3em]"
+                  autoFocus
+                />
+                {/* Progress toward a complete code: a transform-only meter,
+                    so typing never triggers a reflow. */}
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 block h-1 w-full overflow-hidden rounded-full bg-[var(--cue-raised)]"
+                >
+                  <span
+                    className="cue-meter-fill block h-full rounded-full bg-[var(--cue-green)]"
+                    style={{
+                      transform: `scaleX(${code.trim().length / CHECKIN_CODE_LENGTH})`,
+                    }}
+                  />
+                </span>
+              </Field>
+              <Button
+                block
+                size="lg"
+                type="submit"
+                loading={busy}
+                disabled={code.trim().length < CHECKIN_CODE_LENGTH}
+                icon={<ScanLine className="h-5 w-5" />}
+              >
+                Check in
+              </Button>
+            </form>
+          )}
+        </div>
       </Card>
 
-      {failure ? <Alert tone="error">{failure}</Alert> : null}
+      {failure ? <Alert tone="error" className="checkin-error">{failure}</Alert> : null}
 
       <TodayHint programId={app.program?.id ?? null} />
     </div>
@@ -292,6 +399,9 @@ function TodayHint({ programId }: { programId: string | null }) {
   const [event, setEvent] = useState<EventRow | null>(null);
   const [hasSession, setHasSession] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!programId) {
@@ -300,26 +410,53 @@ function TodayHint({ programId }: { programId: string | null }) {
     }
     let cancelled = false;
     void (async () => {
-      const list = await fetchEvents(programId, {
-        from: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
-        to: new Date(new Date().setHours(23, 59, 59, 999)).toISOString(),
-      });
-      const session = list[0] ? await fetchSessionForEvent(list[0].id) : null;
-      if (cancelled) return;
-      setEvent(list[0] ?? null);
-      setHasSession(Boolean(session && new Date(session.expires_at) > new Date()));
-      setLoading(false);
+      try {
+        const list = await fetchEvents(programId, {
+          from: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
+          to: new Date(new Date().setHours(23, 59, 59, 999)).toISOString(),
+        });
+        const session = list[0] ? await fetchSessionForEvent(list[0].id) : null;
+        if (cancelled) return;
+        setEvent(list[0] ?? null);
+        setHasSession(Boolean(session && new Date(session.expires_at) > new Date()));
+        setError(null);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "Could not load today’s event.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [programId]);
+  }, [programId, retry]);
 
-  if (loading) return <Skeleton className="h-16 w-full" />;
+  if (loading) return <Skeleton className="h-28 w-full" />;
+  if (error) {
+    return (
+      <Card className="space-y-3">
+        <Alert tone="error">{error}</Alert>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setLoading(true);
+            setRetry((value) => value + 1);
+          }}
+        >
+          Try again
+        </Button>
+      </Card>
+    );
+  }
   if (!event) {
     return (
-      <Card className="text-sm text-zinc-500 dark:text-zinc-400">
-        Nothing on today&rsquo;s calendar. Check the calendar for what&rsquo;s next.
+      <Card className="space-y-3">
+        <p className="font-semibold">Nothing on today&rsquo;s call sheet.</p>
+        <p className="text-sm text-[var(--cue-muted)]">See when the next rehearsal or event is scheduled.</p>
+        <Button variant="secondary" onClick={() => navigate("/calendar", { viewTransition: true })}>
+          Open calendar
+        </Button>
       </Card>
     );
   }
@@ -334,7 +471,7 @@ function TodayHint({ programId }: { programId: string | null }) {
       </p>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         {hasSession ? (
-          <span className="flex items-center gap-1.5 font-medium text-band dark:text-emerald-300">
+          <span className="flex items-center gap-1.5 font-medium text-[var(--cue-green)]">
             <Timer className="h-4 w-4" /> A code is live right now
           </span>
         ) : (
@@ -355,6 +492,8 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
 
   const [mode, setMode] = useState<"run" | "self">("run");
   const [events, setEvents] = useState<EventRow[] | null>(null);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [eventsRetry, setEventsRetry] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(initialEventId);
   const [pickerOpen, setPickerOpen] = useState(false);
   // "Stop" must actually stop: without this the default-selection effect would
@@ -364,15 +503,23 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
   useEffect(() => {
     if (!programId) return;
     let cancelled = false;
+    setEvents(null);
+    setEventsError(null);
     void (async () => {
-      const list = await fetchEvents(programId);
-      if (cancelled) return;
-      setEvents(list);
+      try {
+        const list = await fetchEvents(programId);
+        if (cancelled) return;
+        setEvents(list);
+        setEventsError(null);
+      } catch (e) {
+        if (cancelled) return;
+        setEventsError(e instanceof Error ? e.message : "Could not load events.");
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [programId]);
+  }, [programId, eventsRetry]);
 
   /** Events that can host a QR/code session, closest to now first. */
   const selectable = useMemo(() => {
@@ -402,7 +549,7 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
 
   if (mode === "self") {
     return (
-      <div className="space-y-4 p-4 pb-6">
+      <div className="cue-stagger space-y-4 p-4 pb-6">
         <SegmentedControl
           value={mode}
           onChange={setMode}
@@ -417,7 +564,7 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
   }
 
   return (
-    <div className="space-y-4 p-4 pb-6">
+    <div className="cue-stagger space-y-4 p-4 pb-6">
       <SegmentedControl
         value={mode}
         onChange={setMode}
@@ -427,7 +574,17 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
         ]}
       />
 
-      {events === null ? (
+      {eventsError ? (
+        <Card className="space-y-3">
+          <Alert tone="error">{eventsError}</Alert>
+          <Button
+            variant="secondary"
+            onClick={() => setEventsRetry((value) => value + 1)}
+          >
+            Try again
+          </Button>
+        </Card>
+      ) : events === null ? (
         <Skeleton className="h-40 w-full" />
       ) : selectable.length === 0 ? (
         <Card>
@@ -459,7 +616,7 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
                   : "Tap to pick which event you're running"}
               </span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
+            <ChevronRight className="cue-nudge h-5 w-5 shrink-0 text-zinc-400" />
           </button>
 
           {selected ? (

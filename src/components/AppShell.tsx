@@ -81,9 +81,9 @@ export function AppShell() {
     .join(" · ");
 
   return (
-    <div className="flex h-full flex-col bg-surface dark:bg-[#0c0f0a]">
+    <div className="flex h-full flex-col bg-[var(--cue-page)]">
       {/* --- app bar: the umbrella, then the program you are actually in --- */}
-      <header className="safe-t sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-black/5 bg-surface/95 px-3 backdrop-blur dark:border-white/10 dark:bg-[#0c0f0a]/95">
+      <header className="safe-t sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-[var(--cue-border)] bg-[var(--cue-page)] px-3">
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
             {ORG_NAME}
@@ -93,7 +93,7 @@ export function AppShell() {
               type="button"
               onClick={() => setSwitcherOpen(true)}
               aria-label={`Switch program — currently ${programName}`}
-              className="-ml-1 flex min-h-6 max-w-full items-center gap-1 rounded-lg px-1 text-left transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+              className="motion-press -ml-1 flex min-h-11 max-w-full items-center gap-1 rounded-[var(--radius-control)] px-1 text-left hover:bg-[var(--cue-raised)]"
             >
               <span className="truncate text-sm font-bold">{programName}</span>
               <span className="hidden truncate text-xs text-zinc-500 sm:inline dark:text-zinc-400">
@@ -111,21 +111,21 @@ export function AppShell() {
           )}
         </div>
         <div className="hidden items-center gap-1 md:flex">
-          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/">
+          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/">
             Home
           </Link>
-          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/#my-programs">
+          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/#my-programs">
             My Programs
           </Link>
-          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/calendar">
+          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/calendar">
             Events
           </Link>
           {app.isStaff ? (
-            <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/attendance">
+            <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/attendance">
               Attendance
             </Link>
           ) : null}
-          <Link className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-black/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.08]" to="/calendar">
+          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/calendar">
             Calendar
           </Link>
         </div>
@@ -141,7 +141,7 @@ export function AppShell() {
           variant="ghost"
           icon={dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         />
-        <Link to="/me" aria-label="Your profile" className="shrink-0">
+        <Link viewTransition to="/me" aria-label="Your profile" className="motion-press shrink-0">
           <Avatar name={name} url={app.profile?.avatar_url} size={34} />
         </Link>
       </header>
@@ -173,19 +173,20 @@ export function AppShell() {
       </main>
 
       {/* --- bottom nav --- */}
-      <nav className="safe-b z-30 shrink-0 border-t border-black/5 bg-surface/95 backdrop-blur dark:border-white/10 dark:bg-[#0c0f0a]/95">
+      <nav className="safe-b z-30 shrink-0 border-t border-[var(--cue-border)] bg-[var(--cue-page)]">
         <ul className="flex items-stretch justify-around pt-1 pb-0.5">
           {items.map((item) => (
             <li key={item.to} className="flex-1">
               <NavLink
+                viewTransition
                 to={item.to}
                 end={item.to === "/"}
                 className={({ isActive }) =>
                   cn(
-                    "mx-auto flex min-h-12 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-semibold transition-colors",
+                    "motion-press relative mx-auto flex min-h-12 w-full flex-col items-center justify-center gap-0.5 rounded-none px-1 py-1 text-[10px] font-semibold",
                     isActive
-                      ? "text-band dark:text-emerald-300"
-                      : "text-zinc-500 dark:text-zinc-400"
+                      ? "text-[var(--cue-green)]"
+                      : "text-[var(--cue-muted)]"
                   )
                 }
               >
@@ -193,6 +194,7 @@ export function AppShell() {
                   <>
                     <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
                     <span>{item.label}</span>
+                    {isActive ? <span aria-hidden="true" className="cue-tab-indicator" /> : null}
                   </>
                 )}
               </NavLink>

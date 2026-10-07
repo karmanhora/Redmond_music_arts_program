@@ -26,7 +26,7 @@ export const APP_NAME = "RHS Music & Arts Attendance";
 export const ORG_NAME = "Redmond High School Music & Arts";
 
 export const APP_DESCRIPTION =
-  "One attendance platform for Redmond High School's music and arts programs.";
+  "The rehearsal calendar, attendance, and check-in tools for RHS musicians and their directors.";
 
 export interface EventTypeOption {
   /** Canonical lowercase key stored in `events.event_type`. */
@@ -137,11 +137,42 @@ export function defaultAttendanceRequirement(mode: CheckinMode): AttendanceRequi
 
 /** Default site palette — also the fallback when a program stores no tokens. */
 export const DEFAULT_THEME_TOKENS: Record<string, string> = {
-  primary: "#2d5a1b",
-  primaryDeep: "#1d3c11",
-  accent: "#f5a623",
-  surface: "#f6f7f2",
-  ink: "#1c2517",
+  primary: "#214d35",
+  primaryDeep: "#173b28",
+  accent: "#d5a33a",
+  surface: "#faf9f4",
+  ink: "#20241f",
 };
 
 export const CHECKIN_CODE_LENGTH = 8;
+
+/**
+ * Which audience the auth screens are speaking to — student or teacher.
+ *
+ * This is a preference for copy only: it survives Clerk's own sign-in ↔
+ * sign-up links (which drop query strings) via session storage, and real roles
+ * (director, section leader, student) still come from program membership after
+ * sign-in, never from this choice.
+ */
+export type AuthAudience = "student" | "teacher";
+
+const AUTH_AUDIENCE_KEY = "rhs:auth-audience";
+
+export function readAuthAudience(): AuthAudience {
+  try {
+    return window.sessionStorage.getItem(AUTH_AUDIENCE_KEY) === "teacher"
+      ? "teacher"
+      : "student";
+  } catch {
+    /* private mode: fall back to the default copy */
+    return "student";
+  }
+}
+
+export function writeAuthAudience(audience: AuthAudience): void {
+  try {
+    window.sessionStorage.setItem(AUTH_AUDIENCE_KEY, audience);
+  } catch {
+    /* private mode: the choice just doesn't survive the session */
+  }
+}

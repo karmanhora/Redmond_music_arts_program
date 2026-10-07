@@ -21,17 +21,77 @@
   --color-surface: var(--band-surface);
   --color-ink: var(--band-ink);
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
 }
 
-/* RHS band heritage palette — the default and the fallback. */
 :root {
-  --band-primary: #2d5a1b;
-  --band-primary-deep: #1d3c11;
-  --band-accent: #f5a623;
-  --band-surface: #f6f7f2;
-  --band-ink: #1c2517;
+  color-scheme: light;
+  --band-primary: #214d35;
+  --band-primary-deep: #173b28;
+  --band-accent: #d5a33a;
+  --band-surface: #faf9f4;
+  --band-ink: #20241f;
+
+  --cue-page: #faf9f4;
+  --cue-panel: #ffffff;
+  --cue-raised: #f1f0e9;
+  --cue-ink: #20241f;
+  --cue-muted: #575e57;
+  --cue-border: #d8d9d0;
+  --cue-green: #214d35;
+  --cue-green-deep: #173b28;
+  --cue-action: #214d35;
+  --cue-action-hover: #173b28;
+  --cue-brand-panel: #214d35;
+  --cue-brand-ink: #ffffff;
+  --cue-gold: #d5a33a;
+  --cue-gold-ink: #563b08;
+  --cue-late: #a74432;
+  --cue-focus: #79520a;
+  --cue-shadow: 0 2px 0 rgb(32 36 31 / 5%);
+
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --radius-sheet: 1.125rem;
+  --elevation-panel: var(--cue-shadow);
+  --motion-short: 110ms;
+  --motion-base: 180ms;
+  --motion-long: 260ms;
+  --motion-tempo: 80ms;
+  --ease-standard: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --spring-snappy: cubic-bezier(0.2, 1.12, 0.35, 1);
+  --spring-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring-gentle: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dark {
+  color-scheme: dark;
+  --band-accent: #e5b64f;
+  --band-surface: #111713;
+  --band-ink: #f4f2e9;
+
+  --cue-page: #111713;
+  --cue-panel: #1b231d;
+  --cue-raised: #242e27;
+  --cue-ink: #f4f2e9;
+  --cue-muted: #b7c0b8;
+  --cue-border: #39443b;
+  --cue-green: #79aa82;
+  --cue-green-deep: #a7cfaa;
+  --cue-action: #214d35;
+  --cue-action-hover: #286143;
+  --cue-brand-panel: #17231a;
+  --cue-brand-ink: #f4f2e9;
+  --cue-gold: #e5b64f;
+  --cue-gold-ink: #342606;
+  --cue-late: #f08b73;
+  --cue-focus: #f2c761;
+  --cue-shadow: 0 2px 0 rgb(0 0 0 / 20%);
+}
+
+.dark .bg-accent.text-ink {
+  color: var(--cue-gold-ink);
 }
 
 html,
@@ -42,17 +102,23 @@ body,
 
 body {
   font-family: var(--font-sans);
-  color: var(--band-ink);
-  background: var(--band-surface);
+  color: var(--cue-ink);
+  background: var(--cue-page);
   -webkit-font-smoothing: antialiased;
   /* The app scrolls inside its own panes; don't rubber-band the whole page. */
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.dark body {
-  color: #e4e4e7;
-  background: #0c0f0a;
+button,
+a[href] {
+  touch-action: manipulation;
+  transition: transform var(--motion-short) var(--ease-standard) !important;
+}
+
+button:active,
+a[href]:active {
+  transform: scale(0.985);
 }
 
 /* Installed-PWA safe areas (notch / home indicator). */
@@ -65,9 +131,9 @@ body {
 
 /* Keyboard focus is always visible — never removed, only styled. */
 :focus-visible {
-  outline: 2px solid var(--band-accent);
+  outline: 2px solid var(--cue-focus);
   outline-offset: 2px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 * {
@@ -87,91 +153,499 @@ body {
 @keyframes band-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateY(0);
   }
 }
 .animate-in {
-  animation: band-in 180ms ease-out both;
+  animation: band-in var(--motion-base) var(--ease-standard) both;
 }
 
-@keyframes band-sheet {
+.cue-hero-copy > * {
+  animation: cue-hero-reveal 520ms var(--spring-settle) both;
+}
+
+.cue-hero-kicker {
+  animation-delay: 0ms;
+}
+
+.cue-hero-title {
+  animation-delay: var(--motion-tempo);
+}
+
+.cue-hero-copyline {
+  animation-delay: calc(var(--motion-tempo) * 2);
+}
+
+.cue-hero-actions {
+  animation-delay: calc(var(--motion-tempo) * 3);
+}
+
+.cue-hero-note {
+  animation-delay: calc(var(--motion-tempo) * 4);
+}
+
+.cue-hero-preview {
+  animation: cue-hero-reveal 620ms var(--spring-settle) 160ms both;
+}
+
+/*
+ * The shared staged-entrance ladder: top-level groups of a screen arrive once,
+ * stepped by the shared tempo. Used by the student home, the check-in flow, and
+ * the director's live view. Delays only exist while the animation runs, so the
+ * reduced-motion block below clears them with `animation: none`.
+ */
+.cue-stagger > * {
+  animation: cue-rise 360ms var(--spring-settle) both;
+}
+
+.cue-stagger > :nth-child(2) {
+  animation-delay: var(--motion-tempo);
+}
+
+.cue-stagger > :nth-child(3) {
+  animation-delay: calc(var(--motion-tempo) * 2);
+}
+
+.cue-stagger > :nth-child(4) {
+  animation-delay: calc(var(--motion-tempo) * 3);
+}
+
+.cue-stagger > :nth-child(5) {
+  animation-delay: calc(var(--motion-tempo) * 4);
+}
+
+.cue-stagger > :nth-child(n + 6) {
+  animation-delay: calc(var(--motion-tempo) * 5);
+}
+
+@keyframes cue-rise {
   from {
-    transform: translateY(12px);
-    opacity: 0.6;
+    opacity: 0;
+    transform: translateY(7px);
   }
   to {
-    transform: none;
     opacity: 1;
+    transform: translateY(0);
   }
 }
-.animate-sheet {
-  animation: band-sheet 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+/* A pane that replaces its sibling (Scan QR / Enter code) arrives from the
+ * side it was picked on: the right-hand choice slides in from the right, and
+ * `.cue-pane-from-left` reverses it for the left-hand choice. */
+.cue-pane {
+  --pane-from: 12px;
+  animation: cue-pane-in var(--motion-base) var(--ease-standard) both;
 }
 
-@keyframes band-pulse {
+.cue-pane-from-left {
+  --pane-from: -12px;
+}
+
+@keyframes cue-pane-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--pane-from));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Meter fills (checked-in progress, code-entry progress) grow with a
+ * transform instead of a width change, so nothing reflows while they move. */
+.cue-meter-fill {
+  transform-origin: left;
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+/* SegmentedControl's active pill. Each tab owns its own pill so wrapped rows
+ * stay aligned; the indicator settles between tabs with opacity + scale. */
+.cue-seg-pill {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--spring-settle);
+}
+
+.cue-seg-pill--on {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/*
+ * Masked line reveal (from the reference site's hero titles): the mask is
+ * static, only the line inside it moves. The padding/negative-margin pair
+ * keeps descenders and caps from being clipped by the mask, and the start
+ * offset is far enough that nothing peeks before the reveal begins.
+ */
+.cue-line {
+  display: block;
+  overflow: hidden;
+  padding-block: 0.08em;
+  margin-block: -0.08em;
+}
+
+.cue-line-inner {
+  display: block;
+  animation: cue-line-up 520ms var(--spring-settle) var(--motion-tempo) both;
+}
+
+@keyframes cue-line-up {
+  from {
+    transform: translateY(125%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* A short accent rule that draws itself left to right under a display line,
+ * trailing the line by one tempo step. */
+.cue-rule-draw {
+  transform-origin: left;
+  animation: cue-rule-draw 480ms var(--spring-settle) var(--motion-tempo) both;
+}
+
+@keyframes cue-rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Arrow nudge: an affordance moves a hair toward where it will take you. */
+.cue-nudge {
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+
+button:hover .cue-nudge,
+button:active .cue-nudge,
+a[href]:hover .cue-nudge {
+  transform: translateX(4px);
+}
+
+/* The live feed breathes while it polls: one restrained, opacity-only loop. */
+.cue-live-breathe {
+  animation: cue-live-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes cue-live-breathe {
   0%,
   100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.55;
+    opacity: 0.45;
   }
 }
-.animate-pulse-soft {
-  animation: band-pulse 1.6s ease-in-out infinite;
+
+@keyframes cue-hero-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.musical-notes {
-  position: absolute;
-  inset: 0;
+.cue-music-score {
+  right: -14%;
+  bottom: 16%;
+  width: 78%;
+  max-width: 720px;
+  color: var(--cue-gold);
+  opacity: 0.12;
+  animation: cue-score-drift 18s ease-in-out infinite alternate;
+}
+
+@media (min-width: 640px) {
+  .cue-music-score {
+    right: -8%;
+    bottom: 18%;
+    width: 70%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cue-music-score {
+    top: 18%;
+    right: -5%;
+    bottom: auto;
+    width: 44%;
+  }
+}
+
+.cue-score-staves {
+  opacity: 0.62;
+}
+
+.cue-score-notes {
+  animation: cue-note-lift 7s var(--spring-gentle) infinite alternate;
+}
+
+@keyframes cue-score-drift {
+  from {
+    opacity: 0.09;
+    transform: translate3d(0, 0, 0) rotate(-1deg);
+  }
+  to {
+    opacity: 0.16;
+    transform: translate3d(-10px, -8px, 0) rotate(1deg);
+  }
+}
+
+@keyframes cue-note-lift {
+  from {
+    transform: translateY(3px);
+  }
+  to {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes band-sheet {
+  from {
+    transform: translateY(18px);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-sheet {
+  animation: band-sheet var(--motion-long) var(--spring-gentle) both;
+}
+
+.sheet-drag {
+  transition: transform var(--motion-base) var(--spring-gentle);
+}
+
+@keyframes band-shimmer {
+  from {
+    transform: translateX(-140%);
+  }
+  to {
+    transform: translateX(360%);
+  }
+}
+
+.cue-card {
+  border: 1px solid var(--cue-border);
+  background: var(--cue-panel);
+  box-shadow: var(--elevation-panel);
+}
+
+.skeleton-shimmer {
+  position: relative;
   overflow: hidden;
-  pointer-events: none;
-  opacity: 0.75;
+  background: var(--cue-raised);
 }
 
-.musical-notes span {
+.skeleton-shimmer::after {
   position: absolute;
-  left: var(--x);
-  top: var(--y);
-  color: rgba(255, 255, 255, 0.62);
-  font-size: var(--size);
-  line-height: 1;
-  transform: translate3d(0, 0, 0) rotate(var(--angle));
-  animation: music-drift var(--duration) ease-in-out infinite;
-  animation-delay: var(--delay);
+  inset: 0 auto 0 0;
+  width: 28%;
+  background: color-mix(in srgb, var(--cue-ink) 8%, transparent);
+  content: "";
+  animation: band-shimmer 2.1s linear infinite;
+  pointer-events: none;
 }
 
-.musical-notes span:nth-child(3n) {
-  color: rgba(245, 166, 35, 0.52);
+.motion-press {
+  transition: transform var(--motion-short) var(--ease-standard);
 }
 
-.musical-notes span:nth-child(4n) {
-  color: rgba(156, 163, 175, 0.52);
+.motion-press:active {
+  transform: scale(0.985);
 }
 
-@keyframes music-drift {
+.checkin-confirmation {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  --checkin-wash: rgb(33 77 53 / 18%);
+}
+
+.checkin-confirmation--late {
+  --checkin-wash: rgb(213 163 58 / 24%);
+}
+
+.checkin-confirmation--error {
+  --checkin-wash: rgb(167 68 50 / 18%);
+}
+
+.checkin-confirmation::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: var(--checkin-wash);
+  content: "";
+  opacity: 0;
+  transform: scale(0.65);
+  animation: checkin-downbeat 640ms var(--spring-settle) both;
+  transform-origin: center;
+}
+
+.checkin-confirmation > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes checkin-downbeat {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.65);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+.checkin-mark {
+  animation: checkin-mark 420ms var(--spring-snappy) both;
+  transform-origin: center;
+}
+
+.checkin-error {
+  animation: checkin-error var(--motion-base) var(--ease-standard) both;
+}
+
+@keyframes checkin-error {
   0%,
   100% {
-    opacity: 0.14;
-    transform: translate3d(0, 22px, 0) rotate(var(--angle));
+    transform: translateX(0);
   }
-  42% {
-    opacity: 0.7;
-    transform: translate3d(var(--drift), -38px, 0) rotate(var(--angle-mid));
+  30% {
+    transform: translateX(-4px);
   }
   70% {
-    opacity: 0.38;
-    transform: translate3d(calc(var(--drift) * -0.55), -12px, 0) rotate(var(--angle-late));
+    transform: translateX(4px);
+  }
+}
+
+@keyframes checkin-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cue-odometer {
+  display: inline-block;
+  animation: cue-odometer var(--motion-base) var(--spring-snappy) both;
+}
+
+@keyframes cue-odometer {
+  from {
+    opacity: 0.3;
+    transform: translateY(0.35em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.roster-arrive {
+  animation: band-in var(--motion-base) var(--spring-settle) both;
+}
+
+.cue-ring-arrive {
+  animation: cue-ring-arrive var(--motion-long) var(--spring-snappy) both;
+  transform-origin: center;
+}
+
+@keyframes cue-ring-arrive {
+  from {
+    opacity: 0.5;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+::view-transition-old(root) {
+  animation: route-exit var(--motion-short) ease-in both;
+}
+
+::view-transition-new(root) {
+  animation: route-enter var(--motion-base) var(--ease-standard) both;
+}
+
+.cue-tab-indicator {
+  position: absolute;
+  right: 25%;
+  bottom: 0;
+  left: 25%;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--cue-green);
+  view-transition-name: cue-active-tab;
+}
+
+::view-transition-group(cue-active-tab) {
+  animation-duration: var(--motion-base);
+  animation-timing-function: var(--spring-settle);
+}
+
+@keyframes route-exit {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes route-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .musical-notes span {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .cue-hero-copy > *,
+  .cue-hero-preview,
+  .cue-music-score,
+  .cue-score-notes,
+  .cue-stagger > *,
+  .cue-pane,
+  .cue-pane-from-left,
+  .cue-line-inner,
+  .cue-rule-draw {
     animation: none !important;
-    opacity: 0.22;
+  }
+
+  ::view-transition-group(cue-active-tab) {
+    animation-duration: 0.001ms !important;
   }
 }

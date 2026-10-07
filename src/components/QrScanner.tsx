@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const ELEMENT_ID = "band-qr-reader";
 
@@ -22,10 +22,12 @@ export function QrScanner({
   const host = useRef<HTMLDivElement>(null);
   const scanner = useRef<{ stop: () => Promise<void>; clear: () => void } | null>(null);
   const lastHit = useRef<{ text: string; at: number }>({ text: "", at: 0 });
+  const [cameraState, setCameraState] = useState<"starting" | "ready" | "unavailable">("starting");
 
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
+    setCameraState("starting");
 
     void (async () => {
       try {
@@ -49,9 +51,20 @@ export function QrScanner({
             /* per-frame "no QR found" — not worth surfacing */
           }
         );
+        if (!cancelled) setCameraState("ready");
       } catch (e) {
         if (!cancelled) {
-          onError?.(e instanceof Error ? e.message : "Camera unavailable.");
+          setCameraState("unavailable");
+          const errorName = e instanceof DOMException ? e.name : "";
+          const message =
+            errorName === "NotAllowedError" || errorName === "PermissionDeniedError"
+              ? "Camera access is off. Enter the code instead, or allow camera access in your browser."
+              : errorName === "NotFoundError" || errorName === "NotSupportedError"
+                ? "No usable camera was found. Enter the check-in code instead."
+                : e instanceof Error
+                  ? e.message
+                  : "Camera unavailable. Enter the check-in code instead.";
+          onError?.(message);
         }
       }
     })();
@@ -75,7 +88,15 @@ export function QrScanner({
     <div
       id={ELEMENT_ID}
       ref={host}
-      className="mx-auto w-full max-w-sm overflow-hidden rounded-2xl bg-black/80 [&_video]:w-full"
-    />
+      className="relative mx-auto flex min-h-56 w-full max-w-sm items-center justify-center overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-border)] bg-[#111713] text-center text-sm text-white [&_video]:w-full"
+    >
+      {cameraState !== "ready" ? (
+        <p className="px-6 py-8" role="status">
+          {cameraState === "starting"
+            ? "Opening camera…"
+            : "Camera unavailable. Enter the code instead."}
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClerk, useUser } from "@clerk/clerk-react";
-import { Check, ChevronRight, KeyRound, LogOut, Music, ShieldCheck } from "lucide-react";
+import { Check, ChevronRight, KeyRound, LogOut, Music, ShieldCheck, Users } from "lucide-react";
 import {
   Alert,
   Button,
@@ -17,7 +17,7 @@ import {
 import { joinProgram, listActivePrograms } from "../lib/rpc";
 import type { ProgramOption } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
-import { APP_NAME, ORG_NAME } from "../lib/constants";
+import { APP_NAME, ORG_NAME, readAuthAudience } from "../lib/constants";
 
 /**
  * Joining a program — the first one and every one after it.
@@ -126,6 +126,22 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
           rehearsals, its calendar and your own attendance.
         </p>
       </Card>
+
+      {/* Only right after a teacher chose "I'm a teacher" at sign-up: honest
+          about how staff access is actually granted — by a director, in the
+          roster — so nobody expects tools the join code cannot unlock. */}
+      {standalone && readAuthAudience() === "teacher" ? (
+        <Card className="flex items-start gap-2 border-l-4 border-l-[var(--cue-gold)]">
+          <Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="font-semibold text-[var(--cue-ink)]">
+              Staff access comes from your director.
+            </span>{" "}
+            Once you&rsquo;re on the roster, they can give you the teacher tools — the roster,
+            attendance, and the live check-in screen. Until then you&rsquo;ll see the student view.
+          </p>
+        </Card>
+      ) : null}
 
       {listError ? <Alert tone="warn">{listError}</Alert> : null}
 

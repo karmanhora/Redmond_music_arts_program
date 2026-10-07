@@ -39,18 +39,19 @@ type Size = "sm" | "md" | "lg";
 
 const VARIANT_CLASS: Record<Variant, string> = {
   primary: "bg-band text-white hover:bg-band-deep active:bg-band-deep",
-  accent: "bg-accent text-ink hover:brightness-95 active:brightness-90",
+  accent:
+    "bg-accent text-[var(--cue-gold-ink)] hover:brightness-95 active:brightness-90",
   secondary:
-    "bg-white text-ink ring-1 ring-black/10 hover:bg-black/[0.03] dark:bg-zinc-900 dark:text-zinc-100 dark:ring-white/10 dark:hover:bg-zinc-800",
+    "border border-[var(--cue-border)] bg-[var(--cue-panel)] text-[var(--cue-ink)] hover:bg-[var(--cue-raised)]",
   ghost:
-    "bg-transparent text-ink hover:bg-black/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]",
+    "bg-transparent text-[var(--cue-ink)] hover:bg-[var(--cue-raised)]",
   danger: "bg-red-600 text-white hover:bg-red-700 active:bg-red-800",
 };
 
 const SIZE_CLASS: Record<Size, string> = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-11 px-4 text-sm",
-  lg: "h-13 px-5 text-base",
+  sm: "min-h-11 px-3 text-sm",
+  md: "min-h-11 px-4 text-sm",
+  lg: "min-h-14 px-5 text-base",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -77,7 +78,7 @@ export function Button({
       {...rest}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors",
+        "motion-press inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-semibold",
         "disabled:cursor-not-allowed disabled:opacity-50",
         VARIANT_CLASS[variant],
         SIZE_CLASS[size],
@@ -109,7 +110,7 @@ export function IconButton({
       aria-label={label}
       title={label}
       className={cn(
-        "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors",
+        "motion-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-control)]",
         VARIANT_CLASS[variant],
         className
       )}
@@ -132,8 +133,7 @@ export function Card({
     <div
       {...rest}
       className={cn(
-        "rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5",
-        "dark:bg-zinc-900 dark:ring-white/10",
+        "cue-card rounded-[var(--radius-panel)] p-4",
         className
       )}
     >
@@ -152,8 +152,8 @@ export function SectionTitle({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-end justify-between gap-3 px-1", className)}>
-      <h2 className="text-xs font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
+    <div className={cn("flex items-end justify-between gap-3 border-b border-[var(--cue-border)] pb-2", className)}>
+      <h2 className="font-display text-lg leading-none font-bold tracking-wide text-[var(--cue-muted)] uppercase">
         {children}
       </h2>
       {action}
@@ -179,7 +179,7 @@ export function Row({
   const content = (
     <>
       {icon ? (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-band/10 text-band dark:bg-band/20 dark:text-emerald-300">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-band/10 text-band dark:bg-band/20 dark:text-emerald-300">
           {icon}
         </span>
       ) : null}
@@ -203,7 +203,7 @@ export function Row({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-h-14 w-full items-center gap-3 rounded-xl px-2 py-3 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+        "motion-press flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-control)] px-2 py-3 text-left hover:bg-[var(--cue-raised)]",
         className
       )}
     >
@@ -222,7 +222,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide",
+        "inline-flex min-h-7 items-center rounded-sm px-2 py-1 text-xs font-bold tracking-wide",
         className
       )}
     >
@@ -241,18 +241,21 @@ export function Alert({
   className?: string;
 }) {
   const tones = {
-    info: "bg-sky-50 text-sky-900 ring-sky-200 dark:bg-sky-950/50 dark:text-sky-100 dark:ring-sky-900",
+    info:
+      "bg-[var(--cue-raised)] text-[var(--cue-ink)] ring-[var(--cue-border)]",
     success:
-      "bg-emerald-50 text-emerald-900 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-100 dark:ring-emerald-900",
-    warn: "bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-100 dark:ring-amber-900",
-    error: "bg-red-50 text-red-900 ring-red-200 dark:bg-red-950/50 dark:text-red-100 dark:ring-red-900",
+      "bg-emerald-50 text-emerald-950 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-100 dark:ring-emerald-900",
+    warn:
+      "bg-amber-50 text-amber-950 ring-amber-300 dark:bg-amber-950/50 dark:text-amber-100 dark:ring-amber-800",
+    error:
+      "bg-red-50 text-red-950 ring-red-200 dark:bg-red-950/50 dark:text-red-100 dark:ring-red-900",
   } as const;
   const Icon = { info: Info, success: CheckCircle2, warn: TriangleAlert, error: XCircle }[tone];
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1",
+        "flex items-start gap-2.5 rounded-[var(--radius-control)] border px-3 py-2.5 text-sm",
         tones[tone],
         className
       )}
@@ -268,8 +271,8 @@ export function Alert({
 /* -------------------------------------------------------------------------- */
 
 const CONTROL_CLASS =
-  "w-full rounded-xl border-0 bg-white px-3.5 py-3 text-base text-ink ring-1 ring-black/10 " +
-  "placeholder:text-zinc-400 focus:ring-2 focus:ring-band dark:bg-zinc-900 dark:text-zinc-100 dark:ring-white/15";
+  "min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--cue-border)] bg-[var(--cue-panel)] px-3.5 py-2.5 text-base text-[var(--cue-ink)] " +
+  "placeholder:text-[var(--cue-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--cue-focus)]";
 
 export function Field({
   label,
@@ -287,13 +290,13 @@ export function Field({
   return (
     <label className={cn("block", className)}>
       {label ? (
-        <span className="mb-1.5 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+        <span className="mb-1.5 block text-sm font-semibold text-[var(--cue-ink)]">
           {label}
         </span>
       ) : null}
       {children}
       {error ? (
-        <span className="mt-1 block text-xs font-medium text-red-600 dark:text-red-400">{error}</span>
+        <span className="mt-1 block text-sm font-medium text-[var(--cue-late)]">{error}</span>
       ) : hint ? (
         <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{hint}</span>
       ) : null}
@@ -334,14 +337,14 @@ export function Toggle({
       aria-label={label}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+        "motion-press relative h-11 w-14 shrink-0 rounded-full bg-[var(--cue-raised)]",
         checked ? "bg-band" : "bg-zinc-300 dark:bg-zinc-700"
       )}
     >
       <span
         className={cn(
-          "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-          checked ? "left-6" : "left-1"
+          "absolute top-3 left-1 h-5 w-5 rounded-full bg-[var(--cue-panel)] shadow-sm transition-transform duration-150",
+          checked && "translate-x-6"
         )}
       />
     </button>
@@ -363,26 +366,38 @@ export function SegmentedControl<T extends string>({
     <div
       role="tablist"
       className={cn(
-        "flex gap-1 overflow-x-auto rounded-xl bg-black/[0.05] p-1 dark:bg-white/[0.06]",
+        "flex gap-1 overflow-x-auto rounded-[var(--radius-control)] bg-[var(--cue-raised)] p-1",
         className
       )}
     >
-      {options.map((o) => (
-        <button
-          key={o.value}
-          role="tab"
-          aria-selected={o.value === value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "min-h-9 flex-1 rounded-lg px-3 text-sm font-semibold whitespace-nowrap transition-colors",
-            o.value === value
-              ? "bg-white text-ink shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
-              : "text-zinc-600 hover:text-ink dark:text-zinc-400 dark:hover:text-zinc-100"
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "motion-press relative min-h-11 flex-1 rounded-[var(--radius-control)] px-3 text-sm font-semibold whitespace-nowrap",
+              active
+                ? "text-[var(--cue-ink)]"
+                : "text-[var(--cue-muted)] hover:text-[var(--cue-ink)]"
+            )}
+          >
+            {/* One pill per tab: it settles in/out with opacity + scale, so
+                wrapped rows stay aligned and focus never moves. */}
+            <span
+              aria-hidden="true"
+              className={cn(
+                "cue-seg-pill absolute inset-0 rounded-[var(--radius-control)] bg-[var(--cue-panel)] shadow-sm",
+                active && "cue-seg-pill--on"
+              )}
+            />
+            <span className="relative">{o.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -408,7 +423,7 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-xl bg-black/[0.06] dark:bg-white/[0.08]",
+        "skeleton-shimmer rounded-[var(--radius-control)]",
         className
       )}
     />
@@ -446,6 +461,7 @@ export function ProgressRing({
   stroke = 8,
   children,
   className,
+  animateValue = false,
 }: {
   /** 0–100. */
   value: number;
@@ -453,6 +469,7 @@ export function ProgressRing({
   stroke?: number;
   children?: ReactNode;
   className?: string;
+  animateValue?: boolean;
 }) {
   const clamped = Math.max(0, Math.min(100, value));
   const r = (size - stroke) / 2;
@@ -461,7 +478,11 @@ export function ProgressRing({
   const good = clamped >= 80;
   const warn = clamped >= 60;
   return (
-    <div className={cn("relative inline-flex items-center justify-center", className)}>
+    <div
+      role="img"
+      aria-label={`${Math.round(clamped)}%`}
+      className={cn("cue-ring-arrive relative inline-flex items-center justify-center", className)}
+    >
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <circle
           cx={size / 2}
@@ -469,7 +490,7 @@ export function ProgressRing({
           r={r}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-black/10 dark:stroke-white/15"
+          stroke="var(--cue-border)"
         />
         <circle
           cx={size / 2}
@@ -479,16 +500,46 @@ export function ProgressRing({
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${c}`}
-          className={good ? "stroke-band" : warn ? "stroke-accent" : "stroke-red-500"}
+          stroke={good ? "var(--cue-green)" : warn ? "var(--cue-gold)" : "var(--cue-late)"}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         {children ?? (
-          <span className="text-sm font-bold">{Math.round(clamped)}%</span>
+          <span className="font-display text-2xl font-bold tabular-nums">
+            {animateValue ? <AnimatedPercent value={Math.round(clamped)} /> : `${Math.round(clamped)}%`}
+          </span>
         )}
       </div>
     </div>
   );
+}
+
+function AnimatedPercent({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const previousValue = useRef(0);
+
+  useEffect(() => {
+    const startValue = previousValue.current;
+    previousValue.current = value;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const startedAt = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / 420);
+      const eased = 1 - (1 - progress) ** 3;
+      setDisplayValue(Math.round(startValue + (value - startValue) * eased));
+      if (progress < 1) frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [value]);
+
+  return <>{displayValue}%</>;
 }
 
 export function Avatar({
@@ -518,7 +569,7 @@ export function Avatar({
       aria-hidden="true"
       style={{ width: size, height: size, fontSize: size * 0.38 }}
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-band/15 font-bold text-band-deep dark:bg-band/25 dark:text-emerald-200",
+        "flex shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-band/15 font-bold text-band-deep dark:bg-band/25 dark:text-emerald-200",
         className
       )}
     >
@@ -624,6 +675,20 @@ export function Sheet({
   size?: "auto" | "tall";
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  const dragStart = useRef<{ y: number; at: number } | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const [sheetEntering, setSheetEntering] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setSheetEntering(false);
+      setDragY(0);
+      return;
+    }
+    setSheetEntering(true);
+    const timeout = window.setTimeout(() => setSheetEntering(false), 260);
+    return () => window.clearTimeout(timeout);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -677,7 +742,7 @@ export function Sheet({
         aria-label="Close"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-[2px]"
+        className="absolute inset-0 cursor-default bg-black/55"
       />
       <div
         ref={panel}
@@ -685,15 +750,42 @@ export function Sheet({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative flex w-full max-w-lg flex-col rounded-t-3xl bg-surface shadow-2xl ring-1 ring-black/10",
-          "dark:bg-zinc-950 dark:ring-white/10 sm:rounded-3xl",
-          "animate-sheet max-h-[92vh]",
+          "cue-card relative flex w-full max-w-lg flex-col rounded-t-[var(--radius-sheet)]",
+          sheetEntering && "animate-sheet",
+          "sheet-drag max-h-[92vh] sm:rounded-[var(--radius-sheet)]",
           size === "tall" ? "h-[92vh]" : ""
         )}
+        style={dragY ? { transform: `translateY(${dragY}px)`, transition: "none" } : undefined}
       >
-        <div className="flex items-start gap-3 border-b border-black/5 p-4 dark:border-white/10">
+        <div className="flex items-start gap-3 border-b border-[var(--cue-border)] p-4">
+          <div
+            aria-hidden="true"
+            className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 touch-none rounded-full bg-[var(--cue-muted)]/50 sm:hidden"
+            onPointerDown={(event) => {
+              dragStart.current = { y: event.clientY, at: performance.now() };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              if (!dragStart.current) return;
+              setDragY(Math.max(0, event.clientY - dragStart.current.y));
+            }}
+            onPointerUp={(event) => {
+              const start = dragStart.current;
+              if (start) {
+                const distance = event.clientY - start.y;
+                const velocity = distance / Math.max(1, performance.now() - start.at);
+                dragStart.current = null;
+                if (distance > 120 || velocity > 0.65) onClose();
+              }
+              setDragY(0);
+            }}
+            onPointerCancel={() => {
+              dragStart.current = null;
+              setDragY(0);
+            }}
+          />
           <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold">{title}</h3>
+            <h3 className="font-display text-2xl font-bold tracking-wide">{title}</h3>
             {description ? (
               <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
             ) : null}

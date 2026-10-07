@@ -17,6 +17,20 @@
       name="description"
       content="One attendance platform for Redmond High School's music and arts programs."
     />
+    <script>
+      (() => {
+        let dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        try {
+          const stored = localStorage.getItem("rhs-band:dark");
+          if (stored === "true") dark = true;
+          if (stored === "false") dark = false;
+        } catch {
+          // Keep the operating-system preference when storage is unavailable.
+        }
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      })();
+    </script>
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="/logo-light.svg" media="(prefers-color-scheme: light)" />
     <link rel="icon" type="image/svg+xml" href="/logo-dark.svg" media="(prefers-color-scheme: dark)" />

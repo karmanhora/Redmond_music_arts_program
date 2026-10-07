@@ -61,10 +61,8 @@ export function HomeScreen() {
     if (!programId) return;
     try {
       setError(null);
-      const list = await fetchEvents(programId);
-      setEvents(list);
-
-      const [todayAttendance, myPct, myTrend] = await Promise.all([
+      const [list, todayAttendance, myPct, myTrend] = await Promise.all([
+        fetchEvents(programId),
         profileId
           ? fetchAttendance(programId, {
               from: startOfDay(new Date()).toISOString(),
@@ -74,6 +72,7 @@ export function HomeScreen() {
         getMyAttendancePct(programId),
         getMyAttendanceTrend(programId, 6),
       ]);
+      setEvents(list);
 
       const mine = todayAttendance.find((r) => r.student_id === profileId) ?? null;
       setCheckedInEventId(mine?.event_id ?? null);
@@ -127,48 +126,33 @@ export function HomeScreen() {
   if (!programId) {
     return (
       <div className="space-y-3 p-4">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-12 w-36" />
+        <Skeleton className="h-52 w-full" />
+        <Skeleton className="h-24 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 p-4 pb-6">
+    <div className="cue-stagger mx-auto max-w-6xl space-y-6 p-4 pb-6 sm:p-6">
       {error ? <Alert tone="error">{error}</Alert> : null}
 
-      <section className="rounded-2xl bg-zinc-950 p-5 text-white shadow-sm dark:bg-zinc-900">
-        <p className="text-xs font-bold tracking-widest text-amber-200 uppercase">
-          RHS Music & Arts Attendance
-        </p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight">Welcome back, {firstName}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-white/75">{APP_DESCRIPTION}</p>
-      </section>
-
-      <section id="my-programs" className="space-y-2">
-        <SectionTitle>My Programs</SectionTitle>
-        <div className="grid gap-3 md:grid-cols-2">
-          {app.memberships.map((m) => (
-            <ProgramCard
-              key={m.id}
-              membership={m}
-              current={m.ensemble.id === app.program?.id}
-              onOpen={() => {
-                app.setProgram(m.ensemble.id);
-                navigate("/");
-              }}
-            />
-          ))}
-          {FUTURE_PROGRAMS.map((name) => (
-            <FutureProgramCard key={name} name={name} />
-          ))}
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="font-display text-lg font-bold tracking-wide text-[var(--cue-green)] uppercase">
+            {app.program?.short_name || app.program?.name || "Your program"}
+          </p>
+          <h1 className="font-display text-4xl leading-none font-bold uppercase sm:text-5xl">
+            You&rsquo;re up, {firstName}
+          </h1>
         </div>
-      </section>
+        <p className="max-w-xs text-sm text-[var(--cue-muted)]">{APP_DESCRIPTION}</p>
+      </div>
 
       {loading && !events ? (
         <>
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-56 w-full" />
+          <Skeleton className="h-32 w-full" />
         </>
       ) : nextEvent ? (
         <HeroEventCard
@@ -176,23 +160,30 @@ export function HomeScreen() {
           isToday={nextEvent.id === todayEvent?.id}
           alreadyCheckedIn={checkedInEventId === nextEvent.id}
           checkedInAt={checkedInAt}
-          onCheckIn={() => navigate("/checkin")}
-          onStartCheckIn={() => navigate(`/checkin?event=${nextEvent.id}`)}
-          onMarkAttendance={() => navigate("/attendance")}
+          onCheckIn={() => navigate("/checkin", { viewTransition: true })}
+          onStartCheckIn={() =>
+            navigate(`/checkin?event=${nextEvent.id}`, { viewTransition: true })
+          }
+          onMarkAttendance={() => navigate("/attendance", { viewTransition: true })}
           isStaff={app.isStaff}
         />
       ) : (
-        <Card>
+        <Card className="border-l-4 border-l-[var(--cue-gold)]">
           <EmptyState
             icon={<Music className="h-6 w-6" />}
             title="No upcoming events yet"
-            body="When your director adds real program events, they will show up here."
+            body="Nothing on the call sheet yet. Check the calendar for what’s next."
+            action={
+              <Button variant="secondary" onClick={() => navigate("/calendar", { viewTransition: true })}>
+                Open calendar
+              </Button>
+            }
           />
         </Card>
       )}
 
       <section className="space-y-2">
-        <SectionTitle action={<button className="text-xs font-bold text-band underline dark:text-emerald-300" onClick={() => navigate("/calendar")}>View calendar</button>}>
+        <SectionTitle action={<button className="min-h-11 px-2 text-sm font-bold text-[var(--cue-green)] underline underline-offset-4" onClick={() => navigate("/calendar", { viewTransition: true })}>View calendar</button>}>
           Your Upcoming Events
         </SectionTitle>
         {upcoming.length > 0 ? (
@@ -217,7 +208,7 @@ export function HomeScreen() {
         <div className="grid gap-3 lg:grid-cols-[280px_1fr]">
           {percentage !== null && !app.isDirector ? (
             <Card className="flex items-center gap-4">
-              <ProgressRing value={percentage} size={72} stroke={8} />
+              <ProgressRing value={percentage} size={72} stroke={8} animateValue />
               <div className="min-w-0">
                 <p className="font-semibold">Overall attendance</p>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -266,6 +257,26 @@ export function HomeScreen() {
         </div>
       </section>
 
+      <section id="my-programs" className="space-y-3">
+        <SectionTitle>My Programs</SectionTitle>
+        <div className="grid gap-3 md:grid-cols-2">
+          {app.memberships.map((m) => (
+            <ProgramCard
+              key={m.id}
+              membership={m}
+              current={m.ensemble.id === app.program?.id}
+              onOpen={() => {
+                app.setProgram(m.ensemble.id);
+                navigate("/");
+              }}
+            />
+          ))}
+          {FUTURE_PROGRAMS.map((name) => (
+            <FutureProgramCard key={name} name={name} />
+          ))}
+        </div>
+      </section>
+
       {app.isStaff ? (
         <section className="space-y-2">
           <SectionTitle>Staff Tools</SectionTitle>
@@ -274,19 +285,19 @@ export function HomeScreen() {
               icon={<ClipboardCheck className="h-5 w-5" />}
               title="Attendance"
               subtitle="Mark the roll, excuses and notes"
-              onClick={() => navigate("/attendance")}
+              onClick={() => navigate("/attendance", { viewTransition: true })}
             />
             <Row
               icon={<Users className="h-5 w-5" />}
               title="Roster"
               subtitle={`${app.program?.short_name ?? "Program"} members and sections`}
-              onClick={() => navigate("/roster")}
+              onClick={() => navigate("/roster", { viewTransition: true })}
             />
             <Row
               icon={<QrCode className="h-5 w-5" />}
               title="Start a check-in"
               subtitle="Show the QR code and the 8-character code"
-              onClick={() => navigate("/checkin")}
+              onClick={() => navigate("/checkin", { viewTransition: true })}
             />
           </Card>
         </section>
@@ -394,12 +405,15 @@ function HeroEventCard({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="bg-band px-4 py-3.5 text-white">
+      <div className="bg-[var(--cue-action)] px-4 py-4 text-white sm:px-5">
         <div className="flex items-center gap-2">
-          <Badge className="bg-white/20 text-white">{eventTypeLabel(event.event_type)}</Badge>
-          {isToday ? <Badge className="bg-accent text-ink">Today</Badge> : null}
+          <Badge className="bg-white/15 text-white">{eventTypeLabel(event.event_type)}</Badge>
+          {isToday ? <Badge className="bg-[var(--cue-gold)] text-[var(--cue-gold-ink)]">Today</Badge> : null}
         </div>
-        <h2 className="mt-2 text-xl leading-tight font-extrabold">{event.name}</h2>
+        <p className="mt-3 font-display text-lg font-bold tracking-wide text-white/75 uppercase">
+          {isToday ? "Next up · today" : "Next up"}
+        </p>
+        <h2 className="mt-1 font-display text-4xl leading-[0.98] font-bold uppercase sm:text-5xl">{event.name}</h2>
         <p className="mt-1 text-sm text-white/85">
           {relativeDay(event.date)} · {event.all_day ? "All day" : fmtTime(event.date)}
           {isToday ? ` · ${untilLabel(event.date)}` : ""}
