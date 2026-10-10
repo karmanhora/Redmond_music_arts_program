@@ -11,6 +11,7 @@ import {
   Plus,
   RefreshCw,
   Sun,
+  Trash2,
   UserPlus,
   UserRound,
 } from "lucide-react";
@@ -97,6 +98,9 @@ export function ProfileScreen() {
 
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!programId) return;
@@ -215,6 +219,21 @@ export function ProfileScreen() {
     setSigningOut(true);
     await auth.signOut();
     setSigningOut(false);
+  }
+
+  async function doDeleteAccount() {
+    setDeletingAccount(true);
+    setDeleteAccountError(null);
+    const { error: deletionError } = await auth.deleteAccount().catch((failure: unknown) => ({
+      error: failure instanceof Error ? failure.message : "Account deletion failed unexpectedly.",
+    }));
+    setDeletingAccount(false);
+    if (deletionError) {
+      setDeleteAccountError(deletionError);
+      return;
+    }
+    setConfirmDeleteAccount(false);
+    toast.success("Your account has been deleted.");
   }
 
   return (
@@ -424,6 +443,18 @@ export function ProfileScreen() {
       >
         Sign out
       </Button>
+      {deleteAccountError ? <Alert tone="error">{deleteAccountError}</Alert> : null}
+      <Button
+        block
+        variant="danger"
+        icon={<Trash2 className="h-4 w-4" />}
+        onClick={() => {
+          setDeleteAccountError(null);
+          setConfirmDeleteAccount(true);
+        }}
+      >
+        Delete account
+      </Button>
 
       {/* --- edit my name --- */}
       <Sheet
@@ -566,6 +597,15 @@ export function ProfileScreen() {
         loading={signingOut}
         onCancel={() => setConfirmSignOut(false)}
         onConfirm={() => void doSignOut()}
+      />
+      <ConfirmSheet
+        open={confirmDeleteAccount}
+        title="Delete your account?"
+        body="This permanently deletes your sign-in account, removes you from all program rosters, and erases your profile details. Your past attendance stays in the records under “Deleted account.” Programs where you are the only director will be archived. This cannot be undone."
+        confirmLabel="Delete account"
+        loading={deletingAccount}
+        onCancel={() => setConfirmDeleteAccount(false)}
+        onConfirm={() => void doDeleteAccount()}
       />
     </div>
   );

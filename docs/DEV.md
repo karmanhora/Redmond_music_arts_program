@@ -18,8 +18,8 @@ exists, but nothing in the code assumes it is the only one.
 | Path | What it is |
 | --- | --- |
 | `src/` | The web app: Vite + React 19 + TypeScript + Tailwind v4 |
-| `supabase/migrations/007`–`024` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program` |
-| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type) run inside transactions |
+| `supabase/migrations/007`–`025` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account deletion |
+| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion) run inside transactions |
 | `supabase/templates/` | The six branded auth emails Supabase sends — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
 | `public/` | The app's brand assets: one `logo.svg` and the icons rendered from it — see [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
 | `scripts/migrate/` | The clone pipeline: dump OLD → restore → migrate → verify |
@@ -174,6 +174,18 @@ home and profile screens' attendance ring to answer (`my_attendance_pct()` and
 anyone signs in**, because it is what resolves a Supabase Auth account to a
 `profiles` row — without it every request is `anon` and the app looks empty;
 022 is what lets a teacher start a program (`create_program()`).
+
+Migration 025 adds the service-role-only profile cleanup used by account
+deletion. Deploy `supabase/functions/delete-account` after applying it:
+
+```bash
+supabase functions deploy delete-account
+```
+
+The function validates the caller's bearer token and uses the server-side
+`SUPABASE_SERVICE_ROLE_KEY`; no service key belongs in the frontend. It retains
+attendance under a de-identified profile and archives programs when the deleted
+account was their only director.
 
 ### Proving the migrations without credentials
 

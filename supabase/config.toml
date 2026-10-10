@@ -49,6 +49,9 @@ enable_signup = true
 # a resend.
 enable_confirmations = true
 
+[functions.delete-account]
+verify_jwt = true
+
 # ----------------------------------------------------------------------------
 # The six emails. Subject lines are what the inbox shows; the heading inside
 # each template matches it. Add a brand suffix ("· RHS Music & Arts") to any

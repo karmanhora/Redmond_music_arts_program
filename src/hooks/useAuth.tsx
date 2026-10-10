@@ -52,6 +52,7 @@ export interface AuthState {
   /** Re-send the sign-up confirmation; email confirmation is on for this project. */
   resendConfirmation: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
+  deleteAccount: () => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -247,6 +248,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? readable(error.message) : null };
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    const { data, error } = await supabase.functions.invoke<{ ok: boolean; error?: string }>(
+      "delete-account"
+    );
+    if (error) {
+      if (error.context instanceof Response) {
+        const body = await error.context.clone().text();
+        if (body) {
+          try {
+            const payload: unknown = JSON.parse(body);
+            if (
+              typeof payload === "object" &&
+              payload !== null &&
+              "error" in payload &&
+              typeof payload.error === "string"
+            ) {
+              return { error: payload.error };
+            }
+          } catch (parseError) {
+            if (!(parseError instanceof SyntaxError)) throw parseError;
+          }
+        }
+      }
+      return { error: readable(error.message) };
+    }
+    if (!data?.ok) return { error: data?.error ?? "Account deletion did not complete." };
+
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+    return {
+      error: signOutError
+        ? `Your account was deleted, but this device could not sign out: ${readable(signOutError.message)}`
+        : null,
+    };
+  }, []);
+
   const value = useMemo<AuthState>(
     () => ({
       status,
@@ -268,6 +304,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendPasswordReset,
       resendConfirmation,
       updatePassword,
+      deleteAccount,
     }),
     [
       status,
@@ -284,6 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendPasswordReset,
       resendConfirmation,
       updatePassword,
+      deleteAccount,
     ]
   );
 
