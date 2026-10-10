@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   MapPin,
   Music,
+  Plus,
   QrCode,
   Users,
 } from "lucide-react";
@@ -35,8 +36,6 @@ import {
   eventTypeLabel,
 } from "../lib/constants";
 import { endOfDay, fmtTime, isSameDay, relativeDay, startOfDay, untilLabel } from "../lib/date";
-
-const FUTURE_PROGRAMS = ["Orchestra", "Choir", "Drama"];
 
 /**
  * Signed-in student dashboard. It keeps the existing Band implementation alive
@@ -258,7 +257,22 @@ export function HomeScreen() {
       </section>
 
       <section id="my-programs" className="space-y-3">
-        <SectionTitle>My Programs</SectionTitle>
+        <SectionTitle
+          action={
+            app.canCreateProgram ? (
+              <Button
+                size="sm"
+                variant="accent"
+                icon={<Plus className="h-4 w-4" />}
+                onClick={() => navigate("/new-program", { viewTransition: true })}
+              >
+                Start a program
+              </Button>
+            ) : null
+          }
+        >
+          My Programs
+        </SectionTitle>
         <div className="grid gap-3 md:grid-cols-2">
           {app.memberships.map((m) => (
             <ProgramCard
@@ -270,9 +284,6 @@ export function HomeScreen() {
                 navigate("/");
               }}
             />
-          ))}
-          {FUTURE_PROGRAMS.map((name) => (
-            <FutureProgramCard key={name} name={name} />
           ))}
         </div>
       </section>
@@ -330,21 +341,6 @@ function ProgramCard({
       <Button size="sm" variant={current ? "accent" : "secondary"} icon={<ArrowRight className="h-4 w-4" />} onClick={onOpen}>
         {current ? "Open" : "Switch"}
       </Button>
-    </Card>
-  );
-}
-
-function FutureProgramCard({ name }: { name: string }) {
-  return (
-    <Card className="flex items-center gap-3 opacity-80">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-        <Music className="h-6 w-6" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <h3 className="font-black">{name}</h3>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Coming soon</p>
-      </div>
-      <Badge className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">Coming soon</Badge>
     </Card>
   );
 }

@@ -2,6 +2,29 @@ import { useEffect, useRef, useState } from "react";
 
 const ELEMENT_ID = "band-qr-reader";
 
+function cameraErrorMessage(error: unknown): string {
+  if (!window.isSecureContext && !["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+    return "Camera scanning requires a secure HTTPS connection. Open the public school attendance website and allow camera access.";
+  }
+
+  const errorName = error instanceof DOMException ? error.name : "";
+  switch (errorName) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+    case "SecurityError":
+      return "Camera access is blocked. Allow camera access for this website in your browser or phone settings, then try again.";
+    case "NotFoundError":
+    case "NotSupportedError":
+      return "No usable camera was found. Enter the check-in code instead.";
+    case "NotReadableError":
+      return "The camera is busy in another app. Close other camera apps and try again.";
+    case "OverconstrainedError":
+      return "The rear camera could not be opened. Try again or enter the check-in code instead.";
+    default:
+      return "The camera could not start. Check this website’s camera permission, then try again or enter the check-in code.";
+  }
+}
+
 /**
  * Camera QR reader. `html5-qrcode` is imported lazily so the ~300 kB library
  * never lands in the initial bundle, and the camera is torn down the moment
@@ -20,67 +43,67 @@ export function QrScanner({
   onError?: (message: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const scanner = useRef<{ stop: () => Promise<void>; clear: () => void } | null>(null);
+  const teardown = useRef<Promise<void>>(Promise.resolve());
   const lastHit = useRef<{ text: string; at: number }>({ text: "", at: 0 });
   const [cameraState, setCameraState] = useState<"starting" | "ready" | "unavailable">("starting");
 
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
+    let instance: import("html5-qrcode").Html5Qrcode | null = null;
     setCameraState("starting");
 
-    void (async () => {
-      try {
-        const { Html5Qrcode } = await import("html5-qrcode");
-        if (cancelled || !host.current) return;
+    const previousTeardown = teardown.current;
+    const start = (async () => {
+      await previousTeardown;
+      if (cancelled || !host.current) return;
 
-        const instance = new Html5Qrcode(ELEMENT_ID, { verbose: false });
-        scanner.current = instance;
+      const { Html5Qrcode } = await import("html5-qrcode");
+      if (cancelled || !host.current) return;
 
-        await instance.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 240, height: 240 } },
-          (decoded) => {
-            const now = Date.now();
-            // The camera fires continuously; ignore the same code for 3s.
-            if (decoded === lastHit.current.text && now - lastHit.current.at < 3000) return;
-            lastHit.current = { text: decoded, at: now };
-            onDecode(decoded);
+      instance = new Html5Qrcode(ELEMENT_ID, { verbose: false });
+
+      await instance.start(
+        { facingMode: { ideal: "environment" } },
+        {
+          fps: 10,
+          qrbox: (width, height) => {
+            const edge = Math.floor(Math.min(width, height) * 0.72);
+            return { width: Math.min(edge, 320), height: Math.min(edge, 320) };
           },
-          () => {
-            /* per-frame "no QR found" — not worth surfacing */
-          }
-        );
-        if (!cancelled) setCameraState("ready");
-      } catch (e) {
-        if (!cancelled) {
-          setCameraState("unavailable");
-          const errorName = e instanceof DOMException ? e.name : "";
-          const message =
-            errorName === "NotAllowedError" || errorName === "PermissionDeniedError"
-              ? "Camera access is off. Enter the code instead, or allow camera access in your browser."
-              : errorName === "NotFoundError" || errorName === "NotSupportedError"
-                ? "No usable camera was found. Enter the check-in code instead."
-                : e instanceof Error
-                  ? e.message
-                  : "Camera unavailable. Enter the check-in code instead.";
-          onError?.(message);
+        },
+        (decoded) => {
+          const now = Date.now();
+          // The camera fires continuously; ignore the same code for 3s.
+          if (decoded === lastHit.current.text && now - lastHit.current.at < 3000) return;
+          lastHit.current = { text: decoded, at: now };
+          onDecode(decoded);
+        },
+        () => {
+          /* Per-frame "no QR found" is expected while the camera is searching. */
         }
-      }
+      );
+
+      if (!cancelled) setCameraState("ready");
     })();
+
+    void start.catch((error: unknown) => {
+      if (!cancelled) {
+        setCameraState("unavailable");
+        onError?.(cameraErrorMessage(error));
+      }
+    });
 
     return () => {
       cancelled = true;
-      const instance = scanner.current;
-      scanner.current = null;
-      if (instance) {
-        void instance
-          .stop()
-          .then(() => instance.clear())
-          .catch(() => {
-            /* already stopped */
-          });
-      }
+      teardown.current = (async () => {
+        await start.catch(() => undefined);
+        if (!instance) return;
+        if (instance.isScanning) await instance.stop();
+        instance.clear();
+      })().catch((error: unknown) => {
+        console.error("Could not stop the QR scanner cleanly.", error);
+      });
     };
   }, [active, onDecode, onError]);
 
