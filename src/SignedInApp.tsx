@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Alert, Button, Skeleton } from "./components/ui";
+import { Alert, Button } from "./components/ui";
+import { MusicLoader } from "./components/Splash";
 import { ProgramsProvider, usePrograms } from "./hooks/usePrograms";
 
 const JoinProgramScreen = lazy(() =>
@@ -39,14 +40,9 @@ function RouteSkeleton() {
     <main
       aria-busy="true"
       aria-label="Loading screen"
-      className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6"
+      className="flex min-h-64 items-center justify-center p-6 text-[var(--cue-green)]"
     >
-      <Skeleton className="h-8 w-40" />
-      <Skeleton className="h-44 w-full" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
+      <MusicLoader />
     </main>
   );
 }

@@ -81,9 +81,9 @@ export function AppShell() {
     .join(" · ");
 
   return (
-    <div className="flex h-full flex-col bg-[var(--cue-page)]">
+    <div className="app-shell flex h-full flex-col bg-[var(--cue-page)]">
       {/* --- app bar: the umbrella, then the program you are actually in --- */}
-      <header className="safe-t sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-[var(--cue-border)] bg-[var(--cue-page)] px-3">
+      <header className="safe-t sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-2 border-b border-[var(--cue-border)] bg-[var(--cue-page)] px-3 py-1">
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
             {ORG_NAME}
@@ -110,25 +110,27 @@ export function AppShell() {
             </p>
           )}
         </div>
-        <div className="hidden items-center gap-1 md:flex">
-          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/">
-            Home
-          </Link>
-          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/#my-programs">
-            My Programs
-          </Link>
-          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/calendar">
-            Events
-          </Link>
-          {app.isStaff ? (
-            <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/attendance">
-              Attendance
-            </Link>
-          ) : null}
-          <Link viewTransition className="rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]" to="/calendar">
-            Calendar
-          </Link>
-        </div>
+        <nav aria-label="Main navigation" className="hidden items-center gap-1 lg:flex">
+          {items.map((item) => (
+            <NavLink
+              key={item.to}
+              viewTransition
+              to={item.to}
+              end={item.to === "/"}
+              className={({ isActive }) =>
+                cn(
+                  "motion-press inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-semibold",
+                  isActive
+                    ? "bg-[var(--cue-raised)] text-[var(--cue-green)]"
+                    : "text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]"
+                )
+              }
+            >
+              <item.icon aria-hidden="true" className="h-4 w-4" />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
         <IconButton
           label="Notifications"
           onClick={() => setBellOpen(true)}
@@ -168,12 +170,17 @@ export function AppShell() {
       ) : null}
 
       {/* --- content --- */}
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <main
+        className="app-content min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
         <Outlet />
       </main>
 
       {/* --- bottom nav --- */}
-      <nav className="safe-b z-30 shrink-0 border-t border-[var(--cue-border)] bg-[var(--cue-page)]">
+      <nav
+        aria-label="Main navigation"
+        className="safe-b z-30 shrink-0 border-t border-[var(--cue-border)] bg-[var(--cue-page)] lg:hidden"
+      >
         <ul className="flex items-stretch justify-around pt-1 pb-0.5">
           {items.map((item) => (
             <li key={item.to} className="flex-1">

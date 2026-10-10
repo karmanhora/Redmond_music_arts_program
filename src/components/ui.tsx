@@ -752,8 +752,8 @@ export function Sheet({
         className={cn(
           "cue-card relative flex w-full max-w-lg flex-col rounded-t-[var(--radius-sheet)]",
           sheetEntering && "animate-sheet",
-          "sheet-drag max-h-[92vh] sm:rounded-[var(--radius-sheet)]",
-          size === "tall" ? "h-[92vh]" : ""
+          "sheet-drag max-h-[92dvh] sm:rounded-[var(--radius-sheet)]",
+          size === "tall" ? "h-[92dvh]" : ""
         )}
         style={dragY ? { transform: `translateY(${dragY}px)`, transition: "none" } : undefined}
       >

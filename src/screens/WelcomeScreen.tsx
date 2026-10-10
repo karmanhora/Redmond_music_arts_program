@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
   CalendarDays,
-  Camera,
   ClipboardCheck,
   Moon,
   QrCode,
@@ -191,9 +190,6 @@ export function WelcomeScreen() {
                       </p>
                       <h3 className="mt-2 font-display text-3xl font-bold uppercase">{program.name}</h3>
                     </div>
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--cue-raised)] text-[var(--cue-green)]">
-                      <Camera aria-hidden="true" className="h-5 w-5" />
-                    </span>
                   </div>
                   <p className="mt-2 font-semibold">{program.detail}</p>
                   <p className="mt-2 text-sm leading-relaxed text-[var(--cue-muted)]">{program.summary}</p>
