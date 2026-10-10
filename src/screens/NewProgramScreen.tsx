@@ -8,7 +8,7 @@ import { useAuth } from "../hooks/useAuth";
 import { APP_NAME, ORG_NAME } from "../lib/constants";
 
 /**
- * Starting your own program — the other way onto a roster.
+ * Starting your own program — the teacher-only way to create a new roster.
  *
  * Joining somebody else's program needs their join code, so the first teacher in
  * a subject had nobody to ask and no way to use the app at all. This is the door

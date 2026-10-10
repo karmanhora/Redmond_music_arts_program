@@ -1,5 +1,5 @@
 -- ============================================================================
--- create_program.sql — starting your own program, with no director involved
+-- create_program.sql — teacher-only program creation and director isolation
 -- ============================================================================
 -- requires-table: public.ensembles
 --
@@ -22,6 +22,7 @@
 --   CP-8   anon cannot call it at all, and its signature has no argument that
 --          could point it at another program
 --   CP-9   a paused account is refused
+--   CP-10  a student account is refused and creates nothing
 --
 -- Runs in one transaction and ROLLS BACK. Personas authenticate exactly the way
 -- PostgREST sees a Supabase Auth token (migration 021). On success it prints:
@@ -74,6 +75,9 @@ begin
   if to_regprocedure('public.join_program(text, text, text, text)') is null then
     raise exception 'FAIL: CP-0 public.join_program() missing — apply migration 020 first';
   end if;
+  if to_regclass('public.signup_account_types') is null then
+    raise exception 'FAIL: CP-0 signup_account_types missing — apply migration 023 first';
+  end if;
   if not exists (select 1 from public.ensembles where slug = 'band') then
     raise exception 'FAIL: CP-0 the band program is missing — apply migration 014 first';
   end if;
@@ -96,6 +100,14 @@ select 'dddddddd-0000-4000-8000-0000000000d1'::uuid, b.id, '{student}'::public.a
 on conflict (user_id, ensemble_id) do nothing;
 
 update public.profiles set deactivated = true where auth_user_id = 'cp-paused';
+
+insert into public.signup_account_types (auth_user_id, account_type) values
+  ('cp-namer', 'teacher'),
+  ('cp-starter', 'teacher'),
+  ('cp-longname', 'teacher'),
+  ('cp-rate', 'teacher'),
+  ('cp-paused', 'teacher')
+on conflict (auth_user_id) do update set account_type = excluded.account_type;
 
 -- ---------------------------------------------------------------------------
 -- 2. CP-1 — a caller with no account id
@@ -144,7 +156,7 @@ declare
 begin
   select count(*) into v_ens_before from public.ensembles;
 
-  perform set_config('request.jwt.claims', '{"sub":"cp-namer","role":"authenticated"}', true);
+  perform set_config('request.jwt.claims', '{"sub":"cp-namer","role":"authenticated","user_metadata":{"account_type":"teacher"}}', true);
   set role authenticated;
 
   v := public.create_program('   ', null, 'Blank Name');
@@ -182,7 +194,7 @@ declare
   v_profile uuid;
   v_code text;
 begin
-  perform set_config('request.jwt.claims', '{"sub":"cp-starter","role":"authenticated"}', true);
+  perform set_config('request.jwt.claims', '{"sub":"cp-starter","role":"authenticated","user_metadata":{"account_type":"teacher"}}', true);
   set role authenticated;
 
   v := public.create_program('TST Starter Band', 'Starter', 'Starter Teacher');
@@ -239,7 +251,7 @@ begin
     'CP-3k the supplied name was not stored on the person');
 
   -- A 200-character name is capped, not stored raw (it is shown on the roster).
-  perform set_config('request.jwt.claims', '{"sub":"cp-longname","role":"authenticated"}', true);
+  perform set_config('request.jwt.claims', '{"sub":"cp-longname","role":"authenticated","user_metadata":{"account_type":"teacher"}}', true);
   set role authenticated;
   v := public.create_program('TST Long Name', null, repeat('n', 200));
   reset role;
@@ -330,7 +342,7 @@ begin
 
   -- Same name, second program: a real thing to want (two sections, two
   -- seasons), and it must not fight the first one for a slug.
-  perform set_config('request.jwt.claims', '{"sub":"cp-starter","role":"authenticated"}', true);
+  perform set_config('request.jwt.claims', '{"sub":"cp-starter","role":"authenticated","user_metadata":{"account_type":"teacher"}}', true);
   set role authenticated;
   v := public.create_program('TST Starter Band', null, 'Ignored Name');
   reset role;
@@ -382,7 +394,7 @@ begin
     left join public.ensemble_settings s on s.ensemble_id = e.id
    where e.id = v_band;
 
-  perform set_config('request.jwt.claims', '{"sub":"cp-starter","role":"authenticated"}', true);
+  perform set_config('request.jwt.claims', '{"sub":"cp-starter","role":"authenticated","user_metadata":{"account_type":"teacher"}}', true);
   set role authenticated;
 
   -- Their own program: the code is theirs, so reading it must work. This is the
@@ -453,7 +465,7 @@ declare
   i integer;
   v_created int;
 begin
-  perform set_config('request.jwt.claims', '{"sub":"cp-rate","role":"authenticated"}', true);
+  perform set_config('request.jwt.claims', '{"sub":"cp-rate","role":"authenticated","user_metadata":{"account_type":"teacher"}}', true);
   set role authenticated;
 
   for i in 1..5 loop
@@ -530,7 +542,7 @@ do $$
 declare
   v jsonb;
 begin
-  perform set_config('request.jwt.claims', '{"sub":"cp-paused","role":"authenticated"}', true);
+  perform set_config('request.jwt.claims', '{"sub":"cp-paused","role":"authenticated","user_metadata":{"account_type":"teacher"}}', true);
   set role authenticated;
 
   v := public.create_program('CP Paused Program', null, 'Paused Person');
@@ -553,7 +565,44 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- 11. Teardown
+-- 10. CP-10 — a student account cannot start a program
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  v jsonb;
+  v_programs_before int;
+begin
+  insert into public.signup_account_types (auth_user_id, account_type)
+  values ('cp-student-account', 'student')
+  on conflict (auth_user_id) do update set account_type = excluded.account_type;
+  select count(*) into v_programs_before from public.ensembles;
+
+  perform set_config(
+    'request.jwt.claims',
+    '{"sub":"cp-student-account","role":"authenticated"}',
+    true
+  );
+  set role authenticated;
+  v := public.create_program('CP Student Must Not Start', null, 'CP Student');
+  reset role;
+
+  perform public.t_assert(v ->> 'ok' = 'false',
+    'CP-10 a student account was allowed to start a program');
+  perform public.t_assert(coalesce(v ->> 'message', '') ilike '%student accounts join%',
+    'CP-10b the refusal did not explain that students join with a director''s code');
+  perform public.t_assert(
+    (select count(*) from public.ensembles) = v_programs_before
+      and not exists (
+        select 1 from public.profiles where auth_user_id = 'cp-student-account'
+      ),
+    'CP-10c a refused student call created a program or profile');
+
+  delete from public.signup_account_types where auth_user_id = 'cp-student-account';
+end $$;
+select set_config('request.jwt.claims', '{}', true);
+
+-- ---------------------------------------------------------------------------
+-- 12. Teardown
 -- ---------------------------------------------------------------------------
 rollback;
 

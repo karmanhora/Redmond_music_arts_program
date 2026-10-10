@@ -18,7 +18,7 @@ exists, but nothing in the code assumes it is the only one.
 | Path | What it is |
 | --- | --- |
 | `src/` | The web app: Vite + React 19 + TypeScript + Tailwind v4 |
-| `supabase/migrations/007`–`022` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, `create_program` |
+| `supabase/migrations/007`–`023` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program` |
 | `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program) run inside transactions |
 | `supabase/templates/` | The six branded auth emails Supabase sends — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
 | `public/` | The app's brand assets: one `logo.svg` and the icons rendered from it — see [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
@@ -80,7 +80,10 @@ can render. The flow:
    request by itself. PostgREST runs the request as the `authenticated` role with
    `sub` = the auth user id.
 4. `profiles.auth_user_id` (migration 021) is how an account maps to a person.
-   Everything else (roles, section) lives on `memberships`, per program.
+   The signup audience is recorded separately by migration 023; students join
+   with a director's code, while teacher accounts can start programs. The
+   server-side `create_program()` check enforces this as well as the UI.
+   Everything else (program roles, section) lives on `memberships`, per program.
 
 Supabase also sends the account emails — confirmation, password reset, magic
 link, email change, reauthentication — from the templates in
@@ -94,9 +97,10 @@ The OAuth redirect URI shown by Supabase must also be registered with the Google
 OAuth client. The app redirects back to the site origin after authentication,
 or directly to `/checkin` when continuing a QR check-in.
 
-Starting a program does not need anybody's approval: a signed-in teacher names one
-and `create_program()` (migration 022) makes them its director. Directors are the
-only ones who can then add anybody else, through their program's join code.
+Starting a program does not need anybody's approval: a teacher account names one
+and `create_program()` (migration 023) makes them its director. Student accounts
+can only join through a director's code. Directors are the only ones who can then
+add anybody else, through their program's join code.
 
 Migration 021 replaced `profiles.clerk_id` with `profiles.auth_user_id` and
 repointed `public.current_profile_id()` at it. That one helper is what every RLS

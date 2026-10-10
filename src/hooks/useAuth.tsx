@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import type { AuthAudience } from "../lib/constants";
+import { getSignupAccountType, setSignupAccountType } from "../lib/rpc";
 import { supabase } from "../lib/supabase";
 
 /**
@@ -25,6 +27,10 @@ export interface AuthState {
   /** `auth.uid()` — the value `profiles.auth_user_id` holds. */
   userId: string | null;
   email: string | null;
+  /** Self-declared at sign-up; determines whether this account may start programs. */
+  accountType: AuthAudience | null;
+  accountTypeLoading: boolean;
+  accountTypeSetupError: string | null;
   /** Name the account was created with, if we ever asked for one. */
   displayName: string | null;
   /**
@@ -38,6 +44,7 @@ export interface AuthState {
   signUp: (
     email: string,
     password: string,
+    audience: AuthAudience,
     displayName?: string
   ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
@@ -98,6 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [recovering, setRecovering] = useState(false);
+  const [accountTypeSetupError, setAccountTypeSetupError] = useState<string | null>(null);
+  const [accountType, setAccountType] = useState<AuthAudience | null>(null);
+  const [accountTypeLoading, setAccountTypeLoading] = useState(true);
+  const [oauthAccountType] = useState<AuthAudience | null>(() => {
+    const value = new URL(window.location.href).searchParams.get("account_type");
+    return value === "student" || value === "teacher" ? value : null;
+  });
 
   useEffect(() => {
     let active = true;
@@ -127,6 +141,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!session) {
+      setAccountType(null);
+      setAccountTypeSetupError(null);
+      setAccountTypeLoading(false);
+      return;
+    }
+
+    let active = true;
+    setAccountTypeLoading(true);
+    const request = oauthAccountType
+      ? setSignupAccountType(oauthAccountType)
+      : getSignupAccountType();
+
+    void request.then(({ accountType: storedType, error }) => {
+      if (!active) return;
+      setAccountType(storedType);
+      setAccountTypeSetupError(error);
+      setAccountTypeLoading(false);
+      if (!error && oauthAccountType) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("account_type");
+        window.history.replaceState(window.history.state, "", url.toString());
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [session?.user.id, oauthAccountType]);
+
   const clearRecovery = useCallback(() => {
     setRecovering(false);
     // The token is spent once we have the new password; drop it from the URL so
@@ -153,23 +198,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? readable(error.message) : null };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      // Supabase Auth is the record of "who is this account"; `profiles` is the
-      // record of "who is this person", and it is created on the join screen.
-      // The name here is only a convenience for the confirmation email.
-      options: {
-        data: displayName?.trim() ? { full_name: displayName.trim() } : undefined,
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
-    if (error) return { error: readable(error.message), needsConfirmation: false };
-    // With email confirmation on (this project's setting) `signUp` returns no
-    // session, so the person has to confirm before the app will let them in.
-    return { error: null, needsConfirmation: !data.session };
-  }, []);
+  const signUp = useCallback(
+    async (email: string, password: string, audience: AuthAudience, displayName?: string) => {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        // Supabase Auth is the record of "who is this account"; `profiles` is
+        // the record of "who is this person", and it is created on the join
+        // screen. The account type is a self-declared signup choice.
+        options: {
+          data: {
+            account_type: audience,
+            ...(displayName?.trim() ? { full_name: displayName.trim() } : {}),
+          },
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (error) return { error: readable(error.message), needsConfirmation: false };
+      // With email confirmation on (this project's setting) `signUp` returns
+      // no session, so the person has to confirm before they can sign in.
+      return { error: null, needsConfirmation: !data.session };
+    },
+    []
+  );
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -203,6 +254,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       userId: session?.user?.id ?? null,
       email: session?.user?.email ?? null,
+      accountType,
+      accountTypeLoading,
+      accountTypeSetupError,
       displayName:
         (session?.user?.user_metadata?.full_name as string | undefined)?.trim() || null,
       recovering,
@@ -218,7 +272,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [
       status,
       session,
+      accountType,
+      accountTypeLoading,
       recovering,
+      accountTypeSetupError,
       clearRecovery,
       signIn,
       signInWithGoogle,

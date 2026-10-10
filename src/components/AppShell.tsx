@@ -18,6 +18,7 @@ import type { NotificationRow } from "../lib/types";
 import { APP_NAME, ORG_NAME, ROLE_LABEL } from "../lib/constants";
 import { relativeDay } from "../lib/date";
 import { usePrograms } from "../hooks/usePrograms";
+import { useAuth } from "../hooks/useAuth";
 import { useDark } from "../hooks/useDark";
 import { ProgramSwitcher } from "./ProgramSwitcher";
 import { Alert, Avatar, IconButton, Sheet, cn } from "./ui";
@@ -55,6 +56,7 @@ function navItems(opts: { isStaff: boolean; isDirector: boolean }): NavItem[] {
 
 export function AppShell() {
   const app = usePrograms();
+  const auth = useAuth();
   const { dark, toggle } = useDark();
   const navigate = useNavigate();
   const [bellOpen, setBellOpen] = useState(false);
@@ -153,6 +155,15 @@ export function AppShell() {
           <Alert tone="warn">
             You&rsquo;re offline. Anything you see may be out of date — check-in needs a
             connection.
+          </Alert>
+        </div>
+      ) : null}
+
+      {auth.accountTypeSetupError ? (
+        <div className="px-3 pt-2">
+          <Alert tone="error">
+            We couldn&rsquo;t save your student or teacher account choice. Sign out and try again.{" "}
+            {auth.accountTypeSetupError}
           </Alert>
         </div>
       ) : null}

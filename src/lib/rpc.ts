@@ -1,4 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
+import type { AuthAudience } from "./constants";
 import { supabase } from "./supabase";
 import type {
   MyAttendanceRow,
@@ -11,6 +12,28 @@ import type {
 export interface RpcResponse {
   result: RpcResult | null;
   error: PostgrestError | null;
+}
+
+export async function getSignupAccountType(): Promise<{
+  accountType: AuthAudience | null;
+  error: string | null;
+}> {
+  const { data, error } = await supabase.rpc("get_signup_account_type");
+  if (error) return { accountType: null, error: error.message };
+  if (data === "student" || data === "teacher") return { accountType: data, error: null };
+  return { accountType: null, error: null };
+}
+
+export async function setSignupAccountType(audience: AuthAudience): Promise<{
+  accountType: AuthAudience | null;
+  error: string | null;
+}> {
+  const { data, error } = await supabase.rpc("set_signup_account_type", {
+    p_account_type: audience,
+  });
+  if (error) return { accountType: null, error: error.message };
+  if (data === "student" || data === "teacher") return { accountType: data, error: null };
+  return { accountType: null, error: "The account type could not be confirmed." };
 }
 
 async function callRpc(
@@ -70,7 +93,8 @@ export const joinProgram = (slug: string, code: string, displayName?: string) =>
   });
 
 /**
- * Start a program and become its director — no director, no approval, no code.
+ * Start a program and become its director. Teacher accounts can do this without
+ * approval or a code; student accounts are refused by the server.
  *
  * The name is the only thing the caller controls: the RPC always creates a
  * **new** program with the caller as `{director}`, so this can never be pointed

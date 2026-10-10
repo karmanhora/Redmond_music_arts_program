@@ -17,7 +17,7 @@ import { joinProgram, listActivePrograms } from "../lib/rpc";
 import type { ProgramOption } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
-import { APP_NAME, ORG_NAME, readAuthAudience } from "../lib/constants";
+import { APP_NAME, ORG_NAME } from "../lib/constants";
 
 /**
  * Joining a program — the first one and every one after it.
@@ -35,8 +35,8 @@ import { APP_NAME, ORG_NAME, readAuthAudience } from "../lib/constants";
  * from the account.
  *
  * Joining somebody else's program is not the only way in: a teacher with nobody
- * to ask can start their own from here (`/new-program`), which is why this
- * screen offers it as a real alternative rather than a footnote.
+ * to ask can start their own from here (`/new-program`). That option is shown
+ * only to teacher accounts and is independently checked by the server.
  */
 export function JoinProgramScreen({ standalone = false }: { standalone?: boolean }) {
   const app = usePrograms();
@@ -119,6 +119,12 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
   const form = (
     <div className="space-y-4 p-4 pb-6">
       {error ? <Alert tone="error">{error}</Alert> : null}
+      {auth.accountTypeSetupError ? (
+        <Alert tone="error">
+          We couldn&rsquo;t save your student or teacher account choice. Sign out and try again.{" "}
+          {auth.accountTypeSetupError}
+        </Alert>
+      ) : null}
 
       <Card className="space-y-2">
         <p className="flex items-center gap-2 font-semibold">
@@ -131,10 +137,8 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
         </p>
       </Card>
 
-      {/* Only right after a teacher chose "I'm a teacher" at sign-up: point them
-          at the way in that needs nobody's permission, since the code below can
-          only make them a student of somebody else's program. */}
-      {standalone && readAuthAudience() === "teacher" ? (
+      {/* Point teacher accounts at the way in that needs nobody's permission. */}
+      {standalone && auth.accountType === "teacher" ? (
         <Card className="flex items-start gap-2 border-l-4 border-l-[var(--cue-gold)]">
           <Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -156,7 +160,11 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
           <EmptyState
             icon={<Music className="h-6 w-6" />}
             title="No programs yet"
-            body="Nobody has started one yet — you can be the first."
+            body={
+              app.canCreateProgram
+                ? "Nobody has started one yet — you can be the first."
+                : "No programs are available yet. Ask a teacher or director to get one started."
+            }
           />
         </Card>
       ) : (
@@ -226,22 +234,23 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
         </>
       )}
 
-      {/* The other way in, offered to everybody — not just teachers. */}
-      <Card className="space-y-3">
-        <div className="flex items-start gap-2">
-          <Music className="mt-0.5 h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
-          <div className="min-w-0">
-            <p className="font-semibold">Running a program of your own?</p>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Name it and you&rsquo;re its director — the roster, attendance and live check-in
-              tools come with it, and it starts closed with a join code for you to hand out.
-            </p>
+      {app.canCreateProgram ? (
+        <Card className="space-y-3">
+          <div className="flex items-start gap-2">
+            <Music className="mt-0.5 h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+            <div className="min-w-0">
+              <p className="font-semibold">Running a program of your own?</p>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Name it and you&rsquo;re its director — the roster, attendance and live check-in
+                tools come with it, and it starts closed with a join code for you to hand out.
+              </p>
+            </div>
           </div>
-        </div>
-        <Button block variant="secondary" onClick={() => navigate("/new-program")}>
-          Start a new program
-        </Button>
-      </Card>
+          <Button block variant="secondary" onClick={() => navigate("/new-program")}>
+            Start a new program
+          </Button>
+        </Card>
+      ) : null}
 
       <Card className="flex items-start gap-2">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />

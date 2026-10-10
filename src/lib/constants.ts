@@ -149,11 +149,9 @@ export const CHECKIN_CODE_LENGTH = 8;
 /**
  * Which audience the auth screens are speaking to — student or teacher.
  *
- * This is a preference for copy only: it survives a move between our own
- * sign-in and sign-up screens (which carry it in `?role=` and in session
- * storage) via session storage, and real roles (director, section leader,
- * student) still come from program membership after sign-in, never from this
- * choice.
+ * At sign-up, this self-declared choice determines whether the account may
+ * start a program. It grants no role in an existing program: director, section
+ * leader and student memberships still come from the program roster.
  */
 export type AuthAudience = "student" | "teacher";
 

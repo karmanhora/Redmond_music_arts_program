@@ -302,12 +302,14 @@ export function ProfileScreen() {
             subtitle="Use the join code from that program's director"
             onClick={() => navigate("/join")}
           />
-          <Row
-            icon={<Plus className="h-5 w-5" />}
-            title="Start a new program"
-            subtitle="Name it and you're its director"
-            onClick={() => navigate("/new-program")}
-          />
+          {app.canCreateProgram ? (
+            <Row
+              icon={<Plus className="h-5 w-5" />}
+              title="Start a new program"
+              subtitle="Name it and you're its director"
+              onClick={() => navigate("/new-program")}
+            />
+          ) : null}
         </Card>
         <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
           {ORG_NAME}. Roles, sections and colours follow whichever program you are in.

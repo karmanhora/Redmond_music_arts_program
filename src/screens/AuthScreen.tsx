@@ -150,7 +150,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
     }
 
     if (mode === "sign-up") {
-      const { error: failure, needsConfirmation } = await auth.signUp(email, password);
+      const { error: failure, needsConfirmation } = await auth.signUp(email, password, audience);
       setBusy(false);
       if (failure) {
         setError(failure);
@@ -197,7 +197,9 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
   async function continueWithGoogle() {
     setError(null);
     setBusy(true);
-    const redirectTo = new URL(afterAuth ?? "/", window.location.origin).toString();
+    const redirectUrl = new URL(afterAuth ?? "/", window.location.origin);
+    redirectUrl.searchParams.set("account_type", audience);
+    const redirectTo = redirectUrl.toString();
     const { error: failure } = await auth.signInWithGoogle(redirectTo);
     if (failure) {
       setBusy(false);

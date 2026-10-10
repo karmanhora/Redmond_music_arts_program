@@ -48,9 +48,20 @@ function RouteSkeleton() {
 }
 
 /** Role gate: bounce a screen the current membership cannot open. */
-function RoleGate({ need, children }: { need: "staff" | "director"; children: ReactNode }) {
+function RoleGate({
+  need,
+  children,
+}: {
+  need: "staff" | "director" | "program-creator";
+  children: ReactNode;
+}) {
   const app = usePrograms();
-  const allowed = need === "director" ? app.isDirector : app.isStaff;
+  const allowed =
+    need === "program-creator"
+      ? app.canCreateProgram
+      : need === "director"
+        ? app.isDirector
+        : app.isStaff;
   return allowed ? <>{children}</> : <Navigate to="/" replace />;
 }
 
@@ -84,7 +95,14 @@ function ProgramRoutes() {
   if (app.status === "no-roster") {
     return (
       <Routes>
-        <Route path="/new-program" element={<NewProgramScreen standalone />} />
+        <Route
+          path="/new-program"
+          element={
+            <RoleGate need="program-creator">
+              <NewProgramScreen standalone />
+            </RoleGate>
+          }
+        />
         <Route path="*" element={<JoinProgramScreen standalone />} />
       </Routes>
     );
@@ -98,7 +116,14 @@ function ProgramRoutes() {
         <Route path="/checkin" element={<CheckInScreen />} />
         <Route path="/me" element={<ProfileScreen />} />
         <Route path="/join" element={<JoinProgramScreen />} />
-        <Route path="/new-program" element={<NewProgramScreen />} />
+        <Route
+          path="/new-program"
+          element={
+            <RoleGate need="program-creator">
+              <NewProgramScreen />
+            </RoleGate>
+          }
+        />
         <Route
           path="/attendance"
           element={

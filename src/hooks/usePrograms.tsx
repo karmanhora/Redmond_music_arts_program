@@ -46,6 +46,8 @@ export interface ProgramsState {
   isStaff: boolean;
   /** Staff somewhere, even if not here. */
   isStaffAnywhere: boolean;
+  /** A teacher account or an existing director may start another program. */
+  canCreateProgram: boolean;
   /** Highest role held in the current program, for the chip beside the name. */
   primaryRole: Role;
   setProgram: (ensembleId: string) => void;
@@ -69,6 +71,7 @@ const EMPTY: Omit<ProgramsState, "refresh" | "setProgram" | "status" | "error"> 
   isSectionLeader: false,
   isStaff: false,
   isStaffAnywhere: false,
+  canCreateProgram: false,
   primaryRole: "student",
 };
 
@@ -115,6 +118,7 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
   });
 
   const authUserId = auth.userId;
+  const accountType = auth.accountType;
   const signedIn = auth.status === "signed-in";
 
   /** Load one program's sections and colours, then make it the current one. */
@@ -125,7 +129,13 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
 
       if (!membership) {
         // Signed in, but on no roster at all: they need a join code.
-        setState({ ...EMPTY, profile, status: "no-roster", error: null });
+        setState({
+          ...EMPTY,
+          profile,
+          canCreateProgram: accountType === "teacher",
+          status: "no-roster",
+          error: null,
+        });
         return;
       }
 
@@ -154,16 +164,20 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
         isSectionLeader: roles.includes("section_leader"),
         isStaff: isStaffRole(roles),
         isStaffAnywhere: memberships.some((m) => isStaffRole(m.roles ?? [])),
+        canCreateProgram:
+          accountType === "teacher" ||
+          (accountType === null &&
+            memberships.some((m) => m.active && m.roles?.includes("director"))),
         primaryRole: primaryRoleOf(roles),
       });
     },
-    []
+    [accountType]
   );
 
   const refresh = useCallback(async (preferEnsembleId?: string) => {
     // The session is still being restored: stay on the splash rather than
     // deciding "no roster" from an answer we don't have yet.
-    if (auth.status === "loading") return;
+    if (auth.status === "loading" || auth.accountTypeLoading) return;
     if (!signedIn || !authUserId) {
       setState({ ...EMPTY, status: "loading", error: null });
       return;
@@ -175,7 +189,12 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
       const profile = await fetchProfileByAuthId(authUserId);
       if (!profile) {
         // Signed in, but never joined a program → no profile row yet.
-        setState({ ...EMPTY, status: "no-roster", error: null });
+        setState({
+          ...EMPTY,
+          canCreateProgram: accountType === "teacher",
+          status: "no-roster",
+          error: null,
+        });
         return;
       }
 
@@ -188,7 +207,14 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
         error: e instanceof Error ? e.message : "Could not load your programs.",
       });
     }
-  }, [auth.status, signedIn, authUserId, loadProgram]);
+  }, [
+    auth.status,
+    auth.accountTypeLoading,
+    signedIn,
+    authUserId,
+    accountType,
+    loadProgram,
+  ]);
 
   useEffect(() => {
     void refresh();
