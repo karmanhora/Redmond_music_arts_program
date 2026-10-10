@@ -27,7 +27,7 @@
 | Schema + all RPCs + RLS + triggers | `supabase/schema.sql` (2,260 lines — canonical, self-contained) |
 | Migrations | `001_event_types_attendance_upgrades.sql`, `002_section_leader_permissions.sql`, `003_staff_only_attendance_notes.sql`, `004_bulk_roster_import.sql`, `005_security_and_attendance_hardening.sql`, `006_checkin_session_open_window.sql` |
 | Security tests | `supabase/tests/security_verification.sql` (801 lines, 1 rolled-back transaction, ~60 assertions) |
-| Seeds / utilities | `seed.sql` (demo), `seed-production.sql` (director bootstrap), `reset.sql`, `fix_event_types.sql` |
+| Seeds / utilities | No demo seed or demo-account fixtures are present in this repository. |
 | Edge functions | `sync_google_calendar` (ICS fetch + parse + RPC), `send_signup_reminder` (SendGrid) |
 | Storage / auth | `avatars` bucket + 4 `storage.objects` policies; `handle_new_user` trigger on `auth.users`; 6 email templates; `config.toml` |
 | Frontend | `src/` — 9 screens, `AppShell`, `ui.tsx` kit, `constants/types/rpc/supabase/date/eventCache/calendarSync`, `useAuth/useDark`, PWA (`sw.js`, manifest), Vite/TS/Tailwind v4 config |
@@ -102,7 +102,6 @@ Every row here is addressed in Phase 2 (DB) or Phase 3 (UI). "SA" = security-rel
 | U10 | `lib/calendarSync.ts` + edge fn | Single hardcoded ICS URL fallback | `calendar_sources` per ensemble; sync passes source id |
 | U11 | `send_signup_reminder` | "RHS Band" from-name; program-wide recipients | Ensemble param; recipients = ensemble members not checked in |
 | U12 | Email templates, `index.html`, `manifest`, `sw.js` cache name | "RHS Band" branding, `#2d5a1b` | Single theme now (the Band tokens own the colors); the site itself is named for the **Music and Arts Program** in `index.html` and the manifest, with the band's name in `ensembles` |
-| U13 | `demoAccounts()` in `constants.ts` | Demo credentials in the bundle (gated by `VITE_SHOW_DEMO_ACCOUNTS`) | Keep dev-only gate; do **not** carry demo accounts into production seed |
 | U14 | **The word "ensemble" must appear nowhere in the UI.** The site is the *Redmond High School Music and Arts Program*, and each tracker inside it is a **program** ("program", "section", "roster"). "Band" is right only where the program on screen *is* the band — its own name, or the "Band Meeting" event type. "Ensemble" lives in DB/API identifiers only. |
 
 ---
