@@ -29,7 +29,7 @@ const programs = [
   },
 ];
 
-/** Public landing page for the RHS Music & Arts attendance platform. */
+/** Public landing page for Redmond High School Attendance. */
 export function WelcomeScreen() {
   const { dark, toggle } = useDark();
 
@@ -41,7 +41,7 @@ export function WelcomeScreen() {
             Redmond High School
           </p>
           <p className="text-sm font-semibold tracking-[0.12em] text-[var(--cue-ink)] uppercase">
-            Music &amp; Arts
+            Attendance
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -245,7 +245,7 @@ export function WelcomeScreen() {
 
         <footer className="border-t border-[var(--cue-border)]">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-sm text-[var(--cue-muted)] sm:px-8">
-            <span>Redmond High School Music &amp; Arts</span>
+            <span>Redmond High School Attendance</span>
             <Link
               viewTransition
               to="/sign-up"

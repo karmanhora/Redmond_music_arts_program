@@ -17,16 +17,16 @@ import type {
  */
 
 /** Full public name for the umbrella platform. */
-export const PLATFORM_NAME = "Redmond High School Music & Arts Program Attendance";
+export const PLATFORM_NAME = "Redmond High School Attendance";
 
 /** Short UI / PWA name. */
-export const APP_NAME = "RHS Music & Arts Attendance";
+export const APP_NAME = "Redmond High School Attendance";
 
 /** The umbrella, spelled out — welcome screen, About, the app bar's subtitle. */
-export const ORG_NAME = "Redmond High School Music & Arts";
+export const ORG_NAME = "Redmond High School Attendance";
 
 export const APP_DESCRIPTION =
-  "The rehearsal calendar, attendance, and check-in tools for RHS musicians and their directors.";
+  "Attendance, events, and check-in tools for Redmond High School students and staff.";
 
 export interface EventTypeOption {
   /** Canonical lowercase key stored in `events.event_type`. */

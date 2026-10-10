@@ -1,7 +1,7 @@
 {
-  "name": "Redmond High School Music & Arts Program Attendance",
-  "short_name": "RHS Music & Arts",
-  "description": "One attendance platform for Redmond High School's music and arts programs.",
+  "name": "Redmond High School Attendance",
+  "short_name": "Redmond High School Attendance",
+  "description": "Attendance, events, and check-in tools for Redmond High School students and staff.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
