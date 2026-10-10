@@ -100,11 +100,17 @@ Authentication → **URL Configuration**:
 
 - **Site URL** — the production origin.
 - **Redirect URLs** — that origin, plus `<origin>/reset-password` for the
-  password-recovery link. A link whose redirect is not on this list is silently
-  rewritten to the Site URL, and the recovery screen then never opens.
+  password-recovery link and `<origin>/checkin*` for Google OAuth sign-in from a
+  QR check-in. Add the equivalent local URLs when testing. A redirect not on
+  this list is rejected or rewritten to the Site URL.
 
-Nothing else is needed: no third-party provider, no JWT template, no webhook
-secret, no proxy. The six account emails themselves are branded in
+Authentication → **Providers → Google**: enable Google, configure the Google
+OAuth client ID and secret, and register the Supabase callback URL shown there
+with that OAuth client. The app uses Supabase's Google provider and sends users
+back to the site origin, or to the original QR check-in when one is in progress.
+
+No JWT template, webhook secret, or proxy is needed. The six account emails
+themselves are branded in
 `supabase/templates/` — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) for applying them,
 the SMTP ceiling that will bite a whole class signing up at once, and how to test
 them honestly.

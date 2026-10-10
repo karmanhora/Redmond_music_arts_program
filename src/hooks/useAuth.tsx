@@ -34,6 +34,7 @@ export interface AuthState {
   recovering: boolean;
   clearRecovery: () => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: (redirectTo: string) => Promise<{ error: string | null }>;
   signUp: (
     email: string,
     password: string,
@@ -144,6 +145,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? readable(error.message) : null };
   }, []);
 
+  const signInWithGoogle = useCallback(async (redirectTo: string) => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    return { error: error ? readable(error.message) : null };
+  }, []);
+
   const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -199,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recovering,
       clearRecovery,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
       sendPasswordReset,
@@ -211,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recovering,
       clearRecovery,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
       sendPasswordReset,

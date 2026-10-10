@@ -194,6 +194,17 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
     toast.success("Sent — check your inbox.");
   }
 
+  async function continueWithGoogle() {
+    setError(null);
+    setBusy(true);
+    const redirectTo = new URL(afterAuth ?? "/", window.location.origin).toString();
+    const { error: failure } = await auth.signInWithGoogle(redirectTo);
+    if (failure) {
+      setBusy(false);
+      setError(failure);
+    }
+  }
+
   /* --- dead ends that deserve a whole panel rather than a form ------------ */
 
   if (mode === "reset" && !auth.userId) {
@@ -385,6 +396,24 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           </Button>
         ) : null}
       </form>
+
+      {showsAudience ? (
+        <>
+          <div className="my-5 flex items-center gap-3 text-xs text-[var(--cue-muted)]">
+            <span aria-hidden="true" className="h-px flex-1 bg-[var(--cue-border)]" />
+            <span>or continue with</span>
+            <span aria-hidden="true" className="h-px flex-1 bg-[var(--cue-border)]" />
+          </div>
+          <Button
+            block
+            variant="secondary"
+            loading={busy}
+            onClick={() => void continueWithGoogle()}
+          >
+            Continue with Google
+          </Button>
+        </>
+      ) : null}
 
       <div className="mt-5 space-y-3 text-center text-sm">
         {mode === "sign-in" ? (

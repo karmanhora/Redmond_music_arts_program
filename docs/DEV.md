@@ -69,8 +69,8 @@ service, so there is no third-party script, no token bridge and no proxy — whi
 is also why the landing page no longer waits on a network round-trip before it
 can render. The flow:
 
-1. `src/screens/AuthScreen.tsx` collects an email and password and calls
-   `supabase.auth.signInWithPassword(...)`. Sign-up, "email me a reset link" and
+1. `src/screens/AuthScreen.tsx` supports email/password sign-in and sign-up, as
+   well as Google sign-in through Supabase OAuth. "Email me a reset link" and
    "set a new password" (from that link) are the same screen in other modes.
 2. `src/hooks/useAuth.tsx` is the app's whole idea of a session: it restores the
    stored one on the first tick, subscribes to `onAuthStateChange`, and keeps the
@@ -88,6 +88,11 @@ link, email change, reauthentication — from the templates in
 applied through the dashboard or `supabase config push`; the operator guide
 (which email fires when, the SMTP ceiling, redirect URLs, how to test) is
 [`EMAIL_SETUP.md`](EMAIL_SETUP.md).
+
+Google OAuth is configured in Supabase Authentication → Providers → Google.
+The OAuth redirect URI shown by Supabase must also be registered with the Google
+OAuth client. The app redirects back to the site origin after authentication,
+or directly to `/checkin` when continuing a QR check-in.
 
 Starting a program does not need anybody's approval: a signed-in teacher names one
 and `create_program()` (migration 022) makes them its director. Directors are the
