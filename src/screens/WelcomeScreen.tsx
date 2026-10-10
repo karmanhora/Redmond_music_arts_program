@@ -1,29 +1,32 @@
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Check, Moon, QrCode, Sun } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Camera,
+  ClipboardCheck,
+  Moon,
+  QrCode,
+  Sun,
+  Users,
+} from "lucide-react";
 import { IconButton } from "../components/ui";
 import { APP_NAME } from "../lib/constants";
 import { useDark } from "../hooks/useDark";
 
 const programs = [
   {
-    name: "ORCHESTRA",
-    detail: "Strings • Ensembles • Concerts",
-    tone: "orchestra",
+    name: "Band",
+    detail: "RHS Mustang Bands",
+    summary: "Attendance and event tools for RHS band members and directors.",
+    instagram: "https://www.instagram.com/rhsmustangbands/",
+    attendance: true,
   },
   {
-    name: "BAND",
-    detail: "Marching • Concert • Events",
-    tone: "band",
-  },
-  {
-    name: "CHOIR",
-    detail: "Vocal • Performance • Events",
-    tone: "choir",
-  },
-  {
-    name: "DRAMA",
-    detail: "Theatre • Productions • Events",
-    tone: "drama",
+    name: "Orchestra",
+    detail: "RHS Strings",
+    summary: "Follow the RHS orchestra community and stay up to date with performances.",
+    instagram: "https://www.instagram.com/rhs.strings/",
+    attendance: false,
   },
 ];
 
@@ -94,28 +97,17 @@ export function WelcomeScreen() {
                 {APP_NAME}
               </p>
               <h1 className="landing-title mt-4 font-display text-5xl leading-[0.84] font-bold uppercase tracking-[-0.05em] sm:text-6xl lg:text-[7rem]">
-                <span className="block">Redmond</span>
-                <span className="block text-[var(--cue-gold)]">Music &amp; Arts</span>
-                <span className="block">Attendance</span>
+                <span className="block">RHS Band</span>
+                <span className="block text-[var(--cue-gold)]">Ready for</span>
+                <span className="block">Rehearsal.</span>
               </h1>
-              <div className="landing-meta mt-6 flex flex-wrap items-center gap-4 text-[10px] font-bold tracking-[0.18em] text-white/80 uppercase sm:text-[11px]">
-                <span>Music &amp; Arts Program</span>
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[var(--cue-gold)]" />
-                  Attendance Network
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[var(--cue-gold)] opacity-80" />
-                  System Online
-                </span>
-              </div>
               <div className="landing-actions mt-8 flex flex-wrap gap-3">
                 <Link
                   viewTransition
                   to="/sign-in"
                   className="motion-press inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-white px-5 text-sm font-bold text-[var(--cue-action-hover)] hover:bg-[#f1f0e9]"
                 >
-                  Enter attendance
+                  Sign in
                   <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
                 </Link>
                 <Link
@@ -127,195 +119,109 @@ export function WelcomeScreen() {
                 </Link>
               </div>
               <p className="landing-note mt-5 max-w-lg text-sm leading-relaxed text-white/75">
-                Built for rehearsal rhythm, section readiness, and live event attendance across RHS music and arts programs.
+                Events, quick check-in, and attendance in one place for RHS band members and directors.
               </p>
             </div>
 
             <section
-              aria-label="Example of the director check-in view"
+              aria-label="Band attendance tools"
               className="landing-panel cue-card relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-[var(--cue-panel)] text-[var(--cue-ink)] shadow-[0_30px_80px_rgba(0,0,0,0.2)]"
             >
               <div className="flex items-center justify-between gap-3 border-b border-[var(--cue-border)] px-4 py-3 sm:px-5">
                 <span className="font-display text-lg font-bold tracking-[0.12em] uppercase">
-                  Attendance live
-                </span>
-                <span className="inline-flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-[var(--cue-green)] uppercase">
-                  <span className="h-2 w-2 rounded-full bg-[var(--cue-green)]" />
-                  system online
+                  Your band, organized
                 </span>
               </div>
-              <div className="p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-3 text-[11px] font-bold tracking-[0.18em] text-[var(--cue-muted)] uppercase">
-                  <span>Wind Ensemble</span>
-                  <span>Today · 3:30 PM</span>
-                </div>
-                <h2 className="mt-3 font-display text-4xl leading-none font-bold uppercase tracking-[-0.04em] sm:text-5xl">
-                  Rehearsal sync
-                </h2>
-                <div className="mt-5 rounded-[1rem] border border-[var(--cue-border)] bg-[var(--cue-raised)] p-4">
-                  <div className="flex items-end justify-between gap-4">
+              <div className="divide-y divide-[var(--cue-border)] p-4 sm:p-5">
+                {[
+                  {
+                    icon: CalendarDays,
+                    title: "Know what’s next",
+                    detail: "See rehearsals and upcoming events.",
+                  },
+                  {
+                    icon: ClipboardCheck,
+                    title: "Check in with ease",
+                    detail: "Quick attendance check-in at each event.",
+                  },
+                  {
+                    icon: Users,
+                    title: "Stay in sync",
+                    detail: "Members and directors share one roster.",
+                  },
+                ].map(({ icon: Icon, title, detail }) => (
+                  <div key={title} className="flex items-center gap-4 py-4 first:pt-1 last:pb-1">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--cue-raised)] text-[var(--cue-green)]">
+                      <Icon aria-hidden="true" className="h-5 w-5" />
+                    </span>
                     <div>
-                      <p className="font-display text-6xl leading-none font-bold tabular-nums tracking-[-0.06em]">
-                        27<span className="text-3xl text-[var(--cue-muted)]"> / 32</span>
-                      </p>
-                      <p className="mt-1 text-xs font-semibold tracking-[0.12em] text-[var(--cue-muted)] uppercase">
-                        musicians checked in
-                      </p>
+                      <p className="font-semibold">{title}</p>
+                      <p className="mt-1 text-sm text-[var(--cue-muted)]">{detail}</p>
                     </div>
-                    <p className="font-display text-4xl leading-none font-bold tabular-nums text-[var(--cue-green)]">
-                      84%
-                    </p>
                   </div>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--cue-border)]">
-                    <div className="h-full w-[84%] rounded-full bg-[linear-gradient(90deg,var(--cue-green),var(--cue-gold))]" />
-                  </div>
-                </div>
-                <ul className="mt-4 space-y-2" aria-label="Example check-ins">
-                  {[
-                    ["Maya Chen", "On time"],
-                    ["Eli", "On time"],
-                    ["Anastasia Petrova", "Expected"],
-                  ].map(([name, status]) => (
-                    <li
-                      key={name}
-                      className="flex min-h-11 items-center justify-between gap-3 rounded-[0.75rem] border border-[var(--cue-border)] bg-white/40 px-3 text-sm dark:bg-white/5"
-                    >
-                      <span className="truncate font-semibold">{name}</span>
-                      <span
-                        className={
-                          status === "On time"
-                            ? "flex shrink-0 items-center gap-1.5 text-[var(--cue-green)]"
-                            : "shrink-0 font-semibold text-[var(--cue-muted)]"
-                        }
-                      >
-                        {status === "On time" ? <Check aria-hidden="true" className="h-4 w-4" /> : null}
-                        {status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                ))}
               </div>
             </section>
           </div>
         </section>
 
-        <div className="music-engine mx-auto flex max-w-7xl items-center justify-center gap-3 overflow-hidden px-5 py-5 text-[10px] font-bold tracking-[0.24em] text-[var(--cue-muted)] uppercase sm:px-8">
-          <span>STAFF</span>
-          <span className="music-engine-arrow">↓</span>
-          <span>WAVEFORM</span>
-          <span className="music-engine-arrow">↓</span>
-          <span>TIMELINE</span>
-          <span className="music-engine-arrow">↓</span>
-          <span>ATTENDANCE GRAPH</span>
-        </div>
-
-        <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+        <section id="programs" className="mx-auto max-w-7xl scroll-mt-8 px-5 py-12 sm:px-8 sm:py-16">
           <div className="mb-8 max-w-3xl">
             <p className="text-[11px] font-bold tracking-[0.18em] text-[var(--cue-action)] uppercase">
-              program network
+              RHS music
             </p>
             <h2 className="mt-2 font-display text-4xl font-bold uppercase tracking-[-0.05em] sm:text-5xl">
-              Four programs. One shared rhythm.
+              Find your music community.
             </h2>
+            <p className="mt-3 max-w-2xl text-[var(--cue-muted)]">
+              Open the band attendance app or follow the official RHS music program pages.
+            </p>
           </div>
-          <div className="program-grid grid gap-5 lg:grid-cols-4">
+          <div className="grid gap-5 md:grid-cols-2">
             {programs.map((program) => (
-              <article key={program.name} className={`program-card ${program.tone}`}>
-                <div className="program-art" aria-hidden="true">
-                  <span className="program-staff" />
-                  <span className="program-staff" />
-                  <span className="program-note" />
-                  <span className="program-wave" />
+              <article
+                key={program.name}
+                className="flex min-h-64 flex-col justify-between rounded-[var(--radius-panel)] border border-[var(--cue-border)] bg-[var(--cue-panel)] p-6 shadow-[var(--elevation-panel)]"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold tracking-[0.16em] text-[var(--cue-action)] uppercase">
+                        {program.attendance ? "Attendance app" : "RHS music"}
+                      </p>
+                      <h3 className="mt-2 font-display text-3xl font-bold uppercase">{program.name}</h3>
+                    </div>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--cue-raised)] text-[var(--cue-green)]">
+                      <Camera aria-hidden="true" className="h-5 w-5" />
+                    </span>
+                  </div>
+                  <p className="mt-2 font-semibold">{program.detail}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--cue-muted)]">{program.summary}</p>
                 </div>
-                <div className="program-body">
-                  <div className="program-header">
-                    <p className="program-name">{program.name}</p>
-                    <span className="program-arrow">→</span>
-                  </div>
-                  <p className="program-detail">{program.detail}</p>
-                  <div className="program-link">
-                    Enter program
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {program.attendance ? (
+                    <Link
+                      viewTransition
+                      to="/sign-in"
+                      className="motion-press inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--cue-action)] px-4 text-sm font-bold text-white hover:bg-[var(--cue-action-hover)]"
+                    >
+                      Band sign in
+                      <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+                    </Link>
+                  ) : null}
+                  <a
+                    href={program.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Follow ${program.detail} on Instagram (opens in a new tab)`}
+                    className="motion-press inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--cue-border)] px-4 text-sm font-bold text-[var(--cue-ink)] hover:bg-[var(--cue-raised)]"
+                  >
+                    Follow on Instagram
                     <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
-                  </div>
+                  </a>
                 </div>
               </article>
             ))}
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-5 pb-12 sm:px-8 sm:pb-16">
-          <div className="attendance-shell rounded-[2rem] border border-[var(--cue-border)] bg-[var(--cue-panel)] p-5 shadow-[0_25px_70px_rgba(17,23,19,0.08)] sm:p-8 lg:p-10">
-            <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-[11px] font-bold tracking-[0.2em] text-[var(--cue-action)] uppercase">
-                  attendance system
-                </p>
-                <h2 className="mt-2 font-display text-4xl font-bold uppercase tracking-[-0.05em] sm:text-5xl">
-                  Live coverage for every performance.
-                </h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold tracking-[0.18em] text-[var(--cue-muted)] uppercase">
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[var(--cue-green)]" />
-                  System online
-                </span>
-                <span>04 programs</span>
-                <span>Live events</span>
-              </div>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-[1.5rem] border border-[var(--cue-border)] bg-[var(--cue-raised)] p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.2em] text-[var(--cue-muted)] uppercase">
-                      attendance tracking
-                    </p>
-                    <p className="mt-2 font-display text-3xl font-bold uppercase tracking-[-0.04em]">
-                      18 events live
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-[var(--cue-border)] bg-white px-3 py-1 text-[10px] font-bold tracking-[0.16em] uppercase text-[var(--cue-action)]">
-                    +21% this week
-                  </span>
-                </div>
-                <div className="mt-6 space-y-4">
-                  {[82, 71, 89, 64].map((value, index) => (
-                    <div key={value}>
-                      <div className="mb-2 flex items-center justify-between text-xs font-bold tracking-[0.12em] text-[var(--cue-muted)] uppercase">
-                        <span>{["Orchestra", "Band", "Choir", "Drama"][index]}</span>
-                        <span>{value}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-[var(--cue-border)]">
-                        <div
-                          className="h-full rounded-full bg-[linear-gradient(90deg,var(--cue-green),var(--cue-gold))]"
-                          style={{ width: `${value}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[1.5rem] border border-[var(--cue-border)] bg-[var(--cue-brand-panel)] p-5 text-[var(--cue-brand-ink)]">
-                <p className="text-[10px] font-bold tracking-[0.2em] text-[var(--cue-gold)] uppercase">
-                  performance pulse
-                </p>
-                <div className="mt-5 flex items-end gap-3">
-                  {[36, 54, 72, 48, 78, 60, 94].map((height, index) => (
-                    <span
-                      key={height}
-                      className="pulse-bar"
-                      style={{ height: `${height}%`, animationDelay: `${index * 100}ms` }}
-                    />
-                  ))}
-                </div>
-                <div className="mt-5 flex items-center justify-between gap-4 border-t border-white/15 pt-4 text-[10px] font-bold tracking-[0.18em] uppercase text-white/80">
-                  <span>Check-in flow</span>
-                  <span>Live</span>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
