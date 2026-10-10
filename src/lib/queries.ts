@@ -29,12 +29,17 @@ export interface EmbeddedMembership extends MembershipRow {
   section: Pick<SectionRow, "id" | "name" | "sort_order"> | null;
 }
 
-/** My own profile row, found by the Clerk `sub` claim we already hold. */
-export async function fetchProfileByClerkId(clerkUserId: string): Promise<Profile | null> {
+/**
+ * My own profile row, found by the Supabase Auth user id we already hold.
+ *
+ * `auth_user_id` is `auth.uid()` (migration 021); RLS also limits this select to
+ * rows the caller may see, so the filter is a lookup, not the access rule.
+ */
+export async function fetchProfileByAuthId(authUserId: string): Promise<Profile | null> {
   const { data } = await supabase
     .from("profiles")
     .select("*")
-    .eq("clerk_id", clerkUserId)
+    .eq("auth_user_id", authUserId)
     .maybeSingle<Profile>();
   return (data as Profile | null) ?? null;
 }

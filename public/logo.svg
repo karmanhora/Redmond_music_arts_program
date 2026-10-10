@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">Redmond High School Music &amp; Arts</title>
+  <!--
+    PLACEHOLDER MARK — see docs/BRAND_ASSETS.md.
+    The previous artwork was the school's own Redmond Band logo carried as a
+    base64 bitmap inside a 200 KB SVG, and it was removed on request. This is a
+    self-contained vector stand-in so every surface (favicon, home-screen icon,
+    splash, sign-in headers) keeps working until the new Music & Arts artwork
+    lands. Replace this one file and re-run scripts/brand/render-icons.mjs.
+  -->
+  <!-- The badge is the *deep* green so it still reads on a `bg-band`
+       (#214d35) panel — the splash and the sign-in header — where the brand
+       green would leave nothing but the note floating. -->
+  <rect id="badge" x="0" y="0" width="512" height="512" rx="112" fill="#173b28"/>
+  <g id="mark" transform="translate(-4,-14)">
+    <g fill="#faf9f4">
+      <ellipse cx="206" cy="370" rx="68" ry="50" transform="rotate(-18 206 370)"/>
+      <rect x="252" y="118" width="24" height="258" rx="12"/>
+    </g>
+    <path d="M276 118 C 336 130 374 176 378 240 C 350 196 316 170 276 158 Z" fill="#d5a33a"/>
+  </g>
+</svg>

@@ -129,14 +129,16 @@ for pair in \
   label="${pair%%|*}"
   sql="${pair#*|}"
 
-  # The Supabase-Auth signup trigger is retired by 018 (Clerk owns identity and
-  # the join-code gate lives in the `user.created` webhook, PLATFORM_PLAN §13).
-  # Its absence is only expected once that migration has run — detect it by the
+  # The auth.users signup trigger is retired by 018 and deliberately NOT
+  # re-created by 021: Supabase Auth owns the account, and the join code is
+  # validated in the app by `join_program()` (migration 020) *after* that account
+  # exists — the only flow that can also add somebody's second program. Its
+  # absence is only expected once that migration has run — detect it by the
   # retirement of app_settings, which 018 drops in the same file.
   if [[ "$label" == "handle_new_user trigger" ]]; then
     still_legacy="$(psql "$NEW_DB_URL" -X -At -v ON_ERROR_STOP=1 -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='app_settings'")"
     if [[ "$still_legacy" == "0" ]]; then
-      log "   retired — handle_new_user trigger removed by migration 018 (Clerk owns signup; see PLATFORM_PLAN §13)"
+      log "   retired — handle_new_user trigger removed by migration 018 (Supabase Auth + join_program() validate the join code; no auth.users trigger is expected)"
       continue
     fi
   fi

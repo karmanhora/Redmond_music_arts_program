@@ -1,0 +1,102 @@
+# ============================================================================
+# Supabase CLI configuration — RHS Music & Arts Attendance
+# ============================================================================
+# OPTIONAL, and it changes nothing about the deployed app: Vercel builds the
+# frontend from src/, and nothing in it reads this file at runtime.
+#
+# It exists for one reason — so the six branded auth emails in
+# supabase/templates/ are version-controlled with the code and can be applied
+# with one command instead of being pasted into the dashboard by hand:
+#
+#   supabase link --project-ref <PROJECT_REF>
+#   supabase config push --project-ref <PROJECT_REF>
+#
+# `config push` REPLACES the remote auth configuration with what is here. A
+# project that already keeps a config.toml elsewhere must MERGE these sections
+# into that file rather than overwriting it, or settings that live only in the
+# dashboard copy will be reset.
+#
+# Operator guide (which email fires when, SMTP, redirect URLs, how to test):
+# docs/EMAIL_SETUP.md. Dashboard equivalent of this file:
+# Authentication → Emails → Templates / SMTP Settings.
+# ============================================================================
+
+[auth]
+# The production origin. Everything that does not name its own redirect falls
+# back to this, so it must be the deployed app — not localhost.
+site_url = "https://rhs-musicandarts.vercel.app"
+
+# Every destination an email link is allowed to land on. A link whose redirect
+# is missing here is silently rewritten to the Site URL, which is how a
+# password-reset email ends up opening the home page instead of the reset form.
+additional_redirect_urls = [
+  # Confirmation and invite links: src/hooks/useAuth.tsx passes
+  # `${window.location.origin}/` as emailRedirectTo.
+  "https://rhs-musicandarts.vercel.app/",
+  # The password-recovery link: resetPasswordForEmail passes
+  # `${window.location.origin}/reset-password`, and the app refuses to apply a
+  # recovery without that screen (AuthScreen mode="reset").
+  "https://rhs-musicandarts.vercel.app/reset-password",
+  # Local development — both call sites above, on the Vite dev server.
+  "http://localhost:5173/**",
+]
+
+[auth.email]
+# Anyone may create an account; the roster is what limits what they can see.
+enable_signup = true
+# Confirmation is ON in this project, so a new account cannot sign in until the
+# link in confirmation.html is used. The app's sign-up screen says so and offers
+# a resend.
+enable_confirmations = true
+
+# ----------------------------------------------------------------------------
+# The six emails. Subject lines are what the inbox shows; the heading inside
+# each template matches it. Add a brand suffix ("· RHS Music & Arts") to any
+# subject if you want the sender recognised at a glance.
+# ----------------------------------------------------------------------------
+
+[auth.email.template.confirmation]
+subject = "Confirm your email"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Set a new password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.invite]
+subject = "You've been invited"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Your sign-in link"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new email address"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "Your confirmation code"
+content_path = "./supabase/templates/reauthentication.html"
+
+# ----------------------------------------------------------------------------
+# Custom SMTP — commented out, and worth configuring before real use.
+#
+# The project currently sends through Supabase's built-in sender. That exists
+# for testing: it is rate-limited to a handful of messages an hour and it is not
+# a deliverability story. A class signing up in one lesson will hit the ceiling
+# and the confirmation emails simply will not arrive — which looks exactly like
+# the app being broken, because the new account cannot sign in until it confirms.
+#
+# Set these in the dashboard (Authentication → Emails → SMTP Settings) or
+# uncomment here. The password is read from the environment, never committed.
+#
+# [auth.email.smtp]
+# enabled = true
+# host = "smtp.example.com"
+# port = 587
+# user = "apikey"
+# pass = "env(SMTP_PASSWORD)"
+# admin_email = "no-reply@example.com"
+# sender_name = "RHS Music & Arts"
+# ----------------------------------------------------------------------------

@@ -20,7 +20,7 @@
 --   JP-10  the per-IP lockout still bites in this path
 --
 -- Runs in one transaction and ROLLS BACK. Personas are authenticated exactly the
--- way PostgREST sees a Clerk token. On success it prints: JOIN PROGRAM PASSED
+-- way PostgREST sees a Supabase Auth token. On success it prints: JOIN PROGRAM PASSED
 --
 -- A note on reading the aftermath: a persona can only see rows for a program they
 -- belong to, so "nothing was created" and "that membership is still inactive"
@@ -62,7 +62,7 @@ insert into public.ensemble_settings (ensemble_id, join_code) values
 -- means "no code required" (016's rule), which this suite pins down below.
 
 -- ---------------------------------------------------------------------------
--- 2. JP-1 — anon, and a signed-in person with no Clerk id
+-- 2. JP-1 — anon, and a signed-in person with no account id
 -- ---------------------------------------------------------------------------
 do $$
 declare
@@ -93,7 +93,7 @@ begin
 
   v := public.join_program('test-join-a', 'JOINA9');
   perform public.t_assert(v ->> 'ok' = 'false',
-    'JP-1b a caller with no Clerk id was allowed to join');
+    'JP-1b a caller with no account id was allowed to join');
 end $$;
 reset role;
 select set_config('request.jwt.claims', '{}', true);
@@ -132,10 +132,9 @@ select set_config('request.jwt.claims', '{}', true);
 
 do $$
 begin
-  -- …and nothing at all was created for them (read as the owner: this person has
-  -- no profile yet, so through their own RLS they would see nothing anyway).
+  -- …and nothing at all was created for them (read as the owner: this person has--    no profile yet, so through their own RLS they would see nothing anyway).
   perform public.t_assert(
-    not exists (select 1 from public.profiles where clerk_id = 'join-newbie'),
+    not exists (select 1 from public.profiles where auth_user_id = 'join-newbie'),
     'JP-2c a wrong code created a profile');
   perform public.t_assert(
     not exists (select 1 from public.memberships
@@ -162,15 +161,15 @@ begin
     'JP-3c the call did not name the program it joined');
 
   perform public.t_assert(
-    (select count(*) from public.profiles where clerk_id = 'join-newbie') = 1,
+    (select count(*) from public.profiles where auth_user_id = 'join-newbie') = 1,
     'JP-3d the profile was not created exactly once');
   perform public.t_assert(
-    (select full_name from public.profiles where clerk_id = 'join-newbie') = 'Robin Newbie',
+    (select full_name from public.profiles where auth_user_id = 'join-newbie') = 'Robin Newbie',
     'JP-3e the supplied name was not stored');
   perform public.t_assert(
     (select count(*) from public.memberships m
        join public.profiles p on p.id = m.user_id
-      where p.clerk_id = 'join-newbie'
+      where p.auth_user_id = 'join-newbie'
         and m.ensemble_id = 'aaaaaaaa-0000-4000-8000-0000000000c1'
         and m.active
         and m.roles = '{student}'::public.app_role[]) = 1,
@@ -196,16 +195,16 @@ begin
   perform public.t_assert(v ->> 'existing' = 'false',
     'JP-4b the second program reported itself as already joined');
   perform public.t_assert(
-    (select count(*) from public.profiles where clerk_id = 'join-newbie') = 1,
+    (select count(*) from public.profiles where auth_user_id = 'join-newbie') = 1,
     'JP-4c joining a second program duplicated the person');
   perform public.t_assert(
     (select count(*) from public.memberships m
        join public.profiles p on p.id = m.user_id
-      where p.clerk_id = 'join-newbie') = 2,
+      where p.auth_user_id = 'join-newbie') = 2,
     'JP-4d a member of two programs does not have two memberships');
   -- The name they already had is not overwritten by a later call.
   perform public.t_assert(
-    (select full_name from public.profiles where clerk_id = 'join-newbie') = 'Robin Newbie',
+    (select full_name from public.profiles where auth_user_id = 'join-newbie') = 'Robin Newbie',
     'JP-4e joining a second program overwrote their name');
 
   -- JP-5 — tapping join twice is harmless, not an error.
@@ -217,7 +216,7 @@ begin
   perform public.t_assert(
     (select count(*) from public.memberships m
        join public.profiles p on p.id = m.user_id
-      where p.clerk_id = 'join-newbie'
+      where p.auth_user_id = 'join-newbie'
         and m.ensemble_id = 'aaaaaaaa-0000-4000-8000-0000000000c1') = 1,
     'JP-5c re-joining created a second membership row');
 
@@ -226,7 +225,7 @@ begin
   perform public.t_assert(v ->> 'ok' = 'true',
     'JP-6 a program with no code refused a join: ' || coalesce(v ->> 'message', '?'));
   perform public.t_assert(
-    (select length(full_name) from public.profiles where clerk_id = 'join-newbie') <= 80,
+    (select length(full_name) from public.profiles where auth_user_id = 'join-newbie') <= 80,
     'JP-6b a 200-character name was stored uncapped');
 end $$;
 reset role;
@@ -239,7 +238,7 @@ do $$
 declare
   v jsonb;
 begin
-  update public.profiles set deactivated = true where clerk_id = 'join-newbie';
+  update public.profiles set deactivated = true where auth_user_id = 'join-newbie';
 
   perform set_config('request.jwt.claims', '{"sub":"join-newbie","role":"authenticated"}', true);
   set role authenticated;
@@ -250,7 +249,7 @@ begin
 end $$;
 reset role;
 select set_config('request.jwt.claims', '{}', true);
-update public.profiles set deactivated = false where clerk_id = 'join-newbie';
+update public.profiles set deactivated = false where auth_user_id = 'join-newbie';
 
 -- ---------------------------------------------------------------------------
 -- 7. JP-8 — the roster is the director's decision
@@ -263,7 +262,7 @@ begin
      set active = false
     from public.profiles p
    where p.id = m.user_id
-     and p.clerk_id = 'join-newbie'
+     and p.auth_user_id = 'join-newbie'
      and m.ensemble_id = 'bbbbbbbb-0000-4000-8000-0000000000c1';
 
   perform set_config('request.jwt.claims', '{"sub":"join-newbie","role":"authenticated"}', true);
@@ -287,14 +286,14 @@ begin
   perform public.t_assert(
     (select count(*) from public.memberships m
        join public.profiles p on p.id = m.user_id
-      where p.clerk_id = 'join-newbie'
+      where p.auth_user_id = 'join-newbie'
         and m.ensemble_id = 'bbbbbbbb-0000-4000-8000-0000000000c1'
         and m.active = false) = 1,
     'JP-8c the membership was reactivated anyway');
   perform public.t_assert(
     (select count(*) from public.memberships m
        join public.profiles p on p.id = m.user_id
-      where p.clerk_id = 'join-newbie'
+      where p.auth_user_id = 'join-newbie'
         and m.ensemble_id = 'bbbbbbbb-0000-4000-8000-0000000000c1') = 1,
     'JP-8d the refusal still created a duplicate membership');
 end $$;
@@ -379,7 +378,7 @@ select set_config('request.jwt.claims', '{}', true);
 do $$
 begin
   perform public.t_assert(
-    not exists (select 1 from public.profiles where clerk_id = 'join-brute'),
+    not exists (select 1 from public.profiles where auth_user_id = 'join-brute'),
     'JP-10c a throttled caller still got a profile');
 end $$;
 

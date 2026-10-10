@@ -115,8 +115,10 @@ fi
   || die "schema.sql filter ate app functions (CREATE FUNCTION count too low) — refusing to continue."
 
 # Data: every public row + exactly the platform rows the clone needs —
-# auth.users (password hashes) + auth.identities for sign-in continuity and the
-# Clerk import, storage.buckets/objects for avatars. Live platform session
+# auth.users (password hashes) + auth.identities for sign-in continuity, and
+# storage.buckets/objects for avatars. Those auth rows ARE the identity store
+# again now that Supabase Auth is the provider (migration 021), so they matter
+# exactly as much as any app table. Live platform session
 # state (auth.sessions, refresh_tokens, one_time_tokens, mfa_*, …) is
 # deliberately NOT copied: it is runtime state, useless and sensitive on the
 # other side. Old-platform → new-platform copies are safe because pg_dump

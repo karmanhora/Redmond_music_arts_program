@@ -43,8 +43,8 @@ body copy. Both effects are removed for reduced-motion preferences.
   the program header, then the form, then the Today hint; the staff check-in
   screen lands the mode control, then the event picker, then the live view; the
   auth screen lands its audience picker, then the copy, then the form — and the
-  copy re-reveals when the student/teacher choice changes, keyed so the Clerk
-  form underneath never remounts.
+  copy re-reveals when the student/teacher choice changes, keyed so the form
+  underneath never remounts.
 - **Segmented control:** the active pill settles between tabs with opacity and
   a small scale instead of a background swap — no layout movement. Each tab
   owns its own pill, so option rows that wrap stay aligned, and keyboard focus

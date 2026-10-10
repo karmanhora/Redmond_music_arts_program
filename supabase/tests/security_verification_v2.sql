@@ -7,17 +7,19 @@
 -- Every behavioral assertion from the v1 suite is preserved; what changed is
 -- HOW identity and scoping are expressed:
 --
---   * Personas are `profiles` rows with a `clerk_id` plus a `memberships` row
---     in the band program. `handle_new_user` and `auth.users` are retired (018),
---     so nothing is inserted into `auth.users` any more.
+--   * Personas are `profiles` rows with an `auth_user_id` plus a `memberships`
+--     row in the band program. `handle_new_user` is retired (018) and the join
+--     code is a `join_program()` / `register_signup()` matter, so nothing is
+--     inserted into `auth.users` here.
 --   * Roles live on `memberships.roles` and the section on
 --     `memberships.section_id` — `profiles.roles` / `profiles.instrument` are
 --     gone (018), so section scoping is tested through real `sections` rows.
---   * Personas authenticate exactly as a Clerk session token reaches PostgREST:
+--   * Personas authenticate exactly as a Supabase Auth token reaches PostgREST
+--     (migration 021):
 --       reset role;                                       -- superuser fixtures
 --       set local role authenticated;
 --       select set_config('request.jwt.claims',
---                         '{"sub":"<clerk_id>","role":"authenticated"}', true);
+--                         '{"sub":"<auth_user_id>","role":"authenticated"}', true);
 --     `current_profile_id()` resolves profiles.id from that `sub` claim.
 --   * Analytics RPCs take the program id (`get_section_attendance_stats(uuid)`,
 --     `get_student_attendance_pct(uuid, uuid)`,
@@ -114,17 +116,17 @@ on conflict (ensemble_id, name) do nothing;
 -- 09 director + section_leader (Violin). Plus one account that never passed
 -- the join code — a profile with no membership anywhere, for the "not on this
 -- roster" checks. Every program in this suite is the real band.
-insert into public.profiles (id, clerk_id, full_name, display_name) values
-  ('ffffffff-0000-4000-8000-000000000001', 'clerk-tst-01', 'TST Director',        'TST Director'),
-  ('ffffffff-0000-4000-8000-000000000002', 'clerk-tst-02', 'TST Secretary',       'TST Secretary'),
-  ('ffffffff-0000-4000-8000-000000000003', 'clerk-tst-03', 'TST Leader Violin',   'TST Leader Violin'),
-  ('ffffffff-0000-4000-8000-000000000004', 'clerk-tst-04', 'TST Leader None',     'TST Leader None'),
-  ('ffffffff-0000-4000-8000-000000000005', 'clerk-tst-05', 'TST Student Violin',  'TST Student Violin'),
-  ('ffffffff-0000-4000-8000-000000000006', 'clerk-tst-06', 'TST Student Trumpet', 'TST Student Trumpet'),
-  ('ffffffff-0000-4000-8000-000000000007', 'clerk-tst-07', 'TST Multi Role',      'TST Multi Role'),
-  ('ffffffff-0000-4000-8000-000000000008', 'clerk-tst-08', 'TST Leader Trumpet',  'TST Leader Trumpet'),
-  ('ffffffff-0000-4000-8000-000000000009', 'clerk-tst-09', 'TST Director Leader', 'TST Director Leader'),
-  ('ffffffff-0000-4000-8000-0000000000aa', 'clerk-tst-other', 'TST Other Student', 'TST Other Student')
+insert into public.profiles (id, auth_user_id, full_name, display_name) values
+  ('ffffffff-0000-4000-8000-000000000001', 'auth-tst-01', 'TST Director',        'TST Director'),
+  ('ffffffff-0000-4000-8000-000000000002', 'auth-tst-02', 'TST Secretary',       'TST Secretary'),
+  ('ffffffff-0000-4000-8000-000000000003', 'auth-tst-03', 'TST Leader Violin',   'TST Leader Violin'),
+  ('ffffffff-0000-4000-8000-000000000004', 'auth-tst-04', 'TST Leader None',     'TST Leader None'),
+  ('ffffffff-0000-4000-8000-000000000005', 'auth-tst-05', 'TST Student Violin',  'TST Student Violin'),
+  ('ffffffff-0000-4000-8000-000000000006', 'auth-tst-06', 'TST Student Trumpet', 'TST Student Trumpet'),
+  ('ffffffff-0000-4000-8000-000000000007', 'auth-tst-07', 'TST Multi Role',      'TST Multi Role'),
+  ('ffffffff-0000-4000-8000-000000000008', 'auth-tst-08', 'TST Leader Trumpet',  'TST Leader Trumpet'),
+  ('ffffffff-0000-4000-8000-000000000009', 'auth-tst-09', 'TST Director Leader', 'TST Director Leader'),
+  ('ffffffff-0000-4000-8000-0000000000aa', 'auth-tst-other', 'TST Other Student', 'TST Other Student')
 on conflict (id) do nothing;
 
 -- Band memberships: roles + section per persona.
@@ -189,7 +191,7 @@ declare
   t0 timestamptz;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-06","role":"authenticated"}', true);
+    '{"sub":"auth-tst-06","role":"authenticated"}', true);
   set role authenticated;
 
   -- A1: manual code 30 minutes before start → rejected.
@@ -249,7 +251,7 @@ declare
   v_band uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-05","role":"authenticated"}', true);
+    '{"sub":"auth-tst-05","role":"authenticated"}', true);
   set role authenticated;
 
   select id into v_band from public.ensembles where slug = 'band';
@@ -380,7 +382,7 @@ declare
   v_band uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-01","role":"authenticated"}', true);
+    '{"sub":"auth-tst-01","role":"authenticated"}', true);
   set role authenticated;
 
   select id into v_band from public.ensembles where slug = 'band';
@@ -548,7 +550,7 @@ declare
   v_band uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-02","role":"authenticated"}', true);
+    '{"sub":"auth-tst-02","role":"authenticated"}', true);
   set role authenticated;
 
   select id into v_band from public.ensembles where slug = 'band';
@@ -599,7 +601,7 @@ declare
   v_band uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-03","role":"authenticated"}', true);
+    '{"sub":"auth-tst-03","role":"authenticated"}', true);
   set role authenticated;
 
   select id into v_band from public.ensembles where slug = 'band';
@@ -656,7 +658,7 @@ declare
   v_band uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-08","role":"authenticated"}', true);
+    '{"sub":"auth-tst-08","role":"authenticated"}', true);
   set role authenticated;
 
   select id into v_band from public.ensembles where slug = 'band';
@@ -686,7 +688,7 @@ declare
   v jsonb;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-04","role":"authenticated"}', true);
+    '{"sub":"auth-tst-04","role":"authenticated"}', true);
   set role authenticated;
 
   v := public.override_attendance(
@@ -715,7 +717,7 @@ declare
   v_band uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-07","role":"authenticated"}', true);
+    '{"sub":"auth-tst-07","role":"authenticated"}', true);
   set role authenticated;
 
   select id into v_band from public.ensembles where slug = 'band';
@@ -749,7 +751,7 @@ declare
   v_band uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-09","role":"authenticated"}', true);
+    '{"sub":"auth-tst-09","role":"authenticated"}', true);
   set role authenticated;
 
   select id into v_band from public.ensembles where slug = 'band';
@@ -776,7 +778,7 @@ declare
   v jsonb;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-06","role":"authenticated"}', true);
+    '{"sub":"auth-tst-06","role":"authenticated"}', true);
   set role authenticated;
 
   -- The session row for this token was deleted when the event switched to
@@ -805,7 +807,7 @@ declare
   v jsonb;
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-05","role":"authenticated"}', true);
+    '{"sub":"auth-tst-05","role":"authenticated"}', true);
   set role authenticated;
 
   v := public.record_attendance('tst-tok-exc');
@@ -927,7 +929,7 @@ end $$;
 do $$
 begin
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-05","role":"authenticated"}', true);
+    '{"sub":"auth-tst-05","role":"authenticated"}', true);
   set role authenticated;
 
   perform public.t_assert(
@@ -962,7 +964,7 @@ begin
    where s.ensemble_id = v_band and s.name = 'Trumpet';
 
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-05","role":"authenticated"}', true);
+    '{"sub":"auth-tst-05","role":"authenticated"}', true);
   set role authenticated;
 
   -- D1: cannot flip their own access flag (guard_profile_self_update).
@@ -1061,7 +1063,7 @@ begin
   select id into v_band from public.ensembles where slug = 'band';
 
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-01","role":"authenticated"}', true);
+    '{"sub":"auth-tst-01","role":"authenticated"}', true);
   set role authenticated;
 
   -- E1: updating a membership is blocked (privilege error or 0 rows).
@@ -1130,7 +1132,7 @@ begin
 
   -- F1: invalid status is rejected, nothing is written.
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-01","role":"authenticated"}', true);
+    '{"sub":"auth-tst-01","role":"authenticated"}', true);
   set role authenticated;
   v := public.override_attendance(
     'eeeeeeee-0000-4000-8000-000000000003',
@@ -1172,7 +1174,7 @@ begin
   reset role;
   perform set_config('request.jwt.claims', '{}', true);
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-03","role":"authenticated"}', true);
+    '{"sub":"auth-tst-03","role":"authenticated"}', true);
   set role authenticated;
   v := public.start_checkin_session('eeeeeeee-0000-4000-8000-000000000007');
   perform public.t_assert(v->>'ok' = 'true' and v->>'entry_code' is not null,
@@ -1183,7 +1185,7 @@ begin
   reset role;
   perform set_config('request.jwt.claims', '{}', true);
   perform set_config('request.jwt.claims',
-    '{"sub":"clerk-tst-06","role":"authenticated"}', true);
+    '{"sub":"auth-tst-06","role":"authenticated"}', true);
   set role authenticated;
   for i in 1..6 loop
     v := public.record_attendance('tst-tok-bogus');
@@ -1222,13 +1224,13 @@ begin
 
   -- The retired handle_new_user gate is now register_signup: a wrong code
   -- creates nothing, the right code creates profiles + membership.
-  v := public.register_signup('clerk-tst-bad-code', 'TST Bad Code', 'band', 'TST-WRONG-CODE', '');
+  v := public.register_signup('auth-tst-bad-code', 'TST Bad Code', 'band', 'TST-WRONG-CODE', '');
   perform public.t_assert(v->>'ok' = 'false', 'SEC-v2-G5 signup with a wrong code must be refused');
   perform public.t_assert(
-    (select count(*) from public.profiles where clerk_id = 'clerk-tst-bad-code') = 0,
+    (select count(*) from public.profiles where auth_user_id = 'auth-tst-bad-code') = 0,
     'SEC-v2-G5 a refused signup must not create a profile');
 
-  v := public.register_signup('clerk-tst-signup', 'TST Signup', 'band', v_code, 'Violin');
+  v := public.register_signup('auth-tst-signup', 'TST Signup', 'band', v_code, 'Violin');
   perform public.t_assert(v->>'ok' = 'true' and v->>'profile_id' is not null,
     'SEC-v2-G6 signup with the real join code must succeed');
   v_new_id := (v->>'profile_id')::uuid;
@@ -1238,12 +1240,12 @@ begin
         and roles = '{student}'::public.app_role[]) = 1,
     'SEC-v2-G6 a successful signup must create the membership');
 
-  -- Idempotent: a redelivered webhook does not duplicate anything.
-  v := public.register_signup('clerk-tst-signup', 'TST Signup', 'band', v_code, 'Violin');
+  -- Idempotent: a repeated provisioning call does not duplicate anything.
+  v := public.register_signup('auth-tst-signup', 'TST Signup', 'band', v_code, 'Violin');
   perform public.t_assert(v->>'ok' = 'true' and (v->>'existing')::boolean,
     'SEC-v2-G7 a redelivered signup is idempotent');
   perform public.t_assert(
-    (select count(*) from public.profiles where clerk_id = 'clerk-tst-signup') = 1,
+    (select count(*) from public.profiles where auth_user_id = 'auth-tst-signup') = 1,
     'SEC-v2-G7 a redelivered signup must not duplicate the profile');
 end $$;
 

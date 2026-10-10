@@ -62,6 +62,14 @@ check_object() { # check_object <label> <db_url> <sql-returning-count>
   fi
 }
 
+# A word on the `handle_new_user trigger on auth.users` assertion below: 018
+# drops that trigger and 021 does NOT re-create it, on purpose. Supabase Auth
+# owns the account, and the join code is validated in the app by
+# `join_program()` (020) after that account exists — the only flow that can also
+# add somebody's second program. OLD still has the trigger, so it stays in the
+# list; a NEW project that has run 018 reports it MISSING by design, and
+# `--apply` (which restores it from sql/reapply_auth_storage.sql) is only useful
+# while deliberately rebuilding a faithful clone.
 ASSERTS="
 handle_new_user trigger on auth.users|select count(*) from pg_trigger where tgname = 'on_auth_user_created' and tgrelid = 'auth.users'::regclass|
 avatars bucket row|select count(*) from storage.buckets where id = 'avatars'|

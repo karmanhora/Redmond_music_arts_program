@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useClerk, useUser } from "@clerk/clerk-react";
 import {
   Check,
   Clock,
+  KeyRound,
   LogOut,
   Moon,
   Music,
   Pencil,
+  Plus,
   RefreshCw,
   Sun,
   UserPlus,
@@ -36,6 +37,7 @@ import { updateMyProfile } from "../lib/queries";
 import { getMyAttendancePct, getMyAttendanceTrend, setMemberSection } from "../lib/rpc";
 import type { MyAttendanceRow } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
+import { useAuth } from "../hooks/useAuth";
 import { useDark } from "../hooks/useDark";
 import {
   APP_NAME,
@@ -62,16 +64,15 @@ function verdict(pct: number): string {
 
 export function ProfileScreen() {
   const app = usePrograms();
+  const auth = useAuth();
   const { dark, toggle } = useDark();
   const { toast } = useToast();
-  const { user } = useUser();
-  const { signOut } = useClerk();
 
   const programId = app.program?.id ?? null;
   const profileId = app.profile?.id ?? null;
   const navigate = useNavigate();
   const name = app.profile?.display_name || app.profile?.full_name || "Member";
-  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+  const email = auth.email;
 
   const [pct, setPct] = useState<number | null>(null);
   const [trend, setTrend] = useState<MyAttendanceRow[]>([]);
@@ -87,6 +88,12 @@ export function ProfileScreen() {
 
   const [sectionOpen, setSectionOpen] = useState(false);
   const [busySection, setBusySection] = useState<string | null>(null);
+
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -163,9 +170,50 @@ export function ProfileScreen() {
     await app.refresh();
   }
 
+  function openPasswordSheet() {
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordError(null);
+    setPasswordOpen(true);
+  }
+
+  /**
+   * Set a new sign-in password. Supabase Auth owns the password, so this is one
+   * call to it — and because the app already tells a person with a temporary
+   * password to "set your own", it also clears `must_change_password` once the
+   * new one is in place (the flag is ours, on `profiles`).
+   */
+  async function savePassword() {
+    if (!newPassword) {
+      setPasswordError("Type your new password.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Those two passwords don't match.");
+      return;
+    }
+
+    setSavingPassword(true);
+    const { error: failure } = await auth.updatePassword(newPassword);
+    if (failure) {
+      setSavingPassword(false);
+      setPasswordError(failure);
+      return;
+    }
+
+    if (profileId && app.profile?.must_change_password) {
+      await updateMyProfile(profileId, { must_change_password: false });
+      await app.refresh();
+    }
+
+    setSavingPassword(false);
+    setPasswordOpen(false);
+    toast.success("Password updated.");
+  }
+
   async function doSignOut() {
     setSigningOut(true);
-    await signOut();
+    await auth.signOut();
     setSigningOut(false);
   }
 
@@ -254,6 +302,12 @@ export function ProfileScreen() {
             subtitle="Use the join code from that program's director"
             onClick={() => navigate("/join")}
           />
+          <Row
+            icon={<Plus className="h-5 w-5" />}
+            title="Start a new program"
+            subtitle="Name it and you're its director"
+            onClick={() => navigate("/new-program")}
+          />
         </Card>
         <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
           {ORG_NAME}. Roles, sections and colours follow whichever program you are in.
@@ -262,8 +316,11 @@ export function ProfileScreen() {
 
       {app.profile?.must_change_password ? (
         <Alert tone="info">
-          Your director set a temporary password for this account. It does nothing on its own now —
-          sign in with your own login and the flag clears.
+          Your director set a temporary password for this account.{" "}
+          <button className="font-semibold underline" onClick={openPasswordSheet}>
+            Choose your own
+          </button>{" "}
+          and this note clears.
         </Alert>
       ) : null}
 
@@ -343,6 +400,12 @@ export function ProfileScreen() {
             title="Dark mode"
             subtitle={dark ? "On — easier at night" : "Off — follows your phone"}
             trailing={<Toggle checked={dark} onChange={toggle} label="Dark mode" />}
+          />
+          <Row
+            icon={<KeyRound className="h-5 w-5" />}
+            title="Password"
+            subtitle="Change the password you sign in with"
+            onClick={openPasswordSheet}
           />
         </Card>
         <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -447,6 +510,50 @@ export function ProfileScreen() {
             }
           />
         </Card>
+      </Sheet>
+
+      <Sheet
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        title="Your password"
+        description="You'll use this the next time you sign in."
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              block
+              onClick={() => setPasswordOpen(false)}
+              disabled={savingPassword}
+            >
+              Cancel
+            </Button>
+            <Button block loading={savingPassword} onClick={() => void savePassword()}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {passwordError ? <Alert tone="error">{passwordError}</Alert> : null}
+          <Field label="New password">
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+          </Field>
+          <Field label="Confirm new password">
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+          </Field>
+        </div>
       </Sheet>
 
       <ConfirmSheet

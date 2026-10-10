@@ -69,6 +69,25 @@ export const joinProgram = (slug: string, code: string, displayName?: string) =>
     p_display_name: displayName?.trim() || null,
   });
 
+/**
+ * Start a program and become its director — no director, no approval, no code.
+ *
+ * The name is the only thing the caller controls: the RPC always creates a
+ * **new** program with the caller as `{director}`, so this can never be pointed
+ * at an existing one. It also handles their first-ever `profiles` row (which is
+ * why `displayName` matters when they have none), gives the program a join code
+ * to start with, and refuses a blank name or a sixth program inside an hour.
+ */
+export const createProgram = (
+  name: string,
+  opts?: { shortName?: string; displayName?: string }
+) =>
+  callRpc("create_program", {
+    p_name: name.trim(),
+    p_short_name: opts?.shortName?.trim() || null,
+    p_display_name: opts?.displayName?.trim() || null,
+  });
+
 // --- Join code (director) ---------------------------------------------------
 
 /** Director-only: the program's current join code. */

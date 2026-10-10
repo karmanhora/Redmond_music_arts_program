@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useClerk, useUser } from "@clerk/clerk-react";
 import { Check, ChevronRight, KeyRound, LogOut, Music, ShieldCheck, Users } from "lucide-react";
 import {
   Alert,
@@ -17,6 +16,7 @@ import {
 import { joinProgram, listActivePrograms } from "../lib/rpc";
 import type { ProgramOption } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
+import { useAuth } from "../hooks/useAuth";
 import { APP_NAME, ORG_NAME, readAuthAudience } from "../lib/constants";
 
 /**
@@ -29,15 +29,18 @@ import { APP_NAME, ORG_NAME, readAuthAudience } from "../lib/constants";
  *   * as the `/join` route inside the shell, reached from the program switcher,
  *     from Profile, and from the roster screen's empty state.
  *
- * The code is checked by `join_program()` on the server — rate-limited, the same
- * gate the signup webhook uses; this screen only collects it. When the person
- * has no profile yet that same call creates one, which is why their name is
- * asked for here rather than guessed from the account.
+ * The code is checked by `join_program()` on the server — rate-limited; this
+ * screen only collects it. When the person has no profile yet that same call
+ * creates one, which is why their name is asked for here rather than guessed
+ * from the account.
+ *
+ * Joining somebody else's program is not the only way in: a teacher with nobody
+ * to ask can start their own from here (`/new-program`), which is why this
+ * screen offers it as a real alternative rather than a footnote.
  */
 export function JoinProgramScreen({ standalone = false }: { standalone?: boolean }) {
   const app = usePrograms();
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const auth = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -105,8 +108,9 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
       return;
     }
 
-    // Landed: re-read the session so the whole app re-themes to that program.
-    await app.refresh();
+    // Landed: re-read the session so the whole app re-themes to that program —
+    // and land in *that* one, so joining a second program actually switches to it.
+    await app.refresh(result.program_id ?? undefined);
     setBusy(false);
     toast.success(result.message ?? `You're in ${chosen.name}.`);
     if (!standalone) navigate("/");
@@ -127,18 +131,18 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
         </p>
       </Card>
 
-      {/* Only right after a teacher chose "I'm a teacher" at sign-up: honest
-          about how staff access is actually granted — by a director, in the
-          roster — so nobody expects tools the join code cannot unlock. */}
+      {/* Only right after a teacher chose "I'm a teacher" at sign-up: point them
+          at the way in that needs nobody's permission, since the code below can
+          only make them a student of somebody else's program. */}
       {standalone && readAuthAudience() === "teacher" ? (
         <Card className="flex items-start gap-2 border-l-4 border-l-[var(--cue-gold)]">
           <Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            <span className="font-semibold text-[var(--cue-ink)]">
-              Staff access comes from your director.
-            </span>{" "}
-            Once you&rsquo;re on the roster, they can give you the teacher tools — the roster,
-            attendance, and the live check-in screen. Until then you&rsquo;ll see the student view.
+            <span className="font-semibold text-[var(--cue-ink)]">Teaching here?</span>{" "}
+            You don&rsquo;t need anybody&rsquo;s permission — start your own program and you&rsquo;re
+            its director immediately, with the roster, attendance and live check-in tools ready to
+            use. Use the code below only if you&rsquo;re joining a program somebody else already
+            runs, which puts you on it as a student.
           </p>
         </Card>
       ) : null}
@@ -152,7 +156,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
           <EmptyState
             icon={<Music className="h-6 w-6" />}
             title="No programs yet"
-            body="A director has to set one up before anyone can join it."
+            body="Nobody has started one yet — you can be the first."
           />
         </Card>
       ) : (
@@ -222,6 +226,23 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
         </>
       )}
 
+      {/* The other way in, offered to everybody — not just teachers. */}
+      <Card className="space-y-3">
+        <div className="flex items-start gap-2">
+          <Music className="mt-0.5 h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+          <div className="min-w-0">
+            <p className="font-semibold">Running a program of your own?</p>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Name it and you&rsquo;re its director — the roster, attendance and live check-in
+              tools come with it, and it starts closed with a join code for you to hand out.
+            </p>
+          </div>
+        </div>
+        <Button block variant="secondary" onClick={() => navigate("/new-program")}>
+          Start a new program
+        </Button>
+      </Card>
+
       <Card className="flex items-start gap-2">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -235,7 +256,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
           block
           variant="secondary"
           icon={<LogOut className="h-4 w-4" />}
-          onClick={() => void signOut()}
+          onClick={() => void auth.signOut()}
         >
           Sign out
         </Button>
@@ -248,7 +269,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
   return (
     <div className="safe-t flex min-h-full flex-col bg-surface dark:bg-[#0c0f0a]">
       <div className="bg-band px-6 pt-8 pb-6 text-white">
-        <img src="/logo-dark.svg" alt="" className="h-10 w-10" />
+        <img src="/logo.svg" alt="" className="h-10 w-10" />
         <p className="mt-3 text-[11px] font-bold tracking-widest text-white/70 uppercase">
           {ORG_NAME}
         </p>
@@ -261,10 +282,8 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
 
       <div className="flex-1">{form}</div>
 
-      {user?.primaryEmailAddress?.emailAddress ? (
-        <p className="px-6 pb-6 text-center text-xs text-zinc-400">
-          Signed in as {user.primaryEmailAddress.emailAddress}
-        </p>
+      {auth.email ? (
+        <p className="px-6 pb-6 text-center text-xs text-zinc-400">Signed in as {auth.email}</p>
       ) : null}
     </div>
   );

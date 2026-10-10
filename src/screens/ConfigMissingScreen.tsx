@@ -2,16 +2,15 @@ import { Alert } from "../components/ui";
 import { APP_NAME } from "../lib/constants";
 
 /**
- * Shown instead of the app when the build has no Supabase/Clerk configuration.
- * A blank white page is the alternative, and this tells you exactly which
- * variable to add and where.
+ * Shown instead of the app when the build has no Supabase configuration. A blank
+ * white page is the alternative, and this tells you exactly which variable to
+ * add and where.
  */
 export function ConfigMissingScreen({ missing }: { missing: string[] }) {
   return (
     <div className="safe-t flex min-h-full flex-col items-center justify-center gap-5 bg-surface p-6 dark:bg-[#0c0f0a]">
       <div className="text-center">
-        <img src="/logo-light.svg" alt="" className="mx-auto h-14 w-14 dark:hidden" />
-        <img src="/logo-dark.svg" alt="" className="mx-auto hidden h-14 w-14 dark:block" />
+        <img src="/logo.svg" alt="" className="mx-auto h-14 w-14" />
         <h1 className="mt-3 text-xl font-bold">{APP_NAME}</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           This build is missing its configuration.
@@ -37,8 +36,9 @@ export function ConfigMissingScreen({ missing }: { missing: string[] }) {
             <code className="font-mono">.env.local</code>.
           </li>
           <li>
-            Fill in the Supabase URL + anon key and the Clerk publishable key (see{" "}
-            <code className="font-mono">docs/DEV.md</code>).
+            Fill in the Supabase URL and anon key (see{" "}
+            <code className="font-mono">docs/DEV.md</code>). Those two are the whole
+            frontend configuration — Supabase is both the database and the sign-in system.
           </li>
           <li>Restart the dev server — Vite only reads env files at startup.</li>
         </ol>

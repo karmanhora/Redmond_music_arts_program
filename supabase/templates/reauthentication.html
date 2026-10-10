@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Your confirmation code</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f0e9;">
+
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f1f0e9;">Your one-time code for a security-sensitive change.</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f0e9" style="background-color:#f1f0e9;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #d8d9d0;border-radius:14px;">
+
+        <tr>
+          <td bgcolor="#214d35" style="background-color:#214d35;border-radius:13px 13px 0 0;padding:24px 28px 22px;">
+            <p style="margin:0;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#d5a33a;">RHS Music &amp; Arts</p>
+            <p style="margin:6px 0 0;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:21px;line-height:1.15;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:#ffffff;">Redmond High School</p>
+            <div style="width:56px;height:4px;background-color:#d5a33a;margin-top:14px;font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:28px 28px 8px;">
+            <h1 style="margin:0;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:0.01em;text-transform:uppercase;color:#20241f;">Your confirmation code</h1>
+
+            <p style="margin:16px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#20241f;">Type this code where you were asked for it. This is a security-sensitive change, which is why it takes a second step.</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 28px 4px;">
+            <p style="margin:0;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:34px;font-weight:700;letter-spacing:0.34em;color:#20241f;background-color:#faf9f4;border:1px solid #d8d9d0;border-radius:10px;padding:20px 18px;text-align:center;">{{ .Token }}</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:22px 28px 28px;">
+            <p style="margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#20241f;">The code is short-lived and can only be used once. If you did not ask for it, ignore this email — nothing changes, and you can safely delete it.</p>
+            <p style="margin:14px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#575e57;">This email is only ever sent for your own account at {{ .Email }}.</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td bgcolor="#faf9f4" style="background-color:#faf9f4;border-top:1px solid #d8d9d0;border-radius:0 0 13px 13px;padding:20px 28px;">
+            <p style="margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6;color:#575e57;">Redmond High School Music &amp; Arts · RHS Music &amp; Arts Attendance</p>
+            <p style="margin:8px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6;color:#575e57;">If you didn&rsquo;t ask for a code, someone may have your password — ask your director to reset it, or <a href="{{ .SiteURL }}" style="color:#214d35;font-weight:600;text-decoration:underline;">open the app</a> and change it yourself.</p>
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

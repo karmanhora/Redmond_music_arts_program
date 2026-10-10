@@ -1,6 +1,18 @@
 # RHS Music Platform — Phase 0 Audit & Platform Plan
 
 **Status:** **Approved 2026-10-05** with one architectural change: **Clerk replaces Supabase Auth** for sign-in/sign-up (full design in §13). Q1/Q2 (§12) accepted as proposed.
+
+> **Reversed 2026-10-09 — Supabase Auth is the identity provider again.**
+> §13 was built, then removed: Clerk brought a third-party script, a proxy
+> function, a webhook, an Edge Function and five environment variables to do what
+> the database's own service already does. `supabase/migrations/021_supabase_auth.sql`
+> repoints identity at Supabase Auth (`profiles.auth_user_id`, `current_auth_id()`)
+> and [docs/AUTH_MIGRATION.md](AUTH_MIGRATION.md) is the record. §13 is kept below
+> as the history of that decision; read every "Clerk" in it as "the identity
+> provider", which is Supabase Auth again. It is still worth reading for the one
+> part that did not change: identity resolves through a single helper
+> (`current_profile_id()`), which is why the provider could be swapped without
+> rewriting a policy, a trigger or an RPC.
 **Scope correction (2026-10-05):** **RHS Band is the only program.** The schema stays *multi-program-ready* (that is what makes it "all in one platform"), but exactly one program — `band` — exists as data, ships in the UI, and is built for. Nothing named Orchestra/Choir/Drama is created, seeded or tested as a deliverable; §11 lists what stays deferred.
 **Phase 2 status:** migrations 007–018 are **applied to NEW** (`sjiswrvhrnrxkrfhfjrp`) and re-runnable; the gate (`scripts/migrate/05_verify.sh`) exits 0 — 16/16 legacy tables match, RLS on every public table, and the three suites pass (`backfill_verification`, `ensemble_isolation`, `security_verification_v2`).
 **Scope shipped now:** RHS **Band only** (`slug = 'band'`), multi-ensemble-*ready* architecture.
@@ -364,6 +376,9 @@ All suites: rolled back, self-checking (`FAIL: <id>` on first violation), runnab
 ---
 
 ## 13. Clerk authentication integration (approved change — 2026-10-05)
+
+> **Removed 2026-10-09** — see the note at the top and
+> [docs/AUTH_MIGRATION.md](AUTH_MIGRATION.md). Kept as the record of the decision.
 
 Clerk replaces Supabase Auth as the identity provider. Sign-in/sign-up UI = Clerk `<SignIn />` / `<SignUp />` components themed to the Band design system via Clerk's appearance API. Verified against official docs (supabase.com/docs/guides/auth/third-party/clerk · supabase.com/blog/clerk-tpa-pricing · clerk.com/docs/guides/development/migrating/overview):
 

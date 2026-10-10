@@ -3,11 +3,14 @@
 -- public schema and may be missed by a schema-only restore ordering.
 -- ----------------------------------------------------------------------------
 -- Copied verbatim (behavior-preserving) from the live app's supabase/schema.sql
--- so the Phase 1 clone is faithful. Phase 2 replaces the signup trigger with
--- the Clerk webhook flow (docs/PLATFORM_PLAN.md §13) — until then this file is
--- the repair path for:
+-- so the Phase 1 clone is faithful. Supabase Auth is the identity provider again
+-- (migration 021), but the app deliberately runs NO signup trigger: the join
+-- code is validated by join_program() on the join screen after the account
+-- exists (migration 020), which is the only flow that can also serve somebody's
+-- second program. So this file is the repair path for:
 --   * public.handle_new_user + the on_auth_user_created trigger on auth.users
---     (join-code-gated self-signup creates the profiles row)
+--     (the pre-020 join-code gate — re-applying it is only correct on a project
+--     that has not yet had migration 018, which drops it again)
 --   * the avatars storage bucket + its four storage.objects policies
 -- Run with: psql "$NEW_DB_URL" -f scripts/migrate/sql/reapply_auth_storage.sql
 -- Applied automatically by 03_auth_storage.sh --apply.

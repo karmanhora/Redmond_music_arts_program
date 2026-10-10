@@ -1,15 +1,16 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense } from "react";
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { useAuth } from "@clerk/clerk-react";
 import { RefreshCw } from "lucide-react";
 import { AppShell } from "./components/AppShell";
 import { Alert, Button, Skeleton } from "./components/ui";
-import { setClerkTokenGetter } from "./lib/supabase";
 import { ProgramsProvider, usePrograms } from "./hooks/usePrograms";
 
 const JoinProgramScreen = lazy(() =>
   import("./screens/JoinProgramScreen").then((module) => ({ default: module.JoinProgramScreen }))
+);
+const NewProgramScreen = lazy(() =>
+  import("./screens/NewProgramScreen").then((module) => ({ default: module.NewProgramScreen }))
 );
 const HomeScreen = lazy(() =>
   import("./screens/HomeScreen").then((module) => ({ default: module.HomeScreen }))
@@ -50,24 +51,6 @@ function RouteSkeleton() {
   );
 }
 
-/** Install the session token getter before mounting anything that reads data. */
-function ClerkSupabaseBridge({ children }: { children: ReactNode }) {
-  const { getToken } = useAuth();
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    setClerkTokenGetter(() => getToken());
-    setReady(true);
-    return () => {
-      setClerkTokenGetter(null);
-      setReady(false);
-    };
-  }, [getToken]);
-
-  if (!ready) return <RouteSkeleton />;
-  return <>{children}</>;
-}
-
 /** Role gate: bounce a screen the current membership cannot open. */
 function RoleGate({ need, children }: { need: "staff" | "director"; children: ReactNode }) {
   const app = usePrograms();
@@ -98,7 +81,18 @@ function ProgramRoutes() {
     );
   }
 
-  if (app.status === "no-roster") return <JoinProgramScreen standalone />;
+  // Signed in, but on no roster yet. Two ways in, so both keep their own URL:
+  // join somebody's program with a code, or start your own. (Returning the join
+  // screen directly — as this used to — would swallow the `/new-program` link a
+  // teacher was just sent to.)
+  if (app.status === "no-roster") {
+    return (
+      <Routes>
+        <Route path="/new-program" element={<NewProgramScreen standalone />} />
+        <Route path="*" element={<JoinProgramScreen standalone />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>
@@ -108,6 +102,7 @@ function ProgramRoutes() {
         <Route path="/checkin" element={<CheckInScreen />} />
         <Route path="/me" element={<ProfileScreen />} />
         <Route path="/join" element={<JoinProgramScreen />} />
+        <Route path="/new-program" element={<NewProgramScreen />} />
         <Route
           path="/attendance"
           element={
@@ -138,14 +133,17 @@ function ProgramRoutes() {
   );
 }
 
+/**
+ * The app behind the sign-in. There is no bridge component any more: the Supabase
+ * client holds its own session, so the moment `useAuth` says "signed in" the same
+ * client is already authenticating every query below it.
+ */
 export default function SignedInApp() {
   return (
-    <ClerkSupabaseBridge>
-      <ProgramsProvider>
-        <Suspense fallback={<RouteSkeleton />}>
-          <ProgramRoutes />
-        </Suspense>
-      </ProgramsProvider>
-    </ClerkSupabaseBridge>
+    <ProgramsProvider>
+      <Suspense fallback={<RouteSkeleton />}>
+        <ProgramRoutes />
+      </Suspense>
+    </ProgramsProvider>
   );
 }

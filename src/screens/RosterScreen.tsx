@@ -37,10 +37,10 @@ import { fmtDate } from "../lib/date";
 /**
  * `/roster` — everyone in the band, grouped by section.
  *
- * Directors also run the band's join code here. It is the only way anybody gets
- * on the roster now (`invite_member` and the old password RPCs are retired): the
- * student signs up with Clerk and the `user.created` webhook checks the code
- * before it creates the profile.
+ * Directors also run the program's join code here. It is the only way anybody
+ * gets on the roster now (`invite_member` and the old password RPCs are
+ * retired): a signed-in person types the code on the join screen and
+ * `join_program()` checks it before it creates the profile.
  */
 
 /** No I, O, 0 or 1 — a code gets read off a whiteboard and typed by a teenager. */
@@ -261,8 +261,8 @@ export function RosterScreen() {
                 />
               </div>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                New students type this when they create their account — it is what puts them on
-                the roster. Anyone without it can sign in but sees nothing.
+                Someone who has signed up types this on their program&rsquo;s join screen — it is
+                what puts them on the roster. Without it they are signed in but see nothing.
               </p>
               <Button
                 block
@@ -343,7 +343,7 @@ export function RosterScreen() {
             title="The roster is empty"
             body={
               app.isDirector
-                ? "Share the join code above — students appear here as soon as they sign up with it."
+                ? "Share the join code above — students appear here as soon as they join with it."
                 : "Your director hasn't added anyone yet."
             }
           />
@@ -502,8 +502,9 @@ export function RosterScreen() {
                     </Button>
                   )}
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Removing keeps their attendance history and blocks sign-in. Putting them back
-                    restores everything — nothing is deleted.
+                    Removing keeps their attendance history, and the join code will not put them
+                    back on this roster. Putting them back restores everything — nothing is
+                    deleted.
                   </p>
                 </div>
               </>
@@ -521,7 +522,7 @@ export function RosterScreen() {
         title="Remove from the roster?"
         body={`${
           confirmDeactivate?.profile.display_name || confirmDeactivate?.profile.full_name || "They"
-        } won't be able to sign in or check in any more. Their attendance history stays.`}
+        } won't get into this program or check in any more. Their attendance history stays.`}
         confirmLabel="Remove"
         loading={busy}
         onCancel={() => setConfirmDeactivate(null)}

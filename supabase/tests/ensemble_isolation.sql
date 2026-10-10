@@ -13,12 +13,13 @@
 --
 -- Design (same shape as security_verification.sql):
 --   * Everything runs in one transaction and is ROLLED BACK at the end.
---   * Personas are authenticated exactly the way PostgREST sees a Clerk token:
+--   * Personas are authenticated exactly the way PostgREST sees a Supabase Auth
+--     token (migration 021):
 --       set role authenticated;
---       set_config('request.jwt.claims', '{"sub":"<clerk_id>",…}', true)
+--       set_config('request.jwt.claims', '{"sub":"<auth_user_id>",…}', true)
 --     so RLS, `current_profile_id()` and every SECURITY DEFINER check behave as
---     they do for a real client. No `auth.users` rows are involved any more —
---     `profiles.clerk_id` IS the identity.
+--     they do for a real client. No `auth.users` rows are involved — the `sub`
+--     claim is the account id and `profiles.auth_user_id` IS the identity.
 --   * Each check raises 'FAIL: ISO-<n> …' on the first violation.
 --   * On success the script prints: ENSEMBLE ISOLATION PASSED.
 -- ============================================================================
@@ -73,8 +74,8 @@ insert into public.sections (id, ensemble_id, name, sort_order) values
   ('52222222-0000-4000-8000-0000000000b1', 'bbbbbbbb-0000-4000-8000-0000000000b1', 'Violin', 1),
   ('52222222-0000-4000-8000-0000000000b2', 'bbbbbbbb-0000-4000-8000-0000000000b1', 'Viola',  2);
 
--- Personas (profiles.clerk_id is the identity the JWT `sub` claim carries).
-insert into public.profiles (id, clerk_id, full_name, display_name) values
+-- Personas (profiles.auth_user_id is the identity the JWT `sub` claim carries).
+insert into public.profiles (id, auth_user_id, full_name, display_name) values
   ('d0000001-0000-4000-8000-000000000001', 'iso-alpha-dir',      'TST Alpha Director',   'TST Alpha Director'),
   ('d0000001-0000-4000-8000-000000000002', 'iso-alpha-sec',      'TST Alpha Secretary',  'TST Alpha Secretary'),
   ('d0000001-0000-4000-8000-000000000003', 'iso-alpha-lead',     'TST Alpha V Leader',   'TST Alpha V Leader'),

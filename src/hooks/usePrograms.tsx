@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "./useAuth";
 import { applyThemeTokens } from "../lib/theme";
 import {
   fetchMyMemberships,
-  fetchProfileByClerkId,
+  fetchProfileByAuthId,
   fetchSections,
   fetchThemeTokens,
 } from "../lib/queries";
@@ -49,7 +49,12 @@ export interface ProgramsState {
   /** Highest role held in the current program, for the chip beside the name. */
   primaryRole: Role;
   setProgram: (ensembleId: string) => void;
-  refresh: () => Promise<void>;
+  /**
+   * Re-read the session. Pass a program id to land in *that* one instead of the
+   * remembered choice — what the join and start-a-program screens use, so the
+   * program somebody just added is the one on screen.
+   */
+  refresh: (preferEnsembleId?: string) => Promise<void>;
 }
 
 const EMPTY: Omit<ProgramsState, "refresh" | "setProgram" | "status" | "error"> = {
@@ -102,14 +107,15 @@ function isStaffRole(roles: Role[]): boolean {
 }
 
 export function ProgramsProvider({ children }: { children: ReactNode }) {
-  const { user, isLoaded } = useUser();
+  const auth = useAuth();
   const [state, setState] = useState<Omit<ProgramsState, "refresh" | "setProgram">>({
     ...EMPTY,
     status: "loading",
     error: null,
   });
 
-  const clerkUserId = user?.id ?? null;
+  const authUserId = auth.userId;
+  const signedIn = auth.status === "signed-in";
 
   /** Load one program's sections and colours, then make it the current one. */
   const loadProgram = useCallback(
@@ -128,6 +134,10 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
         fetchThemeTokens(membership.ensemble.id),
       ]);
       applyThemeTokens(tokens);
+
+      // Remember whichever program we settled on, whatever brought us here, so a
+      // reload shows the same one (setProgram used to be the only path that did).
+      remember(profile.id, membership.ensemble.id);
 
       const roles = membership.roles ?? ["student"];
       setState({
@@ -150,9 +160,11 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const refresh = useCallback(async () => {
-    if (!isLoaded) return;
-    if (!clerkUserId) {
+  const refresh = useCallback(async (preferEnsembleId?: string) => {
+    // The session is still being restored: stay on the splash rather than
+    // deciding "no roster" from an answer we don't have yet.
+    if (auth.status === "loading") return;
+    if (!signedIn || !authUserId) {
       setState({ ...EMPTY, status: "loading", error: null });
       return;
     }
@@ -160,15 +172,15 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, status: "loading", error: null }));
 
     try {
-      const profile = await fetchProfileByClerkId(clerkUserId);
+      const profile = await fetchProfileByAuthId(authUserId);
       if (!profile) {
-        // Signed in to Clerk, but never joined a program → no profile row yet.
+        // Signed in, but never joined a program → no profile row yet.
         setState({ ...EMPTY, status: "no-roster", error: null });
         return;
       }
 
       const memberships = (await fetchMyMemberships(profile.id)).filter((m) => m.active);
-      await loadProgram(profile, memberships, readRemembered(profile.id));
+      await loadProgram(profile, memberships, preferEnsembleId ?? readRemembered(profile.id));
     } catch (e) {
       setState({
         ...EMPTY,
@@ -176,7 +188,7 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
         error: e instanceof Error ? e.message : "Could not load your programs.",
       });
     }
-  }, [isLoaded, clerkUserId, loadProgram]);
+  }, [auth.status, signedIn, authUserId, loadProgram]);
 
   useEffect(() => {
     void refresh();

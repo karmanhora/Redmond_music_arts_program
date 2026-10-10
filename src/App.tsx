@@ -1,50 +1,75 @@
-import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
-import { ToastProvider, Skeleton } from "./components/ui";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { Splash } from "./components/Splash";
+import { ToastProvider } from "./components/ui";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
+import SignedInApp from "./SignedInApp";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
+import { AuthScreen } from "./screens/AuthScreen";
 
-const AuthScreen = lazy(() =>
-  import("./screens/AuthScreen").then((module) => ({ default: module.AuthScreen }))
-);
-const SignedInApp = lazy(() => import("./SignedInApp"));
-
-function RouteSkeleton() {
-  return (
-    <main
-      aria-busy="true"
-      aria-label="Loading screen"
-      className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6"
-    >
-      <Skeleton className="h-8 w-40" />
-      <Skeleton className="h-44 w-full" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    </main>
-  );
-}
-
+/**
+ * Which tree the visitor gets: the public landing page, an auth screen, or the
+ * app itself — decided by the one thing that actually knows, the Supabase Auth
+ * session (see `useAuth`).
+ *
+ * Previous versions asked Clerk for this and rendered *nothing* until a
+ * third-party script plus two API round-trips came back, which is why the
+ * landing page used to sit blank. Supabase Auth restores its session from
+ * localStorage on the first tick, so this resolves locally.
+ */
 export default function App() {
   return (
     <ToastProvider>
-      <SignedOut>
-        <Suspense fallback={<RouteSkeleton />}>
-          <Routes>
-            <Route path="/" element={<WelcomeScreen />} />
-            <Route path="/sign-in/*" element={<AuthScreen mode="sign-in" />} />
-            <Route path="/sign-up/*" element={<AuthScreen mode="sign-up" />} />
-            <Route path="*" element={<AuthScreen mode="sign-in" />} />
-          </Routes>
-        </Suspense>
-      </SignedOut>
-
-      <SignedIn>
-        <Suspense fallback={<RouteSkeleton />}>
-          <SignedInApp />
-        </Suspense>
-      </SignedIn>
+      <AuthProvider>
+        <SessionRoutes />
+      </AuthProvider>
     </ToastProvider>
   );
+}
+
+function SessionRoutes() {
+  const auth = useAuth();
+
+  // The stored session is being read (or, on a fresh visit, confirmed absent).
+  if (auth.status === "loading") {
+    return (
+      <Routes>
+        <Route path="*" element={<Splash label="Signing you in…" />} />
+      </Routes>
+    );
+  }
+
+  /**
+   * A password-recovery link takes over the whole screen. Supabase has already
+   * signed the person in to change their password; letting them wander into the
+   * app first would only make the expired link more confusing.
+   */
+  if (auth.recovering) {
+    return (
+      <Routes>
+        <Route path="/reset-password" element={<AuthScreen mode="reset" />} />
+        <Route path="*" element={<Navigate to="/reset-password" replace />} />
+      </Routes>
+    );
+  }
+
+  if (auth.status === "signed-out") {
+    return (
+      <Routes>
+        <Route path="/" element={<WelcomeScreen />} />
+        {/* The `*` variants keep working when our own links carry a sub-path. */}
+        <Route path="/sign-in/*" element={<AuthScreen mode="sign-in" />} />
+        <Route path="/sign-up/*" element={<AuthScreen mode="sign-up" />} />
+        <Route path="/forgot-password" element={<AuthScreen mode="forgot" />} />
+        <Route path="/reset-password" element={<AuthScreen mode="reset" />} />
+        {/*
+          A deep link into the app — most importantly `/checkin?token=…` from a
+          scanned QR code — lands on sign-in, and the auth screen sends them on
+          to where they were going once they are through.
+        */}
+        <Route path="*" element={<AuthScreen mode="sign-in" />} />
+      </Routes>
+    );
+  }
+
+  return <SignedInApp />;
 }

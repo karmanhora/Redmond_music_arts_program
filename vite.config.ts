@@ -8,15 +8,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Keep the heavy, rarely-needed bundles out of the first paint: the QR
+        // Keep the heavy, rarely-needed bundle out of the first paint: the QR
         // scanner (html5-qrcode + qrcode.react) only matters on the check-in
-        // screens, and Clerk only matters before sign-in.
+        // screens, which are behind the sign-in.
         manualChunks(id) {
           if (id.includes("html5-qrcode") || id.includes("qrcode.react")) {
             return "qr";
-          }
-          if (id.includes("@clerk")) {
-            return "clerk";
           }
         },
       },

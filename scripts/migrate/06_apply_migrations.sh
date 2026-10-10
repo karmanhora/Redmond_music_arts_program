@@ -110,4 +110,4 @@ confirm_target_new "Apply $(printf '%s ' "${#MIGRATIONS[@]}")migration(s) from s
 
 psql "$NEW_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f "$SCRIPT"
 
-log "Migrations applied. Next: 05_verify.sh (counts, RLS, test suites), then 03b Clerk import when its gate opens."
+log "Migrations applied. Next: 05_verify.sh (counts, RLS, test suites), then sign-in smoke tests against Supabase Auth."

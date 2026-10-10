@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
 import { ConfigMissingScreen } from "./screens/ConfigMissingScreen";
 import { isBackendConfigured } from "./lib/backend-config";
@@ -10,15 +9,16 @@ import "@fontsource/barlow-condensed/latin-700.css";
 import "@fontsource-variable/ibm-plex-sans/wght.css";
 import "./index.css";
 
-const publishableKey =
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
-  import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
+/**
+ * Supabase is the only backend now: the database *and* the identity provider, so
+ * the two frontend values below are all this app needs to boot. There is no
+ * provider component to mount — the client in `lib/supabase.ts` owns the session
+ * and `AuthProvider` (inside `App`) reads it.
+ */
 const missing: string[] = [];
 if (!isBackendConfigured) {
   missing.push("VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY");
 }
-if (!publishableKey) missing.push("VITE_CLERK_PUBLISHABLE_KEY");
 
 const container = document.getElementById("root");
 if (!container) throw new Error("Missing #root element");
@@ -30,17 +30,9 @@ if (missing.length > 0) {
 } else {
   root.render(
     <StrictMode>
-      <ClerkProvider
-        publishableKey={publishableKey as string}
-        proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL}
-        afterSignOutUrl="/"
-        signInUrl="/sign-in"
-        signUpUrl="/sign-up"
-      >
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </ClerkProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </StrictMode>
   );
 }

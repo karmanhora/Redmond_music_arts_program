@@ -25,6 +25,9 @@ export type AttendanceStatus = "present" | "absent" | "excused" | "late";
 
 export interface Profile {
   id: string;
+  /** Supabase Auth user id (`auth.uid()`) — how this person is found on sign-in. */
+  auth_user_id: string | null;
+  /** Legacy Clerk id, kept for audit only. Nothing reads it any more (021). */
   clerk_id: string | null;
   full_name: string;
   display_name: string;
@@ -168,6 +171,10 @@ export interface RpcResult {
   program_id?: string;
   program_name?: string;
   membership_id?: string;
+  /** `create_program()`: the slug minted for the program that was just started. */
+  slug?: string;
+  /** `create_program()`: the join code it began with, for its director to share. */
+  join_code?: string;
   /** `join_program()`: true when the caller added a program they were in already. */
   existing?: boolean;
 }
