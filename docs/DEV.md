@@ -44,6 +44,11 @@ npm run dev                    # http://localhost:5173
 | `VITE_SUPABASE_ANON_KEY` | Same page, the `anon` / publishable key |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk Dashboard → API keys → Publishable key |
 
+For local development, use a **test** publishable key (`pk_test_…`) and leave
+`VITE_CLERK_PROXY_URL` unset. The proxy URL is for the deployed app; pointing a
+local dev server at it can return the deployed site's HTML instead of Clerk's
+JavaScript and leave the app blank.
+
 Vite reads env files **once at startup** — restart `npm run dev` after editing.
 If a variable is missing the app renders a screen naming exactly what is absent
 instead of a blank page (`src/screens/ConfigMissingScreen.tsx`).

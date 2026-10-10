@@ -81,6 +81,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
       card: "shadow-none border-0 bg-transparent p-0 w-full",
       headerTitle: "hidden",
       headerSubtitle: "hidden",
+      footerItem: "hidden",
       socialButtonsBlockButton:
         "min-h-11 rounded-[var(--radius-control)] border border-[var(--cue-border)] hover:bg-[var(--cue-raised)]",
       formButtonPrimary:
