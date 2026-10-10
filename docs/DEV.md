@@ -18,8 +18,8 @@ exists, but nothing in the code assumes it is the only one.
 | Path | What it is |
 | --- | --- |
 | `src/` | The web app: Vite + React 19 + TypeScript + Tailwind v4 |
-| `supabase/migrations/007`–`023` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program` |
-| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program) run inside transactions |
+| `supabase/migrations/007`–`024` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program` |
+| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type) run inside transactions |
 | `supabase/templates/` | The six branded auth emails Supabase sends — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
 | `public/` | The app's brand assets: one `logo.svg` and the icons rendered from it — see [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
 | `scripts/migrate/` | The clone pipeline: dump OLD → restore → migrate → verify |
@@ -80,8 +80,9 @@ can render. The flow:
    request by itself. PostgREST runs the request as the `authenticated` role with
    `sub` = the auth user id.
 4. `profiles.auth_user_id` (migration 021) is how an account maps to a person.
-   The signup audience is recorded separately by migration 023; students join
-   with a director's code, while teacher accounts can start programs. The
+   The signup audience is recorded separately by migrations 023–024; students join with a director's code,
+   while teacher accounts can start programs. A student's saved signup type
+   cannot be changed by choosing a different audience at sign-in. The
    server-side `create_program()` check enforces this as well as the UI.
    Everything else (program roles, section) lives on `memberships`, per program.
 
@@ -100,7 +101,9 @@ or directly to `/checkin` when continuing a QR check-in.
 Starting a program does not need anybody's approval: a teacher account names one
 and `create_program()` (migration 023) makes them its director. Student accounts
 can only join through a director's code. Directors are the only ones who can then
-add anybody else, through their program's join code.
+add anybody else, through their program's join code. Account type is set only at
+signup; Google sign-in does not send a new type, and the server refuses to
+classify an older untyped account during login (migration 024).
 
 Migration 021 replaced `profiles.clerk_id` with `profiles.auth_user_id` and
 repointed `public.current_profile_id()` at it. That one helper is what every RLS

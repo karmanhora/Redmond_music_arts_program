@@ -15,20 +15,16 @@ type AuthMode = "sign-in" | "sign-up" | "forgot" | "reset";
  */
 const AUDIENCE_COPY: Record<
   AuthAudience,
-  { kickerIn: string; kickerUp: string; signInSub: string; signUpSub: string; signUpNote: string }
+  { kickerUp: string; signUpSub: string; signUpNote: string }
 > = {
   student: {
-    kickerIn: "Returning student",
     kickerUp: "New student account",
-    signInSub: "Use the email connected to your program.",
     signUpSub: "Use the email you want associated with your program.",
     signUpNote:
       "After creating your account, enter your program’s join code. Ask your director if you need one.",
   },
   teacher: {
-    kickerIn: "Returning teacher",
     kickerUp: "New teacher account",
-    signInSub: "Use the email you run your program with.",
     signUpSub:
       "Use your school email if you have one — you’ll name your own program next.",
     signUpNote:
@@ -198,7 +194,11 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
     setError(null);
     setBusy(true);
     const redirectUrl = new URL(afterAuth ?? "/", window.location.origin);
-    redirectUrl.searchParams.set("account_type", audience);
+    if (mode === "sign-up") {
+      redirectUrl.searchParams.set("account_type", audience);
+    } else {
+      redirectUrl.searchParams.delete("account_type");
+    }
     const redirectTo = redirectUrl.toString();
     const { error: failure } = await auth.signInWithGoogle(redirectTo);
     if (failure) {
@@ -294,7 +294,8 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
 
   /* --- the forms ---------------------------------------------------------- */
 
-  const showsAudience = mode === "sign-in" || mode === "sign-up";
+  const showsAudience = mode === "sign-up";
+  const supportsGoogle = mode === "sign-in" || mode === "sign-up";
   const isSignIn = mode === "sign-in";
 
   return (
@@ -316,7 +317,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
       <div key={showsAudience ? audience : mode} className="cue-stagger">
         <p className="font-display text-lg font-bold tracking-wide text-[var(--cue-green)] uppercase">
           {isSignIn
-            ? copy.kickerIn
+            ? "Welcome back"
             : mode === "sign-up"
               ? copy.kickerUp
               : mode === "forgot"
@@ -328,7 +329,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
         </h2>
         <p className="mt-2 text-sm text-[var(--cue-muted)]">
           {isSignIn
-            ? copy.signInSub
+            ? "Sign in to open your programs and attendance."
             : mode === "sign-up"
               ? copy.signUpSub
               : headline.asideSub}
@@ -399,7 +400,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
         ) : null}
       </form>
 
-      {showsAudience ? (
+      {supportsGoogle ? (
         <>
           <div className="my-5 flex items-center gap-3 text-xs text-[var(--cue-muted)]">
             <span aria-hidden="true" className="h-px flex-1 bg-[var(--cue-border)]" />
