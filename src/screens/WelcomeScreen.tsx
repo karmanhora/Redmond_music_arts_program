@@ -221,6 +221,28 @@ export function WelcomeScreen() {
           </div>
         </section>
 
+        <section
+          aria-labelledby="coverage-title"
+          className="mx-auto max-w-7xl px-5 pb-12 sm:px-8 sm:pb-16"
+        >
+          <div className="flex flex-col gap-4 rounded-[var(--radius-panel)] border border-[var(--cue-border)] bg-[var(--cue-panel)] p-5 shadow-[var(--elevation-panel)] sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+            <p className="font-display text-5xl leading-none font-bold tabular-nums text-[var(--cue-green)]">
+              0
+            </p>
+            <div>
+              <h2
+                id="coverage-title"
+                className="font-display text-2xl font-bold uppercase tracking-wide"
+              >
+                Events tracked so far
+              </h2>
+              <p className="mt-1 text-sm text-[var(--cue-muted)]">
+                Attendance coverage will appear here after the first event check-in.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <footer className="border-t border-[var(--cue-border)]">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-sm text-[var(--cue-muted)] sm:px-8">
             <span>Redmond High School Music &amp; Arts</span>
