@@ -1,18 +1,53 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+/**
+ * CORS: reflect the caller's Origin only when it is allowlisted (see
+ * delete-account for the rationale). Override with APP_ORIGINS if needed.
+ */
+const DEFAULT_ORIGINS = [
+  "https://redmond-music-arts-program-mandalora.vercel.app",
+  "http://localhost:5173",
+];
 
-function response(body: Record<string, unknown>, status = 200): Response {
-  return Response.json(body, { status, headers: corsHeaders });
+const allowedOrigins = new Set(
+  (Deno.env.get("APP_ORIGINS") ?? DEFAULT_ORIGINS.join(","))
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
+
+// This app's Vercel production and preview hosts (production has no middle
+// token, a preview adds one). See delete-account for the rationale.
+const PROJECT_HOST = /^redmond(-[a-z0-9-]+)?-music-arts-program-mandalora\.vercel\.app$/i;
+
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:" && PROJECT_HOST.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("Origin") ?? "";
+  const allow = isAllowedOrigin(origin) ? origin : DEFAULT_ORIGINS[0]!;
+  return {
+    "Access-Control-Allow-Origin": allow,
+    Vary: "Origin",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 }
 
 Deno.serve(async (request: Request) => {
+  const cors = corsHeaders(request);
+  const response = (body: Record<string, unknown>, status = 200): Response =>
+    Response.json(body, { status, headers: cors });
+
   if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: cors });
   }
   if (request.method !== "POST") {
     return response({ ok: false, error: "Method not allowed." }, 405);
@@ -101,6 +136,8 @@ Deno.serve(async (request: Request) => {
     });
     const errorMessage = /already|registered|exists/i.test(inviteError.message)
       ? "That email already has an account. Share this program's join code so they can join."
+      : /error sending invite email/i.test(inviteError.message)
+      ? "Supabase could not send the invitation. Verify the configured From address as a Sender Identity in SendGrid, then try again."
       : `Could not send the invitation: ${inviteError.message}`;
     return response({
       ok: false,

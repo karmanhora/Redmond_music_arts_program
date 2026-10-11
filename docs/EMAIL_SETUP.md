@@ -81,6 +81,11 @@ Fix it in Authentication → Emails → SMTP Settings (or the commented
 and a from-address on a domain you control. Then verify the DNS records the
 provider asks for — without them, mail is sent but lands in spam.
 
+For SendGrid, the SMTP **From** address must also be a verified Sender Identity
+(or belong to an authenticated domain). If an invitation fails with “Error
+sending invite email,” check that the exact From address configured in Supabase
+Auth is verified in SendGrid before retrying.
+
 **No application code changes when SMTP is configured.** The templates, the
 subjects, the redirect URLs and every call in `src/hooks/useAuth.tsx` stay
 exactly as they are; only the transport changes.
