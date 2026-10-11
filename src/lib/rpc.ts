@@ -112,6 +112,10 @@ export const createProgram = (
     p_display_name: opts?.displayName?.trim() || null,
   });
 
+/** Director-only: archive a program from new joins or restore it. */
+export const setProgramActive = (programId: string, active: boolean) =>
+  callRpc("set_program_active", { p_ensemble: programId, p_active: active });
+
 // --- Join code (director) ---------------------------------------------------
 
 /** Director-only: the program's current join code. */

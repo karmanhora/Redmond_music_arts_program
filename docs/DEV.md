@@ -18,8 +18,8 @@ exists, but nothing in the code assumes it is the only one.
 | Path | What it is |
 | --- | --- |
 | `src/` | The web app: Vite + React 19 + TypeScript + Tailwind v4 |
-| `supabase/migrations/007`–`025` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account deletion |
-| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion) run inside transactions |
+| `supabase/migrations/007`–`026` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account and program lifecycle |
+| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion, program archive) run inside transactions |
 | `supabase/templates/` | The six branded auth emails Supabase sends — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
 | `public/` | The app's brand assets: one `logo.svg` and the icons rendered from it — see [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
 | `scripts/migrate/` | The clone pipeline: dump OLD → restore → migrate → verify |

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Archive,
+  ArchiveRestore,
   Check,
   Clock,
   KeyRound,
@@ -35,7 +37,12 @@ import {
   useToast,
 } from "../components/ui";
 import { updateMyProfile } from "../lib/queries";
-import { getMyAttendancePct, getMyAttendanceTrend, setMemberSection } from "../lib/rpc";
+import {
+  getMyAttendancePct,
+  getMyAttendanceTrend,
+  setMemberSection,
+  setProgramActive,
+} from "../lib/rpc";
 import type { MyAttendanceRow } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
@@ -101,6 +108,8 @@ export function ProfileScreen() {
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+  const [confirmProgramArchive, setConfirmProgramArchive] = useState(false);
+  const [updatingProgramStatus, setUpdatingProgramStatus] = useState(false);
 
   const load = useCallback(async () => {
     if (!programId) return;
@@ -158,6 +167,20 @@ export function ProfileScreen() {
     setNameOpen(false);
     toast.success("Saved.");
     await app.refresh();
+  }
+
+  async function changeProgramStatus() {
+    if (!programId || !app.isDirector || !app.program) return;
+    setUpdatingProgramStatus(true);
+    const { result, error: rpcError } = await setProgramActive(programId, !app.program.active);
+    setUpdatingProgramStatus(false);
+    if (rpcError || !result?.ok) {
+      toast.error(rpcError?.message || result?.message || "Could not update this program.");
+      return;
+    }
+    setConfirmProgramArchive(false);
+    toast.success(result.message || (app.program.active ? "Program archived." : "Program restored."));
+    await app.refresh(programId);
   }
 
   async function moveToSection(sectionId: string | null) {
@@ -307,7 +330,13 @@ export function ProfileScreen() {
                 key={m.id}
                 icon={<Music className="h-5 w-5" />}
                 title={m.ensemble.name}
-                subtitle={here ? "You're looking at this one" : "Tap to switch to it"}
+                subtitle={
+                  !m.ensemble.active
+                    ? "Archived"
+                    : here
+                      ? "You're looking at this one"
+                      : "Tap to switch to it"
+                }
                 trailing={
                   here ? <Check className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" /> : null
                 }
@@ -315,6 +344,24 @@ export function ProfileScreen() {
               />
             );
           })}
+          {app.isDirector && app.program ? (
+            <Row
+              icon={
+                app.program.active ? (
+                  <Archive className="h-5 w-5" />
+                ) : (
+                  <ArchiveRestore className="h-5 w-5" />
+                )
+              }
+              title={app.program.active ? "Archive this program" : "Restore this program"}
+              subtitle={
+                app.program.active
+                  ? "Hide it from new members; keep existing members and attendance."
+                  : "Make it available for new members to join again."
+              }
+              onClick={() => setConfirmProgramArchive(true)}
+            />
+          ) : null}
           <Row
             icon={<UserPlus className="h-5 w-5" />}
             title="Join another program"
@@ -589,6 +636,20 @@ export function ProfileScreen() {
         </div>
       </Sheet>
 
+      <ConfirmSheet
+        open={confirmProgramArchive}
+        title={app.program?.active ? "Archive this program?" : "Restore this program?"}
+        body={
+          app.program?.active
+            ? "New members will no longer be able to join. Current members, events, and attendance history will be kept. You can restore the program later."
+            : "This will make the program available for new members to join again. Existing members and attendance history are unchanged."
+        }
+        confirmLabel={app.program?.active ? "Archive program" : "Restore program"}
+        tone={app.program?.active ? "danger" : "primary"}
+        loading={updatingProgramStatus}
+        onCancel={() => setConfirmProgramArchive(false)}
+        onConfirm={() => void changeProgramStatus()}
+      />
       <ConfirmSheet
         open={confirmSignOut}
         title="Sign out?"
