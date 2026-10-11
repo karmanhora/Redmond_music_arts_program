@@ -64,7 +64,7 @@ export function QrScanner({
       instance = new Html5Qrcode(ELEMENT_ID, { verbose: false });
 
       await instance.start(
-        { facingMode: { ideal: "environment" } },
+        { facingMode: "environment" },
         {
           fps: 10,
           qrbox: (width, height) => {
