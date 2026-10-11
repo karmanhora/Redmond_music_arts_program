@@ -109,12 +109,14 @@ export function QrScanner({
 
   return (
     <div
-      id={ELEMENT_ID}
-      ref={host}
-      className="relative mx-auto flex min-h-56 w-full max-w-sm items-center justify-center overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-border)] bg-[#111713] text-center text-sm text-white [&_video]:w-full"
+      className="relative mx-auto min-h-56 w-full max-w-sm overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-border)] bg-[#111713] text-center text-sm text-white"
     >
+      <div id={ELEMENT_ID} ref={host} className="min-h-56 [&_video]:w-full" />
       {cameraState !== "ready" ? (
-        <p className="px-6 py-8" role="status">
+        <p
+          className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 py-8"
+          role="status"
+        >
           {cameraState === "starting"
             ? "Opening camera…"
             : "Camera unavailable. Enter the code instead."}
