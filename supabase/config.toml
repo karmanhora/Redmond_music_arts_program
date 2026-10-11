@@ -24,7 +24,7 @@
 [auth]
 # The production origin. Everything that does not name its own redirect falls
 # back to this, so it must be the deployed app — not localhost.
-site_url = "https://rhs-musicandarts.vercel.app"
+site_url = "https://redmond-music-arts-program-mandalora.vercel.app/"
 
 # Every destination an email link is allowed to land on. A link whose redirect
 # is missing here is silently rewritten to the Site URL, which is how a
@@ -32,11 +32,14 @@ site_url = "https://rhs-musicandarts.vercel.app"
 additional_redirect_urls = [
   # Confirmation and invite links: src/hooks/useAuth.tsx passes
   # `${window.location.origin}/` as emailRedirectTo.
-  "https://rhs-musicandarts.vercel.app/",
+  "https://redmond-music-arts-program-mandalora.vercel.app/",
+  "https://redmond-music-arts-program-mandalora.vercel.app/**",
+  "https://redmond-*-music-arts-program-mandalora.vercel.app",
+  "https://redmond-*-music-arts-program-mandalora.vercel.app/**",
   # The password-recovery link: resetPasswordForEmail passes
   # `${window.location.origin}/reset-password`, and the app refuses to apply a
   # recovery without that screen (AuthScreen mode="reset").
-  "https://rhs-musicandarts.vercel.app/reset-password",
+  "https://redmond-music-arts-program-mandalora.vercel.app/reset-password",
   # Local development — both call sites above, on the Vite dev server.
   "http://localhost:5173/**",
 ]
@@ -52,17 +55,20 @@ enable_confirmations = true
 [functions.delete-account]
 verify_jwt = true
 
+[functions.invite-student]
+verify_jwt = true
+
 # ----------------------------------------------------------------------------
 # Authentication emails. Subject lines are what the inbox shows; each template
 # heading matches it. Add a brand suffix ("· RHS Music & Arts") for recognition.
 # ----------------------------------------------------------------------------
 
 [auth.email.template.confirmation]
-subject = "Confirm your email"
+subject = "Confirm your email address"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "Set a new password"
+subject = "Reset your password"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.invite]
@@ -78,7 +84,7 @@ subject = "Confirm your new email address"
 content_path = "./supabase/templates/email_change.html"
 
 [auth.email.template.reauthentication]
-subject = "Your confirmation code"
+subject = "{{ .Token }} is your verification code"
 content_path = "./supabase/templates/reauthentication.html"
 
 # Security notifications are separate from authentication emails. Supabase

@@ -8,7 +8,7 @@
 </head>
 <body style="margin:0;padding:0;background-color:#f1f0e9;">
 
-<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f1f0e9;">A director added you to the RHS Music &amp; Arts attendance app.</div>
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f1f0e9;">A director invited you to join {{ .Data.program_name }}.</div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f0e9" style="background-color:#f1f0e9;">
   <tr>
@@ -28,7 +28,7 @@
           <td style="padding:28px 28px 8px;">
             <h1 style="margin:0;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:0.01em;text-transform:uppercase;color:#20241f;">You&rsquo;ve been invited</h1>
 
-            <p style="margin:16px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#20241f;">A director has added <strong style="color:#20241f;">{{ .Email }}</strong> to the RHS Music &amp; Arts attendance app. Tap the button to set up your account.</p>
+            <p style="margin:16px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#20241f;">A director invited <strong style="color:#20241f;">{{ .Email }}</strong> to join <strong style="color:#20241f;">{{ .Data.program_name }}</strong>. Tap the button to set up your account and accept the invitation.</p>
 
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px;">
               <tr>
@@ -41,15 +41,8 @@
         </tr>
 
         <tr>
-          <td style="padding:16px 28px 0;">
-            <p style="margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:1.6;color:#575e57;">Or type this code if you are asked for one:</p>
-            <p style="margin:10px 0 0;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:26px;font-weight:700;letter-spacing:0.3em;color:#20241f;background-color:#faf9f4;border:1px solid #d8d9d0;border-radius:10px;padding:14px 18px;text-align:center;">{{ .Token }}</p>
-          </td>
-        </tr>
-
-        <tr>
           <td style="padding:22px 28px 28px;">
-            <p style="margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#20241f;">Once you are signed in, your program&rsquo;s join code is what puts you on the roster — your director has it. If a temporary password was set for you, the app will ask you to choose your own.</p>
+            <p style="margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#20241f;">After you accept and confirm your email, you&rsquo;ll be added to <strong style="color:#20241f;">{{ .Data.program_name }}</strong>&rsquo;s student roster automatically. You can then sign in and choose your own password.</p>
             <p style="margin:14px 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.6;color:#575e57;">Not expecting this? Ignore this email — nothing happens until the link is used.</p>
           </td>
         </tr>

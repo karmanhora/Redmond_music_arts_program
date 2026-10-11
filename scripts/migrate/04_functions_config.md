@@ -11,6 +11,8 @@ deployment stay untouched.
 
 - [ ] `supabase functions deploy sync_google_calendar --project-ref <NEW_PROJECT_REF>`
 - [ ] `supabase functions deploy send_signup_reminder --project-ref <NEW_PROJECT_REF>`
+- [ ] After applying migration 027, deploy
+      `supabase functions deploy invite-student --project-ref <NEW_PROJECT_REF>`.
 - [ ] Function secrets (`supabase secrets set … --project-ref <NEW_PROJECT_REF>`, values never logged):
   - [ ] `SENDGRID_API_KEY`
   - [ ] `SENDGRID_FROM` (verified sender)
@@ -51,6 +53,9 @@ cutover checklist.
 - [ ] Authentication email templates: copy the 6 from `supabase/templates/` (confirmation,
       recovery, invite, magic_link, email_change, reauthentication) into
       Dashboard → Auth → Email Templates (subjects + HTML).
+- [ ] Apply `supabase/migrations/027_program_email_invites.sql` before enabling
+      the program-staff invite form in a deployment; run
+      `supabase/tests/program_email_invites.sql` to verify its database behavior.
 - [ ] Password-change security notification: enable it in Dashboard → Auth →
       Notifications and set its subject + HTML from `password_changed_notification.html`.
 - [ ] Confirm email ON (as configured on OLD), and verify one test signup +
@@ -70,11 +75,12 @@ Verify each step with a real sign-in against the NEW project.
       origin, the dev origin, and `<origin>/reset-password` on both — a recovery
       link lands there (`redirectTo` in `src/hooks/useAuth.tsx`) and the app
       refuses to apply one without a session.
-- [ ] **No `auth.users` signup trigger is deployed, deliberately.** The join code
-      is validated in the app by `join_program()` (migration 020) *after* the
-      account exists, which is the only flow that can also add somebody's second
-      program. `handle_new_user` stays retired (018) and 021 does not bring it
-      back.
+- [ ] **Ordinary signups do not create profiles or memberships via an
+      `auth.users` trigger.** The join code is validated in the app by
+      `join_program()` (migration 020) *after* the account exists. Migration 027
+      adds a narrowly scoped email-confirmation trigger that enrolls only a
+      student with a matching pending director invitation; it does not replace
+      the ordinary join flow.
 - [ ] Frontend env (Vercel + local `.env.local`): `VITE_SUPABASE_URL` and
       `VITE_SUPABASE_ANON_KEY` from the NEW project. There is no auth-provider
       variable any more.

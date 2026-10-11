@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Copy,
   KeyRound,
+  Mail,
   RefreshCw,
   Search,
   Users,
@@ -19,6 +20,7 @@ import {
   ConfirmSheet,
   EmptyState,
   IconButton,
+  Field,
   Input,
   Row,
   SegmentedControl,
@@ -28,7 +30,14 @@ import {
   useToast,
 } from "../components/ui";
 import { fetchRoster } from "../lib/queries";
-import { deactivateMember, getJoinCode, reactivateMember, setJoinCode, setMemberSection } from "../lib/rpc";
+import {
+  deactivateMember,
+  getJoinCode,
+  inviteProgramStudent,
+  reactivateMember,
+  setJoinCode,
+  setMemberSection,
+} from "../lib/rpc";
 import type { RosterMember } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import { ROLE_LABEL } from "../lib/constants";
@@ -37,10 +46,8 @@ import { fmtDate } from "../lib/date";
 /**
  * `/roster` — everyone in the band, grouped by section.
  *
- * Directors also run the program's join code here. It is the only way anybody
- * gets on the roster now (`invite_member` and the old password RPCs are
- * retired): a signed-in person types the code on the join screen and
- * `join_program()` checks it before it creates the profile.
+ * Program staff invite students by email or share the program's join code. Email
+ * invitations add new students after they accept and confirm their account.
  */
 
 /** No I, O, 0 or 1 — a code gets read off a whiteboard and typed by a teenager. */
@@ -73,6 +80,10 @@ export function RosterScreen() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   const load = useCallback(async () => {
     if (!programId) return;
@@ -166,6 +177,26 @@ export function RosterScreen() {
     toast.success("New join code — tell everyone in the program before it goes in the group chat.");
   }
 
+  async function sendInvitation(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!programId) return;
+    setInviting(true);
+    setInviteError(null);
+    const { message, error: inviteFailure } = await inviteProgramStudent(
+      programId,
+      inviteEmail,
+      inviteName
+    );
+    setInviting(false);
+    if (inviteFailure) {
+      setInviteError(inviteFailure);
+      return;
+    }
+    setInviteName("");
+    setInviteEmail("");
+    toast.success(message ?? "Invitation sent.");
+  }
+
   async function toggleMembership(target: RosterMember, next: boolean) {
     if (!programId) return;
     setBusy(true);
@@ -233,6 +264,52 @@ export function RosterScreen() {
           </p>
         ) : null}
       </Card>
+
+      {/* --- invite a student (program staff) --- */}
+      {app.isStaff ? (
+        <Card className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-band dark:text-emerald-300" />
+            <p className="font-semibold">Invite a student by email</p>
+          </div>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            We&rsquo;ll email them a secure invitation. They&rsquo;ll be added to this roster after
+            they accept and confirm their email. For someone with an existing account, ask a
+            director to share the program join code.
+          </p>
+          {inviteError ? <Alert tone="error">{inviteError}</Alert> : null}
+          <form className="space-y-3" onSubmit={(event) => void sendInvitation(event)}>
+            <Field label="Student name">
+              <Input
+                value={inviteName}
+                onChange={(event) => setInviteName(event.target.value)}
+                placeholder="Alex Rivera"
+                autoComplete="name"
+                required
+                maxLength={80}
+              />
+            </Field>
+            <Field label="Student email">
+              <Input
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="student@example.edu"
+                autoComplete="email"
+                required
+              />
+            </Field>
+            <Button
+              block
+              type="submit"
+              loading={inviting}
+              disabled={!inviteName.trim() || !inviteEmail.trim()}
+            >
+              Send invitation
+            </Button>
+          </form>
+        </Card>
+      ) : null}
 
       {/* --- join code (directors) --- */}
       {app.isDirector ? (

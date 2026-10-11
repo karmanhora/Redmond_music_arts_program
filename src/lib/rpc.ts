@@ -116,6 +116,55 @@ export const createProgram = (
 export const setProgramActive = (programId: string, active: boolean) =>
   callRpc("set_program_active", { p_ensemble: programId, p_active: active });
 
+/** Program staff: invite a new student by email through the server function. */
+export async function inviteProgramStudent(
+  programId: string,
+  email: string,
+  studentName: string
+): Promise<{ message: string | null; error: string | null }> {
+  const { data, error } = await supabase.functions.invoke<{
+    ok: boolean;
+    message?: string;
+    error?: string;
+  }>("invite-student", {
+    body: {
+      ensemble_id: programId,
+      email: email.trim(),
+      student_name: studentName.trim(),
+    },
+  });
+
+  if (error) {
+    if (error.context instanceof Response) {
+      const body = await error.context.clone().text();
+      if (body) {
+        try {
+          const payload: unknown = JSON.parse(body);
+          if (
+            typeof payload === "object" &&
+            payload !== null &&
+            "error" in payload &&
+            typeof payload.error === "string"
+          ) {
+            return { message: null, error: payload.error };
+          }
+        } catch (parseError) {
+          if (!(parseError instanceof SyntaxError)) throw parseError;
+        }
+      }
+    }
+    return { message: null, error: error.message };
+  }
+
+  if (!data?.ok) {
+    return {
+      message: null,
+      error: data?.error ?? "Could not send the student invitation.",
+    };
+  }
+  return { message: data.message ?? "Invitation sent.", error: null };
+}
+
 // --- Join code (director) ---------------------------------------------------
 
 /** Director-only: the program's current join code. */

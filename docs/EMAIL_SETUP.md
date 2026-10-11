@@ -6,9 +6,16 @@ email change, reauthentication, and enabled security notifications. Their
 wording and layout live in `supabase/templates/`, wired up by
 `supabase/config.toml`.
 
-There is no email provider to integrate and no sending code in this repository.
-That is the point: nothing here can leak a key, and nothing has to be redeployed
-when a subject line changes.
+Supabase Auth handles email delivery; the app's server-side Edge Function only
+requests student invitations and never exposes its service-role key to the
+browser. There is no third-party email transport to integrate, and changing a
+subject line or template does not require a frontend redeploy.
+
+The program-staff invite flow is backed by migration
+`supabase/migrations/027_program_email_invites.sql` and the
+`invite-student` Edge Function. Apply the migration and deploy the function
+before enabling the invitation form in a production frontend; see
+`scripts/migrate/04_functions_config.md`.
 
 ---
 
@@ -18,7 +25,7 @@ when a subject line changes.
 | --- | --- | --- | --- |
 | Confirmation | Someone signs up (`supabase.auth.signUp`), or asks for the link again from the sign-in screen | `confirmation.html` | `{{ .ConfirmationURL }}`, with `{{ .Token }}` as the typed fallback |
 | Recovery | Someone taps **Forgot your password?** (`resetPasswordForEmail`) | `recovery.html` | `{{ .ConfirmationURL }}` → lands on `/reset-password`; `{{ .Token }}` fallback |
-| Invite | An administrator invites an address (`auth.admin.inviteUserByEmail`) | `invite.html` | `{{ .ConfirmationURL }}`; `{{ .Token }}` fallback |
+| Invite | Program staff invite a new student from the roster (`auth.admin.inviteUserByEmail`) | `invite.html` | `{{ .ConfirmationURL }}`; accepting and confirming the invite adds the student to that program |
 | Magic link | A passwordless sign-in is requested (`signInWithOtp`) | `magic_link.html` | `{{ .ConfirmationURL }}`; `{{ .Token }}` fallback |
 | Email change | The address on an account is changed | `email_change.html` | `{{ .ConfirmationURL }}`, naming `{{ .Email }}` and `{{ .NewEmail }}` |
 | Reauthentication | A security-sensitive change asks the person to prove themselves again | `reauthentication.html` | `{{ .Token }}` only — a code, not a link |
