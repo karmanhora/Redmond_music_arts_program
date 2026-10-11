@@ -10,7 +10,9 @@ need the school/district; **[dev]** items are the developer's.
 - [ ] **[dev]** Enable MFA on Supabase, Vercel, GitHub, and the email account.
 
 ## Phase 1 — Paperwork
-- [ ] **[dev/district]** Privacy policy finalized and hosted.
+- [~] **[dev/district]** Privacy policy + terms **published in the app** as
+      `/privacy` and `/terms` (drafts, placeholders open) — still to be
+      **finalized** by the district. See [`WEBSITE_LEGAL_CHANGES.md`](WEBSITE_LEGAL_CHANGES.md).
 - [ ] **[district]** Family notice decision (needed or not?).
 - [ ] **[district]** District vendor-approval form completed.
 - [ ] **[district]** Data-processing agreement reviewed and signed (parent/

@@ -244,16 +244,26 @@ export function WelcomeScreen() {
         </section>
 
         <footer className="border-t border-[var(--cue-border)]">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-sm text-[var(--cue-muted)] sm:px-8">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-5 text-sm text-[var(--cue-muted)] sm:px-8">
             <span>Redmond High School Attendance</span>
-            <Link
-              viewTransition
-              to="/sign-up"
-              className="motion-press inline-flex min-h-11 items-center gap-2 font-bold text-[var(--cue-action)] underline decoration-[var(--cue-gold)] decoration-2 underline-offset-4"
-            >
-              Join your program
-              <QrCode aria-hidden="true" className="h-4 w-4" />
-            </Link>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+              <nav aria-label="Legal" className="flex items-center gap-5">
+                <Link viewTransition to="/privacy" className="motion-press inline-flex min-h-11 items-center underline underline-offset-4 hover:text-[var(--cue-ink)]">
+                  Privacy Policy
+                </Link>
+                <Link viewTransition to="/terms" className="motion-press inline-flex min-h-11 items-center underline underline-offset-4 hover:text-[var(--cue-ink)]">
+                  Terms of Use
+                </Link>
+              </nav>
+              <Link
+                viewTransition
+                to="/sign-up"
+                className="motion-press inline-flex min-h-11 items-center gap-2 font-bold text-[var(--cue-action)] underline decoration-[var(--cue-gold)] decoration-2 underline-offset-4"
+              >
+                Join your program
+                <QrCode aria-hidden="true" className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </footer>
       </main>

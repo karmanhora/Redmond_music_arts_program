@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "./hooks/useAuth";
 import SignedInApp from "./SignedInApp";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { AuthScreen } from "./screens/AuthScreen";
+import { LegalScreen } from "./screens/LegalScreen";
 
 /**
  * Which tree the visitor gets: the public landing page, an auth screen, or the
@@ -33,6 +34,10 @@ function SessionRoutes() {
   if (auth.status === "loading") {
     return (
       <Routes>
+        {/* Public legal pages resolve before auth does, so a deep link (or a
+            district reviewer) never lands on a spinner that hides the notice. */}
+        <Route path="/privacy" element={<LegalScreen page="privacy" />} />
+        <Route path="/terms" element={<LegalScreen page="terms" />} />
         <Route path="*" element={<Splash label="Signing you in…" />} />
       </Routes>
     );
@@ -47,6 +52,10 @@ function SessionRoutes() {
     return (
       <Routes>
         <Route path="/reset-password" element={<AuthScreen mode="reset" />} />
+        {/* A recovery link must not lock the person out of the notice they are
+            being asked to accept. */}
+        <Route path="/privacy" element={<LegalScreen page="privacy" />} />
+        <Route path="/terms" element={<LegalScreen page="terms" />} />
         <Route path="*" element={<Navigate to="/reset-password" replace />} />
       </Routes>
     );
@@ -61,6 +70,9 @@ function SessionRoutes() {
         <Route path="/sign-up/*" element={<AuthScreen mode="sign-up" />} />
         <Route path="/forgot-password" element={<AuthScreen mode="forgot" />} />
         <Route path="/reset-password" element={<AuthScreen mode="reset" />} />
+        {/* The public notices: open to anyone, signed in or not. */}
+        <Route path="/privacy" element={<LegalScreen page="privacy" />} />
+        <Route path="/terms" element={<LegalScreen page="terms" />} />
         {/*
           A deep link into the app — most importantly `/checkin?token=…` from a
           scanned QR code — lands on sign-in, and the auth screen sends them on

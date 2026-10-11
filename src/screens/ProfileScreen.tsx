@@ -5,6 +5,7 @@ import {
   ArchiveRestore,
   Check,
   Clock,
+  FileText,
   KeyRound,
   LogOut,
   Moon,
@@ -12,6 +13,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  ShieldCheck,
   Sun,
   Trash2,
   UserPlus,
@@ -479,6 +481,29 @@ export function ProfileScreen() {
         <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
           {APP_NAME} keeps every program&rsquo;s schedule, check-ins and attendance in one place.
           If something looks wrong, tell your director — they can fix it.
+        </p>
+      </div>
+
+      {/* --- the public notices, one tap away --- */}
+      <div className="space-y-1">
+        <SectionTitle className="pt-1">Privacy</SectionTitle>
+        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+          <Row
+            icon={<ShieldCheck className="h-5 w-5" />}
+            title="Privacy Policy"
+            subtitle="What is collected, who can see it, and how to request deletion"
+            onClick={() => navigate("/privacy")}
+          />
+          <Row
+            icon={<FileText className="h-5 w-5" />}
+            title="Terms of Use"
+            subtitle="The rules for using the app"
+            onClick={() => navigate("/terms")}
+          />
+        </Card>
+        <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
+          These notices are drafts pending school approval. To inspect, correct, or delete a
+          record, contact your school&rsquo;s records office (LWSD Policy 3231).
         </p>
       </div>
 

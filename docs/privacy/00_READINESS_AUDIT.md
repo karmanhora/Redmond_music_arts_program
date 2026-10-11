@@ -321,6 +321,12 @@ disclosure basis; who owns breach response; health-reason handling.
 11. Keep the retention schedule and provider list current.
 
 ### Technical changes made in this repo
+- **Website legal pages (2026-10-11):** `/privacy` and `/terms` now render the
+  privacy policy and terms of use **inside the app**, reachable signed out, with
+  the drafts' placeholders and draft banner intact. Linked from the landing-page
+  footer, the sign-up consent line, and a new Profile → Privacy section. See
+  [`WEBSITE_LEGAL_CHANGES.md`](WEBSITE_LEGAL_CHANGES.md). This publishes drafts;
+  it does **not** make them final or establish compliance.
 - `supabase/migrations/028_privacy_retention.sql` — explicit deny policy on
   `program_invites`; a `purge_stale_program_invites()` retention function.
 - `supabase/tests/program_invites_privacy.sql` — asserts invites are not
@@ -390,6 +396,9 @@ live (see §6.1).
 - [x] QR tokens: short-lived, single-purpose, rate-limited.
 - [x] Draft privacy policy, agreement, inventory, retention plan, incident plan,
       provider list, ownership statement, approval checklist, family notice.
+- [x] Privacy Policy and Terms of Use reachable **in the app** as public routes
+      (`/privacy`, `/terms`), wired to the footer, sign-up, and Profile. Still
+      marked as drafts; placeholders unfilled. (`src/screens/LegalScreen.tsx`)
 
 **Applied to production and verified (2026-10-11)**
 - [x] `028_privacy_retention.sql` applied to `sjiswrvhrnrxkrfhfjrp` (dry-run first).

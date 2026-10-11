@@ -448,6 +448,20 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           {copy.signUpNote}
         </p>
       ) : null}
+
+      {/* The public notices, one tap from every auth mode. On sign-up this is
+          also the consent line; on the others it is just discovery. */}
+      <p className="mt-4 text-center text-[11px] leading-relaxed text-[var(--cue-muted)]">
+        {mode === "sign-up" ? "By creating an account you agree to our " : ""}
+        <Link to="/terms" className="font-semibold underline underline-offset-2">
+          Terms of Use
+        </Link>
+        {mode === "sign-up" ? " and " : " \u00b7 "}
+        <Link to="/privacy" className="font-semibold underline underline-offset-2">
+          Privacy Policy
+        </Link>
+        {mode === "sign-up" ? "." : ""}
+      </p>
     </AuthLayout>
   );
 }

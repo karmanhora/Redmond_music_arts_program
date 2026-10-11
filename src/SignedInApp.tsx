@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { AppShell } from "./components/AppShell";
 import { Alert, Button } from "./components/ui";
 import { MusicLoader } from "./components/Splash";
+import { LegalScreen } from "./screens/LegalScreen";
 import { ProgramsProvider, usePrograms } from "./hooks/usePrograms";
 
 const JoinProgramScreen = lazy(() =>
@@ -104,12 +105,18 @@ function ProgramRoutes() {
           }
         />
         <Route path="*" element={<JoinProgramScreen standalone />} />
+        <Route path="/privacy" element={<LegalScreen page="privacy" />} />
+        <Route path="/terms" element={<LegalScreen page="terms" />} />
       </Routes>
     );
   }
 
   return (
     <Routes>
+      {/* Legal pages render standalone (no app chrome) but stay reachable from
+          the Profile screen once you are signed in. */}
+      <Route path="/privacy" element={<LegalScreen page="privacy" />} />
+      <Route path="/terms" element={<LegalScreen page="terms" />} />
       <Route element={<AppShell />}>
         <Route path="/" element={<HomeScreen />} />
         <Route path="/calendar" element={<CalendarScreen />} />
