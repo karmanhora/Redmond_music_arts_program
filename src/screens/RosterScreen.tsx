@@ -455,7 +455,7 @@ export function RosterScreen() {
                       !m.active && "opacity-55"
                     )}
                   >
-                    <Avatar name={name} url={m.profile.avatar_url} size={36} />
+                    <Avatar name={name} path={m.profile.avatar_path} url={m.profile.avatar_url} size={36} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">{name}</span>
                       <span className="block truncate text-sm text-zinc-500 dark:text-zinc-400">
@@ -485,6 +485,7 @@ export function RosterScreen() {
             <div className="flex items-center gap-3">
               <Avatar
                 name={member.profile.display_name || member.profile.full_name}
+                path={member.profile.avatar_path}
                 url={member.profile.avatar_url}
                 size={56}
               />

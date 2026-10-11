@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   Bell,
   CalendarDays,
+  ChevronRight,
   ChevronsUpDown,
   ClipboardCheck,
   Home,
+  LogOut,
   Moon,
   QrCode,
+  Settings,
   Sun,
   User,
+  UserCog,
   Users,
 } from "lucide-react";
 import { fetchNotifications, markNotificationsRead } from "../lib/queries";
@@ -21,7 +25,7 @@ import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
 import { useDark } from "../hooks/useDark";
 import { ProgramSwitcher } from "./ProgramSwitcher";
-import { Alert, Avatar, IconButton, Sheet, cn } from "./ui";
+import { Alert, Avatar, Button, Card, IconButton, Row, SectionTitle, Sheet, cn } from "./ui";
 
 interface NavItem {
   to: string;
@@ -60,6 +64,7 @@ export function AppShell() {
   const { dark, toggle } = useDark();
   const navigate = useNavigate();
   const [bellOpen, setBellOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
 
@@ -145,9 +150,20 @@ export function AppShell() {
           variant="ghost"
           icon={dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         />
-        <Link viewTransition to="/me" aria-label="Your profile" className="motion-press shrink-0">
-          <Avatar name={name} url={app.profile?.avatar_url} size={34} />
-        </Link>
+        <button
+          type="button"
+          onClick={() => setAccountOpen(true)}
+          aria-label={`Your account — ${name}`}
+          aria-haspopup="dialog"
+          className="motion-press shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cue-focus)]"
+        >
+          <Avatar
+            name={name}
+            path={app.profile?.avatar_path}
+            url={app.profile?.avatar_url}
+            size={34}
+          />
+        </button>
       </header>
 
       {!online ? (
@@ -222,8 +238,97 @@ export function AppShell() {
       </nav>
 
       <NotificationsSheet open={bellOpen} onClose={() => setBellOpen(false)} />
+      <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
       <ProgramSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} />
     </div>
+  );
+}
+
+/**
+ * The avatar menu: the one place every account-ish destination is reachable,
+ * including from a phone where the bottom bar has no room for a sixth tab.
+ * Role management only appears when the server says the person may see roles.
+ */
+function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const app = usePrograms();
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const name = app.profile?.display_name || app.profile?.full_name || "Member";
+
+  function go(to: string) {
+    onClose();
+    navigate(to);
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Your account" size="tall">
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Avatar name={name} path={app.profile?.avatar_path} url={app.profile?.avatar_url} size={52} />
+          <div className="min-w-0">
+            <p className="truncate font-bold">{name}</p>
+            <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
+              {ROLE_LABEL[app.primaryRole]}
+              {app.program?.name ? ` · ${app.program.name}` : ""}
+            </p>
+          </div>
+        </div>
+
+        <SectionTitle>Account</SectionTitle>
+        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+          <Row
+            icon={<User className="h-5 w-5" />}
+            title="Profile"
+            subtitle="Your picture, name, roles and attendance"
+            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+            onClick={() => go("/me")}
+          />
+          <Row
+            icon={<Settings className="h-5 w-5" />}
+            title="Account settings"
+            subtitle="Password, email, appearance, privacy"
+            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+            onClick={() => go("/settings")}
+          />
+          {app.can("roles.view") ? (
+            <Row
+              icon={<UserCog className="h-5 w-5" />}
+              title="Roles & permissions"
+              subtitle={`Who can do what in ${app.program?.name ?? "this program"}`}
+              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+              onClick={() => go("/roles")}
+            />
+          ) : null}
+          {app.memberships.length > 1 ? (
+            <Row
+              icon={<ChevronsUpDown className="h-5 w-5" />}
+              title="Switch program"
+              subtitle={`${app.memberships.length} programs`}
+              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+              onClick={() => {
+                onClose();
+                navigate("/");
+              }}
+            />
+          ) : null}
+        </Card>
+
+        <Button
+          block
+          variant="secondary"
+          loading={signingOut}
+          icon={<LogOut className="h-4 w-4" />}
+          onClick={() => {
+            setSigningOut(true);
+            void auth.signOut().finally(() => setSigningOut(false));
+          }}
+        >
+          Sign out
+        </Button>
+      </div>
+    </Sheet>
   );
 }
 

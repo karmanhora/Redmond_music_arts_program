@@ -256,6 +256,87 @@ export const getMyAttendancePct = (programId: string) =>
 export const getMyAttendanceTrend = (programId: string, limit = 8) =>
   callRpcList<MyAttendanceRow>("my_attendance_trend", { p_ensemble: programId, p_limit: limit });
 
+// --- Roles & capabilities (029) ---------------------------------------------
+
+/**
+ * The caller's own effective capabilities in one program. The frontend uses
+ * this to decide what to render; every rule behind it is enforced again, per
+ * request, by `has_permission()` inside RLS and the RPCs below.
+ */
+export const getMyPermissions = (programId: string) =>
+  callRpc("my_permissions", { p_ensemble: programId });
+
+/** Every role available in the program (system + custom) and what each grants. */
+export const listProgramRoles = (programId: string) =>
+  callRpc("list_program_roles", { p_ensemble: programId });
+
+/**
+ * Grant a role. The server refuses a role the caller does not hold in full, a
+ * self-assignment, `system_admin`, and any target who is not on this roster.
+ */
+export const assignRole = (
+  programId: string,
+  userId: string,
+  roleId: string,
+  sectionId?: string | null
+) =>
+  callRpc("assign_role", {
+    p_ensemble: programId,
+    p_user: userId,
+    p_role: roleId,
+    p_section_id: sectionId ?? null,
+  });
+
+/** Remove a role, subject to the same authority checks (and never the last director). */
+export const revokeRole = (programId: string, userId: string, roleId: string) =>
+  callRpc("revoke_role", { p_ensemble: programId, p_user: userId, p_role: roleId });
+
+/** Build a per-program role from delegable capabilities the caller already holds. */
+export const createCustomRole = (
+  programId: string,
+  name: string,
+  description: string,
+  permissions: string[],
+  scope: "program" | "section" = "program"
+) =>
+  callRpc("create_custom_role", {
+    p_ensemble: programId,
+    p_name: name,
+    p_description: description,
+    p_permissions: permissions,
+    p_scope: scope,
+  });
+
+/**
+ * Edit a custom role. Widening a role that people already hold answers with
+ * `needs_confirmation` (+ `holders` and `added`) until the caller passes
+ * `confirm = true`, so nobody silently gains a capability.
+ */
+export const updateCustomRole = (
+  roleId: string,
+  name: string,
+  description: string,
+  permissions: string[],
+  scope: "program" | "section" = "program",
+  confirm = false
+) =>
+  callRpc("update_custom_role", {
+    p_role: roleId,
+    p_name: name,
+    p_description: description,
+    p_permissions: permissions,
+    p_scope: scope,
+    p_confirm: confirm,
+  });
+
+/** Delete a custom role; refused while anybody still holds it. */
+export const deleteCustomRole = (roleId: string) =>
+  callRpc("delete_custom_role", { p_role: roleId });
+
+/** Recent role/permission changes in one program. */
+export const listRoleAudit = (programId: string, limit = 40) =>
+  callRpc("list_role_audit", { p_ensemble: programId, p_limit: limit });
+
 // --- Analytics (director of that program, or a program admin) ---------------
 
 /** Percentage for one student. The program travels with the student id. */

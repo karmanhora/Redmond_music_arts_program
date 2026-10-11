@@ -198,8 +198,13 @@ Full detail in [`DATA_INVENTORY_AND_FLOWS.md`](DATA_INVENTORY_AND_FLOWS.md).
   teardown error with no student data ([`QrScanner.tsx`](../../src/components/QrScanner.tsx)).
 - **Analytics/trackers:** none. No Google Fonts CDN, no ad SDK, no Sentry/PostHog
   ([verified by search + `package.json`]).
-- **Object storage:** none in the current repo (the older project's `avatars`
-  bucket is not present here).
+- **Object storage:** the `avatars` bucket holds one picture per member who
+  uploads one, at `<auth uid>/<uuid>.webp`, capped at 5 MB and images only. The
+  bucket is **private** (migration 030): there is no anonymous URL, reads are
+  granted per object to the same people who may see that member's profile row
+  (`public.can_read_avatar`), writes are confined to the owner's own folder by
+  path, and the app displays pictures through short-lived signed URLs. A replace
+  deletes the object it superseded; account deletion clears the row.
 - **Exports:** none — there is no CSV/export feature in the current app.
 
 ---

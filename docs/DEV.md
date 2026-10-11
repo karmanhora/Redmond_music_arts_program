@@ -18,8 +18,8 @@ exists, but nothing in the code assumes it is the only one.
 | Path | What it is |
 | --- | --- |
 | `src/` | The web app: Vite + React 19 + TypeScript + Tailwind v4 |
-| `supabase/migrations/007`–`027` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account/program lifecycle, staff-managed email invitations |
-| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion, program archive, email invites) run inside transactions |
+| `supabase/migrations/007`–`030` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account/program lifecycle, staff-managed email invitations, the capability layer (029) and profile pictures (030) |
+| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion, program archive, email invites, capabilities & avatars) run inside transactions |
 | `supabase/templates/` | Branded Supabase auth emails and the password-change security notification — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
 | `public/` | The app's brand assets: one `logo.svg` and the icons rendered from it — see [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
 | `scripts/migrate/` | The clone pipeline: dump OLD → restore → migrate → verify |
@@ -141,6 +141,50 @@ names without ever returning a code. Removing somebody is a director's decision:
 re-entering a code cannot undo it (`guard_membership_change` refuses, and
 `join_program` says so plainly).
 
+## 3a. Profiles, capabilities and pictures
+
+The signed-in surface has three account screens, all under the usual app shell:
+
+| Route | Screen | Who sees it |
+| --- | --- | --- |
+| `/me` | [`ProfileScreen`](../src/screens/ProfileScreen.tsx) — identity, roles and their capabilities, own attendance, own section, program switcher | every member |
+| `/settings` | [`AccountSettingsScreen`](../src/screens/AccountSettingsScreen.tsx) — Profile / Security / Preferences / Privacy tabs | every member |
+| `/roles` | [`RolesScreen`](../src/screens/RolesScreen.tsx) — assign and revoke roles, build custom roles, read the audit trail | `roles.view` only |
+
+The avatar in the app bar opens an account sheet with the same destinations;
+`/roles` only appears there when the server says the person holds `roles.view`.
+
+**Capabilities, not role names.** Migration 029 adds `permissions`, `roles`,
+`role_permissions`, `user_role_assignments` and `audit_logs`, and one resolver —
+`public.has_permission(ensemble, code)` — which unions the caller's system roles
+(`memberships.roles`), any custom role assignments, and system-administrator
+status. The capability-shaped helpers (`is_ensemble_staff`,
+`can_manage_ensemble`, `can_manage_member`, the attendance read/override gates,
+`can_view_analytics`) are re-expressed on top of it, so there is one place where
+access is decided. `my_permissions(ensemble)` returns the same set to the
+frontend, which uses it only to decide what to render — `src/lib/permissions.ts`
+is a mirror of the catalogue, never a boundary.
+
+Delegation is deliberately narrow: a custom role may only carry `delegable`
+capabilities, the builder must already hold every capability it grants, the
+personal-information caps (`roles.assign`, `roles.revoke`,
+`program.manage_settings`, `profile.manage_users`, `system.manage`) can never go
+into one, `system_admin` (the `program_admins` table) is not assignable from the
+interface, nobody can assign to themselves, and widening a role that people
+already hold needs an explicit confirmation. Every change is written to
+`audit_logs`. Revocation needs nothing from the client: capabilities are
+recomputed on the next request.
+
+**Pictures.** `profiles.avatar_path` holds an object path in the private
+`avatars` bucket (030); `profiles.bio` is the optional 500-character biography.
+[`src/lib/avatar.ts`](../src/lib/avatar.ts) validates a chosen file for real
+(size, magic bytes, and whether the browser can decode it), center-crops it to a
+512px square and re-encodes it as WebP before upload, and the app displays it
+through short-lived signed URLs (`src/hooks/useAvatars.tsx` batches one request
+per screen and refreshes before expiry). There is no anonymous URL: reading a
+member's picture is subject to exactly the same rule as reading their profile
+row (`public.can_read_avatar` → `can_view_profile`).
+
 ## 4. Database
 
 Work on the **NEW** project (`sjiswrvhrnrxkrfhfjrp`). The old project and the old
@@ -175,6 +219,28 @@ anyone signs in**, because it is what resolves a Supabase Auth account to a
 `profiles` row — without it every request is `anon` and the app looks empty;
 022 is what lets a teacher start a program (`create_program()`).
 
+Migrations 029 and 030 were applied to the live project on **2026-10-11**. The
+frontend that uses them still has to be deployed: the roster and profile queries
+select `avatar_path` and `bio`, and the role screens call the 029 RPCs. Both are
+additive and idempotent.
+
+```bash
+bash scripts/migrate/06_apply_migrations.sh --dry-run --with-tests   # rehearse
+CONFIRM_TARGET=NEW bash scripts/migrate/06_apply_migrations.sh       # apply
+```
+
+`06_apply_migrations.sh` applies *every* migration in `supabase/migrations/`,
+which is right for a fresh clone restore and wrong for a project that is already
+at 028 — several migrations assert the state as of the day they ran. For an
+incremental apply on an already-migrated project, concatenate only the pending
+files and commit them together, the way the script does:
+
+```bash
+{ cat supabase/migrations/029_roles_and_permissions.sql \
+    supabase/migrations/030_profile_avatars.sql; } > /tmp/apply_pending.sql
+psql "$NEW_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f /tmp/apply_pending.sql
+```
+
 Migration 025 adds the service-role-only profile cleanup used by account
 deletion. Deploy `supabase/functions/delete-account` after applying it:
 
@@ -208,6 +274,26 @@ a migration that could not be applied at all (`021` renamed an input parameter o
 `register_signup`, which `create or replace` refuses to do — see
 [`AUTH_MIGRATION.md`](AUTH_MIGRATION.md) §9). A stub schema that lacks the function
 being replaced cannot reproduce that class of failure.
+
+Two more hosted-only differences were only found by rehearsing 029+030 against
+the real project (`06_apply_migrations.sh --dry-run` rolls everything back, and
+so does a `begin; … rollback;` built by hand). Both are worth knowing before the
+next apply:
+
+- **`storage.objects` is not owned by the migration role.** On a hosted project
+  it belongs to `supabase_storage_admin`, and `postgres` is not a member of it,
+  so `alter table storage.objects enable row level security` fails with "must be
+  owner of table objects". Supabase enables RLS there already, so 030 now turns
+  it on only when it really is off (the local stub's case) and fails loudly if
+  it cannot — these policies are inert without it. `create policy` and
+  `drop policy` on that table *are* permitted for the migration role, so the
+  migration itself only has to create policies.
+- **Supabase refuses direct SQL deletes on `storage.objects`.**
+  `storage.protect_delete` is attached as `BEFORE DELETE … FOR EACH STATEMENT`,
+  so it raises even when row-level security would filter every row. A suite that
+  deletes fixture objects has to set `storage.allow_delete_query = 'true'`
+  first — `capabilities_and_avatars.sql` (G3) does — otherwise it fails on the
+  hosted project while passing locally, where no such guard exists.
 
 ## 5. How the frontend is put together
 
@@ -262,6 +348,19 @@ Rules the code follows, and that changes should keep:
   `profiles.deactivated = true` — which makes `join_program` refuse them. They
   can still authenticate; they cannot get back into the program. The Clerk-era
   ban (`BanUser`) went with Clerk.
-- Avatar upload: the `avatars` bucket exists, but nothing uploads to it yet.
+- **029 and 030 are applied** (live project, 2026-10-11). What remains for them
+  is the deploy: the role-management screens, the biography and the uploaded
+  picture all read the columns and functions those two migrations create.
+- **Storage is private now.** The `avatars` bucket is `public = false` with a
+  5 MB / images-only cap (030). Anything that used to display an avatar through a
+  public URL must go through the signed-URL path in `src/hooks/useAvatars.tsx`.
+  `scripts/migrate/sql/reapply_auth_storage.sql` deliberately still recreates the
+  **legacy** public bucket: the clone pipeline applies it *before* the migration
+  chain, so it can only use objects the pre-021 schema has (`auth.uid()`), and
+  migration 030 is what makes the bucket private immediately afterwards. Any
+  pipeline run must therefore include 030 — a clone restored up to 028 alone
+  would be world-readable.
+- Existing `profiles.avatar_url` values (external URLs) still render as a
+  fallback; nothing writes that column any more.
 - `docs/CUTOVER.md` and `scripts/migrate/run_all.sh` (Phase 4).
 - The new Vercel project for this frontend.

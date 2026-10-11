@@ -217,6 +217,19 @@ a[href]:active {
   }
 }
 
+/*
+ * The same reduction, applied because the person asked for it in Account
+ * settings (useReducedMotion) rather than because the operating system did.
+ * Kept byte-identical to the media query above so the two can never disagree.
+ */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
 @keyframes band-in {
   from {
     opacity: 0;

@@ -502,7 +502,7 @@ export function AttendanceScreen() {
                   onClick={() => openEditor(student)}
                   className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                 >
-                  <Avatar name={name} url={student.profile.avatar_url} size={36} />
+                  <Avatar name={name} path={student.profile.avatar_path} url={student.profile.avatar_url} size={36} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{name}</span>
                     <span className="flex items-center gap-1.5 truncate text-sm text-zinc-500 dark:text-zinc-400">

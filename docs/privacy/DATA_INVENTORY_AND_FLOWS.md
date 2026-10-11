@@ -10,9 +10,7 @@ the district.
 |---|---|---|---|---|
 | Student/staff **email** | Supabase `auth.users.email` | sign-up / invite | sign-in, confirmation | Yes |
 | Supabase **auth user id** | `profiles.auth_user_id` | Supabase Auth | link account to person | Yes |
-| **Full / display name** | `profiles.full_name`, `.display_name` | sign-up, invite, join | roster display | Yes |
-| **Avatar URL** | `profiles.avatar_url` | user | display | No |
-| **Program membership** | `memberships` | join/create | program access | Yes |
+| **Full / display name** | `profiles.full_name`, `.display_name` | sign-up, invite, join | roster display | Yes || **Avatar picture** | `profiles.avatar_path` — object in the private `avatars` bucket (`profiles.avatar_url` is the legacy external URL, no longer written) | user | display (signed URL, 1 hour) | Yes, on account deletion (row + object). See [RETENTION_AND_DELETION](RETENTION_AND_DELETION.md) | | **Program membership** | `memberships` | join/create | program access | Yes |
 | **Role** | `memberships.roles` | director assignment | permissions | Yes |
 | **Section** | `memberships.section_id` → `sections` | director / self | grouping | No |
 | **Attendance status** | `attendance_records.status/attended/checked_in_at/is_late` | check-in / staff | the core record | Yes |

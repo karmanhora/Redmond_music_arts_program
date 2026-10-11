@@ -31,10 +31,64 @@ export interface Profile {
   clerk_id: string | null;
   full_name: string;
   display_name: string;
+  /** External URL, kept for legacy rows. An uploaded picture lives in avatar_path. */
   avatar_url: string;
+  /** Object path in the private `avatars` bucket (030); empty when none. */
+  avatar_path: string;
+  /** Optional short biography, capped at 500 characters. */
+  bio: string;
   must_change_password: boolean;
   deactivated: boolean;
   created_at: string;
+}
+
+/**
+ * One row of `list_program_roles()` (029). System roles carry a `key` matching
+ * an `app_role` label; custom roles carry null and belong to one program.
+ */
+export interface RoleDefinition {
+  id: string;
+  key: Role | "system_admin" | null;
+  name: string;
+  description: string;
+  /** Where the role's grants may reach. */
+  scope: "program" | "section";
+  is_system: boolean;
+  active: boolean;
+  /** Capability codes the role grants (see `lib/permissions.ts`). */
+  permissions: string[];
+  /** How many people currently hold it — what a change would affect. */
+  holder_count: number;
+}
+
+/**
+ * One row of `user_role_assignments` (029) — an extra role grant beyond
+ * `memberships.roles` (custom roles, scoped grants). Revoked rows are kept for
+ * the audit trail, so the UI filters on `revoked_at`.
+ */
+export interface RoleAssignmentRow {
+  id: string;
+  user_id: string;
+  ensemble_id: string;
+  role_id: string;
+  section_id: string | null;
+  granted_at: string;
+  revoked_at: string | null;
+}
+
+/** One row of `list_role_audit()` (029). */
+export interface RoleAuditEntry {
+  id: number;
+  action: "role.assign" | "role.revoke" | "role.create" | "role.update" | "role.delete" | string;
+  created_at: string;
+  actor_name: string;
+  target_name: string | null;
+  detail: {
+    role?: string;
+    system_role?: boolean;
+    holders?: number;
+    permissions?: string[];
+  } | null;
 }
 
 export interface EnsembleRow {
@@ -166,6 +220,20 @@ export interface RpcResult {
   total?: number;
   /** Sync only: set when a suspicious feed was refused instead of archived. */
   warning?: string | null;
+  /** `my_permissions()`: the caller's effective capability codes in one program. */
+  permissions?: string[];
+  /** `list_program_roles()`: every role available in the program. */
+  roles?: RoleDefinition[];
+  /** `list_role_audit()`: recent role/permission changes, newest first. */
+  entries?: RoleAuditEntry[];
+  /** `create_custom_role()` / `update_custom_role()`: the role that was written. */
+  role_id?: string;
+  /** `update_custom_role()`: capability widening needs an explicit acknowledgement. */
+  needs_confirmation?: boolean;
+  /** `update_custom_role()` / `delete_custom_role()`: how many people hold the role. */
+  holders?: number;
+  /** `update_custom_role()`: the capabilities that would be added. */
+  added?: string[];
   /** `join_program()`: which program and roster row the call landed in. */
   profile_id?: string;
   program_id?: string;
@@ -237,6 +305,13 @@ export interface RosterMember {
   joined_at: string;
   profile: Pick<
     Profile,
-    "id" | "full_name" | "display_name" | "avatar_url" | "deactivated" | "created_at"
+    | "id"
+    | "full_name"
+    | "display_name"
+    | "avatar_url"
+    | "avatar_path"
+    | "bio"
+    | "deactivated"
+    | "created_at"
   >;
 }

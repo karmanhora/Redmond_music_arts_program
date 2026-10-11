@@ -8,6 +8,9 @@ import {
   fetchSections,
   fetchThemeTokens,
 } from "../lib/queries";
+import { getMyPermissions } from "../lib/rpc";
+import { permissionsForRoles } from "../lib/permissions";
+import type { PermissionCode } from "../lib/permissions";
 import type { EmbeddedMembership } from "../lib/queries";
 import type { EnsembleRow, Profile, Role, SectionRow } from "../lib/types";
 
@@ -50,6 +53,15 @@ export interface ProgramsState {
   canCreateProgram: boolean;
   /** Highest role held in the current program, for the chip beside the name. */
   primaryRole: Role;
+  /**
+   * The signed-in person's effective capabilities in the current program
+   * (migration 029). Stored as plain codes so a screen can ask `can("…")`
+   * without knowing about roles at all. This is a *rendering* input — the
+   * database re-checks every read and write with `has_permission()`.
+   */
+  permissions: PermissionCode[];
+  /** True when the current member's capabilities include `code`. */
+  can: (code: PermissionCode) => boolean;
   setProgram: (ensembleId: string) => void;
   /**
    * Re-read the session. Pass a program id to land in *that* one instead of the
@@ -59,7 +71,7 @@ export interface ProgramsState {
   refresh: (preferEnsembleId?: string) => Promise<void>;
 }
 
-const EMPTY: Omit<ProgramsState, "refresh" | "setProgram" | "status" | "error"> = {
+const EMPTY: Omit<ProgramsState, "refresh" | "setProgram" | "can" | "status" | "error"> = {
   profile: null,
   memberships: [],
   membership: null,
@@ -73,6 +85,7 @@ const EMPTY: Omit<ProgramsState, "refresh" | "setProgram" | "status" | "error"> 
   isStaffAnywhere: false,
   canCreateProgram: false,
   primaryRole: "student",
+  permissions: [],
 };
 
 /** Remembered per person, so a switch survives a reload. */
@@ -111,7 +124,7 @@ function isStaffRole(roles: Role[]): boolean {
 
 export function ProgramsProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
-  const [state, setState] = useState<Omit<ProgramsState, "refresh" | "setProgram">>({
+  const [state, setState] = useState<Omit<ProgramsState, "refresh" | "setProgram" | "can">>({
     ...EMPTY,
     status: "loading",
     error: null,
@@ -169,7 +182,22 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
           (accountType === null &&
             memberships.some((m) => m.active && m.roles?.includes("director"))),
         primaryRole: primaryRoleOf(roles),
+        // Painted from the roles we already hold, so the right controls exist on
+        // the first frame; replaced below by the server's authoritative list.
+        permissions: permissionsForRoles(roles),
       });
+
+      // The authoritative capabilities. A failure here leaves the role-derived
+      // set in place — the UI stays usable and the server still decides.
+      const permissionResponse = await getMyPermissions(membership.ensemble.id);
+      if (permissionResponse.result?.ok && Array.isArray(permissionResponse.result.permissions)) {
+        const serverPermissions = permissionResponse.result.permissions as PermissionCode[];
+        setState((prev) =>
+          prev.program?.id === membership.ensemble.id
+            ? { ...prev, permissions: serverPermissions }
+            : prev
+        );
+      }
     },
     [accountType]
   );
@@ -240,9 +268,14 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
     [state, loadProgram]
   );
 
+  const can = useCallback(
+    (code: PermissionCode) => state.permissions.includes(code),
+    [state.permissions]
+  );
+
   const value = useMemo<ProgramsState>(
-    () => ({ ...state, setProgram, refresh }),
-    [state, setProgram, refresh]
+    () => ({ ...state, can, setProgram, refresh }),
+    [state, can, setProgram, refresh]
   );
 
   return <ProgramsContext.Provider value={value}>{children}</ProgramsContext.Provider>;

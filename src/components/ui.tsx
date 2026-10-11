@@ -24,7 +24,9 @@ import type {
 } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, Info, TriangleAlert, X, XCircle } from "lucide-react";
+
 import { initials } from "../lib/date";
+import { useSignedAvatarUrl } from "../hooks/useAvatars";
 
 export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
@@ -542,24 +544,47 @@ function AnimatedPercent({ value }: { value: number }) {
   return <>{displayValue}%</>;
 }
 
+/**
+ * A person's picture, or their initials.
+ *
+ * `path` is the object path in the **private** avatars bucket (030) and is
+ * preferred: it is resolved to a short-lived signed URL by the provider. `url`
+ * is the legacy external address, used only when no upload exists. If the image
+ * fails to load — a lapsed link, an offline phone, a deleted object — the
+ * component swaps to initials rather than showing a broken image.
+ */
 export function Avatar({
   name,
   url,
+  path,
   size = 40,
   className,
 }: {
   name: string;
   url?: string | null;
+  path?: string | null;
   size?: number;
   className?: string;
 }) {
-  if (url) {
+  const signed = useSignedAvatarUrl(path);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [path, url]);
+
+  const source = failed ? null : path ? signed : url || null;
+
+  if (source) {
     return (
       <img
-        src={url}
+        src={source}
         alt=""
         width={size}
         height={size}
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
         className={cn("shrink-0 rounded-full object-cover ring-1 ring-black/10", className)}
       />
     );

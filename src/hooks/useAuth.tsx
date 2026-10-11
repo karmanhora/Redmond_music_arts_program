@@ -31,6 +31,12 @@ export interface AuthState {
   accountType: AuthAudience | null;
   accountTypeLoading: boolean;
   accountTypeSetupError: string | null;
+  /**
+   * Whether Supabase Auth has confirmed this address
+   * (`user.email_confirmed_at`). Shown on the account settings screen so a
+   * person is never left guessing whether the confirmation link worked.
+   */
+  emailVerified: boolean;
   /** Name the account was created with, if we ever asked for one. */
   displayName: string | null;
   /**
@@ -52,6 +58,15 @@ export interface AuthState {
   /** Re-send the sign-up confirmation; email confirmation is on for this project. */
   resendConfirmation: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
+  /**
+   * Start a change of the sign-in email. Supabase Auth owns the address, so
+   * this only *asks*: the confirmation links it sends are what actually move it
+   * (and with "secure email change" on, both the old and the new address must
+   * be confirmed before anything changes). Nothing here is stored locally.
+   */
+  updateEmail: (email: string) => Promise<{ error: string | null }>;
+  /** End every *other* session, keeping this device signed in. */
+  signOutOthers: () => Promise<{ error: string | null }>;
   deleteAccount: () => Promise<{ error: string | null }>;
 }
 
@@ -248,6 +263,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? readable(error.message) : null };
   }, []);
 
+  const updateEmail = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.updateUser(
+      { email: email.trim() },
+      { emailRedirectTo: `${window.location.origin}/settings` }
+    );
+    return { error: error ? readable(error.message) : null };
+  }, []);
+
+  /**
+   * `scope: "others"` revokes every refresh token except this device's — the
+   * right answer after a shared laptop or a password change. Unlike a global
+   * sign-out it leaves the person where they are.
+   */
+  const signOutOthers = useCallback(async () => {
+    const { error } = await supabase.auth.signOut({ scope: "others" });
+    return { error: error ? readable(error.message) : null };
+  }, []);
+
   const deleteAccount = useCallback(async () => {
     const { data, error } = await supabase.functions.invoke<{ ok: boolean; error?: string }>(
       "delete-account"
@@ -293,6 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accountType,
       accountTypeLoading,
       accountTypeSetupError,
+      emailVerified: Boolean(session?.user?.email_confirmed_at),
       displayName:
         (session?.user?.user_metadata?.full_name as string | undefined)?.trim() || null,
       recovering,
@@ -304,6 +338,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendPasswordReset,
       resendConfirmation,
       updatePassword,
+      updateEmail,
+      signOutOthers,
       deleteAccount,
     }),
     [
@@ -321,6 +357,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendPasswordReset,
       resendConfirmation,
       updatePassword,
+      updateEmail,
+      signOutOthers,
       deleteAccount,
     ]
   );

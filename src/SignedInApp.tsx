@@ -7,6 +7,8 @@ import { Alert, Button } from "./components/ui";
 import { MusicLoader } from "./components/Splash";
 import { LegalScreen } from "./screens/LegalScreen";
 import { ProgramsProvider, usePrograms } from "./hooks/usePrograms";
+import { AvatarUrlProvider } from "./hooks/useAvatars";
+import type { PermissionCode } from "./lib/permissions";
 
 const JoinProgramScreen = lazy(() =>
   import("./screens/JoinProgramScreen").then((module) => ({ default: module.JoinProgramScreen }))
@@ -34,6 +36,14 @@ const AnalyticsScreen = lazy(() =>
 );
 const ProfileScreen = lazy(() =>
   import("./screens/ProfileScreen").then((module) => ({ default: module.ProfileScreen }))
+);
+const AccountSettingsScreen = lazy(() =>
+  import("./screens/AccountSettingsScreen").then((module) => ({
+    default: module.AccountSettingsScreen,
+  }))
+);
+const RolesScreen = lazy(() =>
+  import("./screens/RolesScreen").then((module) => ({ default: module.RolesScreen }))
 );
 
 function RouteSkeleton() {
@@ -64,6 +74,22 @@ function RoleGate({
         ? app.isDirector
         : app.isStaff;
   return allowed ? <>{children}</> : <Navigate to="/" replace />;
+}
+
+/**
+ * Capability gate. `RoleGate` asks about a fixed role; this asks the server's
+ * own question — the same codes `has_permission()` enforces — so a screen behind
+ * it can never be opened by somebody whose capabilities do not cover it.
+ */
+function PermissionGate({
+  permission,
+  children,
+}: {
+  permission: PermissionCode;
+  children: ReactNode;
+}) {
+  const app = usePrograms();
+  return app.can(permission) ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 /** Everything that requires a resolved program membership. */
@@ -150,9 +176,18 @@ function ProgramRoutes() {
         <Route
           path="/analytics"
           element={
-            <RoleGate need="director">
+            <PermissionGate permission="attendance.view_analytics">
               <AnalyticsScreen />
-            </RoleGate>
+            </PermissionGate>
+          }
+        />
+        <Route path="/settings" element={<AccountSettingsScreen />} />
+        <Route
+          path="/roles"
+          element={
+            <PermissionGate permission="roles.view">
+              <RolesScreen />
+            </PermissionGate>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -169,9 +204,13 @@ function ProgramRoutes() {
 export default function SignedInApp() {
   return (
     <ProgramsProvider>
-      <Suspense fallback={<RouteSkeleton />}>
-        <ProgramRoutes />
-      </Suspense>
+      {/* Private avatar paths are resolved to signed URLs once per screen, so
+          the provider wraps everything that can render an `Avatar`. */}
+      <AvatarUrlProvider>
+        <Suspense fallback={<RouteSkeleton />}>
+          <ProgramRoutes />
+        </Suspense>
+      </AvatarUrlProvider>
     </ProgramsProvider>
   );
 }

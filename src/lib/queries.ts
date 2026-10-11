@@ -17,12 +17,18 @@ import type {
   NotificationRow,
   PersonalEventRow,
   Profile,
+  RoleAssignmentRow,
   RosterMember,
   SectionRow,
 } from "./types";
 
-/** Columns of `profiles` that may be shown for another person. */
-const PUBLIC_PROFILE_COLUMNS = "id,full_name,display_name,avatar_url,deactivated,created_at";
+/**
+ * Columns of `profiles` that may be shown for another person. `bio` is included
+ * because it is a deliberate, self-authored line (capped at 500 characters);
+ * `auth_user_id`, `clerk_id` and `must_change_password` never are.
+ */
+const PUBLIC_PROFILE_COLUMNS =
+  "id,full_name,display_name,avatar_url,avatar_path,bio,deactivated,created_at";
 
 export interface EmbeddedMembership extends MembershipRow {
   ensemble: EnsembleRow;
@@ -118,6 +124,21 @@ export async function fetchRoster(programId: string): Promise<RosterMember[]> {
         b.profile.display_name || b.profile.full_name
       )
     );
+}
+
+/**
+ * Extra role grants in one program (029): custom roles and scoped grants that
+ * sit *beside* `memberships.roles`. RLS shows them to the person they belong to
+ * and to staff who manage the program, so the roster screen can render everyone
+ * a director is allowed to see — and a member only ever sees their own.
+ */
+export async function fetchRoleAssignments(programId: string): Promise<RoleAssignmentRow[]> {
+  const { data } = await supabase
+    .from("user_role_assignments")
+    .select("id,user_id,ensemble_id,role_id,section_id,granted_at,revoked_at")
+    .eq("ensemble_id", programId)
+    .is("revoked_at", null);
+  return (data ?? []) as RoleAssignmentRow[];
 }
 
 export interface EventQuery {
@@ -288,10 +309,25 @@ export async function deleteEvent(
   return { error: error ? { message: error.message } : null };
 }
 
-/** Update my own profile (name / avatar / clearing the password-change flag). */
+/**
+ * Update my own profile. RLS limits this to rows the caller may write, and the
+ * `profiles_guard_self_update` trigger still refuses a change to `deactivated`
+ * (the one column that is not self-service) — so nothing here is trusted merely
+ * because the browser sent it.
+ */
 export async function updateMyProfile(
   profileId: string,
-  patch: Partial<Pick<Profile, "full_name" | "display_name" | "avatar_url" | "must_change_password">>
+  patch: Partial<
+    Pick<
+      Profile,
+      | "full_name"
+      | "display_name"
+      | "avatar_url"
+      | "avatar_path"
+      | "bio"
+      | "must_change_password"
+    >
+  >
 ): Promise<{ error: { message: string } | null }> {
   const { error } = await supabase.from("profiles").update(patch).eq("id", profileId);
   return { error: error ? { message: error.message } : null };

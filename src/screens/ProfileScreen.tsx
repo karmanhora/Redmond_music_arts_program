@@ -4,18 +4,17 @@ import {
   Archive,
   ArchiveRestore,
   Check,
+  ChevronRight,
   Clock,
-  FileText,
   KeyRound,
   LogOut,
-  Moon,
   Music,
   Pencil,
   Plus,
   RefreshCw,
+  Settings,
   ShieldCheck,
-  Sun,
-  Trash2,
+  UserCog,
   UserPlus,
   UserRound,
 } from "lucide-react";
@@ -27,18 +26,15 @@ import {
   Card,
   ConfirmSheet,
   EmptyState,
-  Field,
-  Input,
   ProgressRing,
   Row,
   SectionTitle,
   Sheet,
   Skeleton,
-  Toggle,
-  cn,
   useToast,
 } from "../components/ui";
-import { updateMyProfile } from "../lib/queries";
+import { ProfileForm } from "../components/ProfileForm";
+import { CapabilityList, RoleBadges } from "../components/CapabilityList";
 import {
   getMyAttendancePct,
   getMyAttendanceTrend,
@@ -48,23 +44,20 @@ import {
 import type { MyAttendanceRow } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
-import { useDark } from "../hooks/useDark";
-import {
-  APP_NAME,
-  ATTENDANCE_STATUS_CHIP,
-  ATTENDANCE_STATUS_LABEL,
-  ORG_NAME,
-  ROLE_LABEL,
-} from "../lib/constants";
+import { APP_NAME, ATTENDANCE_STATUS_CHIP, ATTENDANCE_STATUS_LABEL, ORG_NAME } from "../lib/constants";
 import { fmtDate, relativeDay } from "../lib/date";
 
 /**
- * `/me` — who you are, how your own attendance is doing, and the two settings
- * that are yours to change.
+ * `/me` — who you are, what you are allowed to do here, how your own attendance
+ * is doing, and the way into everything else that is yours to change.
  *
  * Attendance is read through `my_attendance_pct()` / `my_attendance_trend()`,
  * the same pair the home screen's ring uses, so the numbers can't drift. Nothing
  * here needs a staff role.
+ *
+ * Editing your own name, biography and picture is the one write this screen
+ * makes, and it goes through `profiles` under RLS — roles, sections and program
+ * membership are *not* editable here (see `CapabilityList`, which shows why).
  */
 function verdict(pct: number): string {
   if (pct >= 80) return "You're in good standing. Keep it up.";
@@ -75,7 +68,6 @@ function verdict(pct: number): string {
 export function ProfileScreen() {
   const app = usePrograms();
   const auth = useAuth();
-  const { dark, toggle } = useDark();
   const { toast } = useToast();
 
   const programId = app.program?.id ?? null;
@@ -90,26 +82,11 @@ export function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [nameOpen, setNameOpen] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [savingName, setSavingName] = useState(false);
-
+  const [editOpen, setEditOpen] = useState(false);
   const [sectionOpen, setSectionOpen] = useState(false);
   const [busySection, setBusySection] = useState<string | null>(null);
-
-  const [passwordOpen, setPasswordOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [savingPassword, setSavingPassword] = useState(false);
-
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const [confirmProgramArchive, setConfirmProgramArchive] = useState(false);
   const [updatingProgramStatus, setUpdatingProgramStatus] = useState(false);
 
@@ -143,34 +120,6 @@ export function ProfileScreen() {
     void load();
   }, [load]);
 
-  function openNameSheet() {
-    setFullName(app.profile?.full_name ?? "");
-    setDisplayName(app.profile?.display_name ?? "");
-    setNameError(null);
-    setNameOpen(true);
-  }
-
-  async function saveName() {
-    if (!profileId) return;
-    if (!fullName.trim()) {
-      setNameError("Your name can't be empty.");
-      return;
-    }
-    setSavingName(true);
-    const { error: writeError } = await updateMyProfile(profileId, {
-      full_name: fullName.trim(),
-      display_name: displayName.trim(),
-    });
-    setSavingName(false);
-    if (writeError) {
-      setNameError(writeError.message);
-      return;
-    }
-    setNameOpen(false);
-    toast.success("Saved.");
-    await app.refresh();
-  }
-
   async function changeProgramStatus() {
     if (!programId || !app.isDirector || !app.program) return;
     setUpdatingProgramStatus(true);
@@ -199,66 +148,10 @@ export function ProfileScreen() {
     await app.refresh();
   }
 
-  function openPasswordSheet() {
-    setNewPassword("");
-    setConfirmPassword("");
-    setPasswordError(null);
-    setPasswordOpen(true);
-  }
-
-  /**
-   * Set a new sign-in password. Supabase Auth owns the password, so this is one
-   * call to it — and because the app already tells a person with a temporary
-   * password to "set your own", it also clears `must_change_password` once the
-   * new one is in place (the flag is ours, on `profiles`).
-   */
-  async function savePassword() {
-    if (!newPassword) {
-      setPasswordError("Type your new password.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Those two passwords don't match.");
-      return;
-    }
-
-    setSavingPassword(true);
-    const { error: failure } = await auth.updatePassword(newPassword);
-    if (failure) {
-      setSavingPassword(false);
-      setPasswordError(failure);
-      return;
-    }
-
-    if (profileId && app.profile?.must_change_password) {
-      await updateMyProfile(profileId, { must_change_password: false });
-      await app.refresh();
-    }
-
-    setSavingPassword(false);
-    setPasswordOpen(false);
-    toast.success("Password updated.");
-  }
-
   async function doSignOut() {
     setSigningOut(true);
     await auth.signOut();
     setSigningOut(false);
-  }
-
-  async function doDeleteAccount() {
-    setDeletingAccount(true);
-    setDeleteAccountError(null);
-    const { error: deletionError } = await auth.deleteAccount().catch((failure: unknown) => ({
-      error: failure instanceof Error ? failure.message : "Account deletion failed unexpectedly.",
-    }));
-    setDeletingAccount(false);
-    if (deletionError) {
-      setDeleteAccountError(deletionError);
-      return;
-    }
-    setConfirmDeleteAccount(false);
-    toast.success("Your account has been deleted.");
   }
 
   return (
@@ -268,7 +161,12 @@ export function ProfileScreen() {
       {/* --- who you are --- */}
       <Card className="space-y-3">
         <div className="flex items-center gap-4">
-          <Avatar name={name} url={app.profile?.avatar_url} size={64} />
+          <Avatar
+            name={name}
+            path={app.profile?.avatar_path}
+            url={app.profile?.avatar_url}
+            size={64}
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg leading-tight font-extrabold">{name}</p>
             {app.profile?.full_name && app.profile.full_name !== name ? (
@@ -276,40 +174,43 @@ export function ProfileScreen() {
                 {app.profile.full_name}
               </p>
             ) : null}
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              <Badge className="bg-band/12 text-band-deep dark:bg-band/25 dark:text-emerald-200">
-                {ROLE_LABEL[app.primaryRole]}
-              </Badge>
-              {app.membership?.section?.name ? (
-                <Badge className="bg-black/[0.06] text-zinc-700 dark:bg-white/[0.10] dark:text-zinc-200">
-                  {app.membership.section.name}
-                </Badge>
-              ) : (
-                <Badge className="bg-black/[0.06] text-zinc-700 dark:bg-white/[0.10] dark:text-zinc-200">
-                  No section
-                </Badge>
-              )}
-            </div>
+            <RoleBadges roles={app.roles} className="mt-1.5" />
           </div>
           <Button
             size="sm"
             variant="secondary"
             icon={<Pencil className="h-4 w-4" />}
-            onClick={openNameSheet}
+            onClick={() => setEditOpen(true)}
           >
             Edit
           </Button>
         </div>
+
+        {app.profile?.bio ? (
+          <p className="border-t border-black/5 pt-3 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-300">
+            {app.profile.bio}
+          </p>
+        ) : null}
 
         <dl className="grid grid-cols-1 gap-1 border-t border-black/5 pt-3 text-sm dark:border-white/10">
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-zinc-500 dark:text-zinc-400">Program</dt>
             <dd className="truncate font-medium">{app.program?.name ?? APP_NAME}</dd>
           </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-zinc-500 dark:text-zinc-400">Section</dt>
+            <dd className="truncate font-medium">{app.membership?.section?.name || "None yet"}</dd>
+          </div>
           {app.membership?.joined_at ? (
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-zinc-500 dark:text-zinc-400">On the roster since</dt>
               <dd className="font-medium">{fmtDate(new Date(app.membership.joined_at))}</dd>
+            </div>
+          ) : null}
+          {app.profile?.created_at ? (
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-zinc-500 dark:text-zinc-400">Account created</dt>
+              <dd className="font-medium">{fmtDate(new Date(app.profile.created_at))}</dd>
             </div>
           ) : null}
           {email ? (
@@ -320,6 +221,29 @@ export function ProfileScreen() {
           ) : null}
         </dl>
       </Card>
+
+      {app.profile?.must_change_password ? (
+        <Alert tone="info">
+          Your director set a temporary password for this account.{" "}
+          <button className="font-semibold underline" onClick={() => navigate("/settings")}>
+            Choose your own
+          </button>{" "}
+          and this note clears.
+        </Alert>
+      ) : null}
+
+      {/* --- what I may do here --- */}
+      <div className="space-y-1">
+        <SectionTitle>Roles & permissions</SectionTitle>
+        <Card className="space-y-3">
+          <CapabilityList permissions={app.permissions} />
+          <p className="border-t border-black/5 pt-3 text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+            These come from your roles in {app.program?.name ?? "this program"} and are checked again
+            on the server for every action. A padlocked item can only come with a role, never from a
+            custom one.
+          </p>
+        </Card>
+      </div>
 
       {/* --- the programs I belong to --- */}
       <div className="space-y-1">
@@ -384,16 +308,6 @@ export function ProfileScreen() {
         </p>
       </div>
 
-      {app.profile?.must_change_password ? (
-        <Alert tone="info">
-          Your director set a temporary password for this account.{" "}
-          <button className="font-semibold underline" onClick={openPasswordSheet}>
-            Choose your own
-          </button>{" "}
-          and this note clears.
-        </Alert>
-      ) : null}
-
       {/* --- my attendance --- */}
       <div className="space-y-1">
         <SectionTitle className="pt-1">My attendance</SectionTitle>
@@ -433,7 +347,7 @@ export function ProfileScreen() {
                     title={row.name}
                     subtitle={relativeDay(row.date)}
                     trailing={
-                      <Badge className={cn("shrink-0", ATTENDANCE_STATUS_CHIP[row.status])}>
+                      <Badge className={ATTENDANCE_STATUS_CHIP[row.status]}>
                         {ATTENDANCE_STATUS_LABEL[row.status]}
                       </Badge>
                     }
@@ -463,25 +377,32 @@ export function ProfileScreen() {
 
       {/* --- settings --- */}
       <div className="space-y-1">
-        <SectionTitle className="pt-1">Settings</SectionTitle>
+        <SectionTitle className="pt-1">Settings & access</SectionTitle>
         <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
           <Row
-            icon={dark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            title="Dark mode"
-            subtitle={dark ? "On — easier at night" : "Off — follows your phone"}
-            trailing={<Toggle checked={dark} onChange={toggle} label="Dark mode" />}
+            icon={<Settings className="h-5 w-5" />}
+            title="Account settings"
+            subtitle="Name, picture, password, email, appearance"
+            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+            onClick={() => navigate("/settings")}
           />
           <Row
             icon={<KeyRound className="h-5 w-5" />}
-            title="Password"
-            subtitle="Change the password you sign in with"
-            onClick={openPasswordSheet}
+            title="Password & sign-in"
+            subtitle="Change your password, confirm your email"
+            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+            onClick={() => navigate("/settings")}
           />
+          {app.can("roles.view") ? (
+            <Row
+              icon={<UserCog className="h-5 w-5" />}
+              title="Roles & permissions"
+              subtitle="Assign roles and build custom ones for this program"
+              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+              onClick={() => navigate("/roles")}
+            />
+          ) : null}
         </Card>
-        <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
-          {APP_NAME} keeps every program&rsquo;s schedule, check-ins and attendance in one place.
-          If something looks wrong, tell your director — they can fix it.
-        </p>
       </div>
 
       {/* --- the public notices, one tap away --- */}
@@ -494,16 +415,10 @@ export function ProfileScreen() {
             subtitle="What is collected, who can see it, and how to request deletion"
             onClick={() => navigate("/privacy")}
           />
-          <Row
-            icon={<FileText className="h-5 w-5" />}
-            title="Terms of Use"
-            subtitle="The rules for using the app"
-            onClick={() => navigate("/terms")}
-          />
         </Card>
         <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
-          These notices are drafts pending school approval. To inspect, correct, or delete a
-          record, contact your school&rsquo;s records office (LWSD Policy 3231).
+          Deleting your account, and what is kept afterwards, lives in Account settings →
+          Privacy.
         </p>
       </div>
 
@@ -515,54 +430,22 @@ export function ProfileScreen() {
       >
         Sign out
       </Button>
-      {deleteAccountError ? <Alert tone="error">{deleteAccountError}</Alert> : null}
-      <Button
-        block
-        variant="danger"
-        icon={<Trash2 className="h-4 w-4" />}
-        onClick={() => {
-          setDeleteAccountError(null);
-          setConfirmDeleteAccount(true);
-        }}
-      >
-        Delete account
-      </Button>
 
-      {/* --- edit my name --- */}
+      {/* --- edit profile --- */}
       <Sheet
-        open={nameOpen}
-        onClose={() => setNameOpen(false)}
-        title="Your name"
-        description="Your director sees this on the roster and in attendance."
-        footer={
-          <>
-            <Button variant="secondary" block onClick={() => setNameOpen(false)} disabled={savingName}>
-              Cancel
-            </Button>
-            <Button block loading={savingName} onClick={() => void saveName()}>
-              Save
-            </Button>
-          </>
-        }
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit your profile"
+        description="Your director and your program see your name and picture."
+        size="tall"
       >
-        <div className="space-y-4">
-          {nameError ? <Alert tone="error">{nameError}</Alert> : null}
-          <Field label="Full name">
-            <Input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Alex Rivera"
-              autoComplete="name"
-            />
-          </Field>
-          <Field label="What you go by" hint="Optional — what the app shows everywhere.">
-            <Input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Alex"
-            />
-          </Field>
-        </div>
+        {app.profile ? (
+          <ProfileForm
+            profile={app.profile}
+            authUserId={auth.userId ?? ""}
+            onSaved={() => app.refresh()}
+          />
+        ) : null}
       </Sheet>
 
       {/* --- pick my section --- */}
@@ -617,50 +500,6 @@ export function ProfileScreen() {
         </Card>
       </Sheet>
 
-      <Sheet
-        open={passwordOpen}
-        onClose={() => setPasswordOpen(false)}
-        title="Your password"
-        description="You'll use this the next time you sign in."
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              block
-              onClick={() => setPasswordOpen(false)}
-              disabled={savingPassword}
-            >
-              Cancel
-            </Button>
-            <Button block loading={savingPassword} onClick={() => void savePassword()}>
-              Save
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {passwordError ? <Alert tone="error">{passwordError}</Alert> : null}
-          <Field label="New password">
-            <Input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
-            />
-          </Field>
-          <Field label="Confirm new password">
-            <Input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
-            />
-          </Field>
-        </div>
-      </Sheet>
-
       <ConfirmSheet
         open={confirmProgramArchive}
         title={app.program?.active ? "Archive this program?" : "Restore this program?"}
@@ -683,15 +522,6 @@ export function ProfileScreen() {
         loading={signingOut}
         onCancel={() => setConfirmSignOut(false)}
         onConfirm={() => void doSignOut()}
-      />
-      <ConfirmSheet
-        open={confirmDeleteAccount}
-        title="Delete your account?"
-        body="This permanently deletes your sign-in account, removes you from all program rosters, and erases your profile details. Your past attendance stays in the records under “Deleted account.” Programs where you are the only director will be archived. This cannot be undone."
-        confirmLabel="Delete account"
-        loading={deletingAccount}
-        onCancel={() => setConfirmDeleteAccount(false)}
-        onConfirm={() => void doDeleteAccount()}
       />
     </div>
   );

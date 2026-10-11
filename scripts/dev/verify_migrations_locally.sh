@@ -123,6 +123,17 @@ create table if not exists storage.objects (
   archived_at timestamptz, is_delete_marker boolean, is_versioned boolean);
 
 -- Supabase ships this publication and the dump adds its tables to it.
+-- Storage is a hosted schema like auth: `authenticated` (and the service role)
+-- already hold table privileges there, and the storage.objects policies are what
+-- actually decide which rows they may touch. Without these grants the stub could
+-- not represent a storage RLS test at all — every statement would fail on schema
+-- USAGE before any policy ran. `anon` gets nothing, matching a private bucket.
+grant usage on schema storage to anon, authenticated, service_role;
+grant all on storage.objects to authenticated, service_role;
+grant all on storage.buckets to authenticated, service_role;
+
+grant usage on schema auth to authenticated, service_role;
+
 create publication supabase_realtime;
 
 -- Supabase's default privileges. Without them, tables the migrations create have
