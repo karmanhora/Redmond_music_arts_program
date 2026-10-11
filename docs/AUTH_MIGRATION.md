@@ -109,11 +109,11 @@ OAuth client ID and secret, and register the Supabase callback URL shown there
 with that OAuth client. The app uses Supabase's Google provider and sends users
 back to the site origin, or to the original QR check-in when one is in progress.
 
-No JWT template, webhook secret, or proxy is needed. The six account emails
-themselves are branded in
-`supabase/templates/` — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) for applying them,
-the SMTP ceiling that will bite a whole class signing up at once, and how to test
-them honestly.
+No JWT template, webhook secret, or proxy is needed. The six account emails and
+the password-change security notification are branded in `supabase/templates/`
+— see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) for applying them, enabling security
+notifications, the SMTP ceiling that will bite a whole class signing up at once,
+and how to test them honestly.
 
 ### Environment variables
 

@@ -48,9 +48,11 @@ cutover checklist.
       the `redirectTo` in `src/hooks/useAuth.tsx`), plus `<app>/*`.
 - [ ] SMTP: custom SMTP (SendGrid) per `docs/email-setup.md` in the OLD repo
       (SMTP host/port/user + password go in Dashboard → Auth → SMTP; never in git).
-- [ ] Email templates: copy the 6 from `supabase/templates/` (confirmation,
+- [ ] Authentication email templates: copy the 6 from `supabase/templates/` (confirmation,
       recovery, invite, magic_link, email_change, reauthentication) into
       Dashboard → Auth → Email Templates (subjects + HTML).
+- [ ] Password-change security notification: enable it in Dashboard → Auth →
+      Notifications and set its subject + HTML from `password_changed_notification.html`.
 - [ ] Confirm email ON (as configured on OLD), and verify one test signup +
       one test password reset end to end.
 

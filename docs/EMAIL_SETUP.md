@@ -2,8 +2,9 @@
 
 Sign-in is Supabase Auth (`docs/AUTH_MIGRATION.md`), so **Supabase sends every
 account email in this app** — confirmation, password reset, invite, magic link,
-email change and reauthentication. Their wording and layout live in
-`supabase/templates/`, wired up by `supabase/config.toml`.
+email change, reauthentication, and enabled security notifications. Their
+wording and layout live in `supabase/templates/`, wired up by
+`supabase/config.toml`.
 
 There is no email provider to integrate and no sending code in this repository.
 That is the point: nothing here can leak a key, and nothing has to be redeployed
@@ -21,9 +22,12 @@ when a subject line changes.
 | Magic link | A passwordless sign-in is requested (`signInWithOtp`) | `magic_link.html` | `{{ .ConfirmationURL }}`; `{{ .Token }}` fallback |
 | Email change | The address on an account is changed | `email_change.html` | `{{ .ConfirmationURL }}`, naming `{{ .Email }}` and `{{ .NewEmail }}` |
 | Reauthentication | A security-sensitive change asks the person to prove themselves again | `reauthentication.html` | `{{ .Token }}` only — a code, not a link |
+| Password changed notification | A user's password changes | `password_changed_notification.html` | `{{ .Email }}` and `{{ .SiteURL }}`; enable the notification in Supabase Auth |
 
-Only the variables in that table are used. They are the ones Supabase documents;
-inventing another one renders it as empty text.
+Security notifications are separate from the password-reset email and must be
+enabled in the Supabase project before they are sent. The password-changed
+notification is enabled in this repository's `supabase/config.toml`. Only the
+variables in the table above are used; they are documented Supabase variables.
 
 ## 2. Applying them
 
@@ -43,9 +47,14 @@ elsewhere, merge the `[auth]` sections into it first — do not overwrite it, or
 settings that only exist in the dashboard copy are reset.
 
 **Dashboard.** Authentication → Emails → Templates: paste the subject from
-`supabase/config.toml` and the contents of the matching file for each of the six.
-Slower, and it drifts from the repository the next time somebody edits a template
-here — which is the argument for the CLI route.
+`supabase/config.toml` and the contents of the matching file. For the password
+change notification, enable **Password changed** in the project's Auth
+notification settings, then set its subject and paste
+`supabase/templates/password_changed_notification.html` in the notification
+template editor. Notification enablement is project-level; saving the template
+alone does not turn it on. This dashboard setup drifts from the repository the
+next time somebody edits a template here — which is the argument for the CLI
+route.
 
 If preview and production are separate Supabase projects, apply this to **both**.
 They are separate environments; an email template is not inherited.
@@ -95,7 +104,8 @@ migration that depends on it.
 - **In production:** sign up with an address you control, open the confirmation,
   then run the password-reset flow end to end. Check it **arrives in the inbox**
   — not just in spam — because that is what a student will experience. Also check
-  the link opens `/reset-password`, not the home page (§4).
+  the link opens `/reset-password`, not the home page (§4), and verify that a
+  successful password change sends the password-changed notification.
 - A confirmation that arrives but whose link does nothing is almost always a
   redirect-URL problem, not a template one. A missing subject line means the
   template was saved without its subject.

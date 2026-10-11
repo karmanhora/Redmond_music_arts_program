@@ -4,9 +4,9 @@
 # OPTIONAL, and it changes nothing about the deployed app: Vercel builds the
 # frontend from src/, and nothing in it reads this file at runtime.
 #
-# It exists for one reason — so the six branded auth emails in
-# supabase/templates/ are version-controlled with the code and can be applied
-# with one command instead of being pasted into the dashboard by hand:
+# It exists for one reason — so the branded auth emails and security
+# notifications in supabase/templates/ are version-controlled and can be
+# applied with one command instead of being pasted into the dashboard by hand:
 #
 #   supabase link --project-ref <PROJECT_REF>
 #   supabase config push --project-ref <PROJECT_REF>
@@ -53,9 +53,8 @@ enable_confirmations = true
 verify_jwt = true
 
 # ----------------------------------------------------------------------------
-# The six emails. Subject lines are what the inbox shows; the heading inside
-# each template matches it. Add a brand suffix ("· RHS Music & Arts") to any
-# subject if you want the sender recognised at a glance.
+# Authentication emails. Subject lines are what the inbox shows; each template
+# heading matches it. Add a brand suffix ("· RHS Music & Arts") for recognition.
 # ----------------------------------------------------------------------------
 
 [auth.email.template.confirmation]
@@ -81,6 +80,13 @@ content_path = "./supabase/templates/email_change.html"
 [auth.email.template.reauthentication]
 subject = "Your confirmation code"
 content_path = "./supabase/templates/reauthentication.html"
+
+# Security notifications are separate from authentication emails. Supabase
+# sends them only when the corresponding notification is enabled.
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Your password was changed"
+content_path = "./supabase/templates/password_changed_notification.html"
 
 # ----------------------------------------------------------------------------
 # Custom SMTP — commented out, and worth configuring before real use.
