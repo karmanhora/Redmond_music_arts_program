@@ -675,6 +675,8 @@ export function Sheet({
   size?: "auto" | "tall";
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const dragStart = useRef<{ y: number; at: number } | null>(null);
   const [dragY, setDragY] = useState(0);
   const [sheetEntering, setSheetEntering] = useState(false);
@@ -699,7 +701,7 @@ export function Sheet({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !panel.current) return;
@@ -732,7 +734,7 @@ export function Sheet({
       document.body.style.overflow = overflow;
       previouslyFocused?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
