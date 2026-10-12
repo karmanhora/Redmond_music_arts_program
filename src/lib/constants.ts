@@ -2,6 +2,7 @@ import type {
   AttendanceRequirement,
   AttendanceStatus,
   CheckinMode,
+  DigestReachabilityStatus,
   Role,
 } from "./types";
 
@@ -135,6 +136,30 @@ export const ROLE_LABEL: Record<Role, string> = {
   secretary: "Secretary",
   section_leader: "Section leader",
   student: "Student",
+};
+
+/**
+ * Why the weekly email does not reach somebody (033), said the way a director
+ * would say it, and what — if anything — can be done about it. `opted_out` is
+ * the one reason that is not a problem to fix: the member chose it.
+ */
+export const DIGEST_STATUS_LABEL: Record<DigestReachabilityStatus, string> = {
+  reachable: "Will get it",
+  opted_out: "Turned it off",
+  no_sign_in: "No sign-in account",
+  no_address: "No email address",
+  unconfirmed: "Email not confirmed",
+  account_deactivated: "Account deactivated",
+};
+
+export const DIGEST_STATUS_HINT: Record<DigestReachabilityStatus, string> = {
+  reachable: "On the roster, with a confirmed address.",
+  opted_out: "Their choice — they can turn it back on under Email in their settings.",
+  no_sign_in:
+    "On the roster, but no working sign-in account is linked to them — so there is no address to mail.",
+  no_address: "Their account has no email address on it.",
+  unconfirmed: "We only send to a confirmed address — they have not used the link in their sign-up email.",
+  account_deactivated: "A deactivated account is not emailed.",
 };
 
 /**

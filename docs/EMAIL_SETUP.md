@@ -125,11 +125,61 @@ migration that depends on it.
 ## 6. What this does not cover
 
 The in-app notification bell — the `notifications` table and its SQL triggers —
-stays in-app. Emailing those (a new event, a check-in opening) needs a separate
-transactional provider and a sending function this project has deliberately not
-added yet. If that becomes a requirement, the decision to make first is which
-provider, because it is a second vendor with its own key, its own verified
-domain and its own cost.
+stays in-app. §6a covers the one app email that leaves it. Emailing the bell's
+*other* trigger (a check-in opening) is still not built: a check-in is live for
+minutes, so it belongs in the bell, not in a mailbox.
+
+## 6a. App email: the upcoming-events digest
+
+This app now sends one email of its own (migration 032 + the `event-digest` edge
+function): at most one a day per person, listing the next week's events across
+every program they belong to. It goes through SendGrid's **API** — the same
+provider and the same verified sender that carries the auth emails above, so
+this is not a second vendor.
+
+- **Who is owed one** — `public.due_event_digests()` returns the members who are
+  active, subscribed, have a confirmed address, are not deactivated, and have at
+  least one event in the window with no delivery logged for today. Nobody else:
+  an opted-out member, an unconfirmed address and a quiet program all produce no
+  row. It returns email addresses, so it is **service-role only** and no client
+  can call it.
+- **Not sending twice** — `public.record_event_digests()` logs the run against
+  (member, program, day). A retried or overlapping job is therefore a no-op.
+  A send that *fails* is deliberately not logged, so the next run offers that
+  person again rather than dropping them silently.
+- **Turning it off** — Account settings → Preferences → *Upcoming events by
+  email*, one switch per program (`set_email_upcoming_events()`). A student in
+  band and orchestra can quiet one without losing the other. The in-app bell is
+  unaffected either way.
+- **Seeing who it reaches** — Roster → *Upcoming-events email*, for staff of
+  that program only: how many active members the email can reach, and the reason
+  each of the rest is skipped (`digest_reachability()`, migration 033). It
+  reports the *state* of an address — confirmed, unconfirmed, absent — and never
+  the address itself. "Reachable" and "will get an email this week" are different
+  questions, and the card says which one it is answering: a quiet week, an
+  archived program and a program nobody can be reached in all read differently.
+- **Secrets** — `EVENT_DIGEST_SECRET` (the cron job sends it as
+  `x-event-digest-secret`; without it set the function refuses to run), plus
+  `SENDGRID_API_KEY` and `SENDGRID_FROM`, and optionally `DIGEST_FROM_NAME` and
+  `PUBLIC_APP_URL`. These are SendGrid **API** credentials for
+  `api.sendgrid.com`, *not* the SMTP host/user/password above — those live in
+  Dashboard → Auth → SMTP. Nothing has set them yet: `supabase secrets list`
+  showed only the platform's own variables on 2026-10-11, so this is the first
+  thing to create before the digest can send anything.
+- **The schedule** — a Supabase Cron job, like the calendar sync. The exact
+  statement is in `scripts/migrate/04_functions_config.md` §2. `pg_cron` and
+  `pg_net` are not installed on the live project yet, so the job cannot be
+  created until they are enabled (Dashboard → Database → Extensions).
+- **Current state (2026-10-11)** — migration 032 is applied and the
+  `event-digest` function is deployed (`verify_jwt = false`, authorised by
+  `x-event-digest-secret`). Without that secret set the deployed function
+  answers `401` to every caller, so nothing is mailed to anyone yet.
+- **Testing it honestly** — call it with `{"dry_run": true}` and the
+  `x-event-digest-secret` header: the JSON names every recipient, subject and
+  event and sends nothing. A service-role bearer is not a substitute — the
+  deployed function rejects one with `401`.
+  `node scripts/dev/check_event_digest.mjs` checks the sender's logic locally
+  with no network at all.
 
 ## 7. Never
 

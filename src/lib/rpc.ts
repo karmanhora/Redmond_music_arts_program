@@ -387,3 +387,27 @@ export const getEventAttendanceSummary = (eventId: string) =>
 /** Last N required events that have already happened, newest first. */
 export const getAttendanceTrend = (programId: string, limit = 10) =>
   callRpcList<TrendRow>("get_attendance_trend", { p_ensemble: programId, p_limit: limit });
+
+// --- Email (any signed-in member, for themselves) ---------------------------
+
+/**
+ * Turn the upcoming-events email digest for one program on or off.
+ *
+ * The server writes only the caller's own membership for the program named
+ * here — there is no user id in the request, so this cannot be pointed at
+ * somebody else. Refused with a message when the caller is not on that roster.
+ */
+export const setEmailUpcomingEvents = (programId: string, enabled: boolean) =>
+  callRpc("set_email_upcoming_events", { p_ensemble: programId, p_enabled: enabled });
+
+/**
+ * Staff of one program: who the scheduled upcoming-events email will reach, and
+ * the reason each member it misses is missed.
+ *
+ * It answers with the *state* of an address — confirmed, unconfirmed, absent —
+ * and never the address itself, which is why staff may ask it at all. The server
+ * refuses anyone who is not staff of that program, and `days` is clamped to
+ * 1–30 server-side just like the sender's own window.
+ */
+export const getDigestReachability = (programId: string, days = 7) =>
+  callRpc("digest_reachability", { p_ensemble: programId, p_days: days });

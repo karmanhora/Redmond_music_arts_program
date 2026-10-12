@@ -35,6 +35,7 @@ import {
 import { fetchRoster } from "../lib/queries";
 import { SectionManager } from "../components/SectionManager";
 import {
+  getDigestReachability,
   getJoinCode,
   inviteProgramStudent,
   reactivateMember,
@@ -42,9 +43,13 @@ import {
   setJoinCode,
   setMemberSection,
 } from "../lib/rpc";
-import type { RosterMember } from "../lib/types";
+import type { DigestReachabilityStatus, RosterMember, RpcResult } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
-import { ROLE_LABEL } from "../lib/constants";
+import {
+  DIGEST_STATUS_HINT,
+  DIGEST_STATUS_LABEL,
+  ROLE_LABEL,
+} from "../lib/constants";
 import { fmtDate } from "../lib/date";
 
 /**
@@ -64,6 +69,31 @@ function randomCode(length = 8): string {
   let out = "";
   for (let i = 0; i < length; i += 1) out += ALPHABET[bytes[i] % ALPHABET.length];
   return out;
+}
+
+/**
+ * One line a director can act on: does this week's email go out, and to how
+ * many people. The three ways it can go nowhere are named explicitly — an
+ * archived program, a quiet week, and a program nobody can be reached in —
+ * because "0 of 8" on its own does not say which one happened.
+ */
+function digestSummary(digest: RpcResult): string {
+  const days = digest.window_days ?? 7;
+  const events = digest.events ?? 0;
+  const reachable = digest.reachable ?? 0;
+  const members = digest.members ?? 0;
+  const upcoming = `${events} ${events === 1 ? "event" : "events"} in the next ${days} days`;
+
+  if (digest.program_active === false) {
+    return "This program is archived, so no email goes out. Restore it and the digest resumes.";
+  }
+  if (events === 0) {
+    return `Nothing scheduled in the next ${days} days, so no email goes out this week. ${reachable} of ${members} members can be reached when there is something to announce.`;
+  }
+  if (reachable === 0) {
+    return `Nobody will receive it: ${upcoming} coming up, but not one member can be reached.`;
+  }
+  return `${reachable} of ${members} members will be emailed about ${upcoming}.`;
 }
 
 export function RosterScreen() {
@@ -91,6 +121,13 @@ export function RosterScreen() {
   const [inviteName, setInviteName] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+
+  // Who the scheduled email reaches. Staff-only, answered by the server. Its
+  // failure is kept apart from the roster's: a director whose members loaded
+  // fine should still see the roster when this one call is refused.
+  const [digest, setDigest] = useState<RpcResult | null>(null);
+  const [digestError, setDigestError] = useState<string | null>(null);
+  const canSeeDigest = app.can("program.manage_settings");
 
   const load = useCallback(async () => {
     if (!programId) return;
@@ -123,6 +160,23 @@ export function RosterScreen() {
     void loadCode();
   }, [loadCode]);
 
+  const loadDigest = useCallback(async () => {
+    if (!programId || !canSeeDigest) return;
+    const { result, error: rpcError } = await getDigestReachability(programId);
+    if (rpcError || !result?.ok) {
+      setDigestError(
+        rpcError?.message || result?.message || "Could not read who the email reaches."
+      );
+      return;
+    }
+    setDigestError(null);
+    setDigest(result);
+  }, [programId, canSeeDigest]);
+
+  useEffect(() => {
+    void loadDigest();
+  }, [loadDigest]);
+
   const active = useMemo(() => (members ?? []).filter((m) => m.active), [members]);
   const inactive = useMemo(() => (members ?? []).filter((m) => !m.active), [members]);
 
@@ -144,6 +198,29 @@ export function RosterScreen() {
       );
     });
   }, [members, scope, section, query]);
+
+  /** One member's state, or null before the report arrives (or if refused). */
+  const digestStatusOf = useCallback(
+    (userId: string): DigestReachabilityStatus | null =>
+      digest?.people?.find((p) => p.user_id === userId)?.status ?? null,
+    [digest]
+  );
+
+  /**
+   * Everyone the email will not reach, in roster order. Read from the roster
+   * rather than from the report so a name is always available: the report names
+   * people by id only — it never carries an address or a name.
+   */
+  const digestMissed = useMemo(() => {
+    return active
+      .map((m) => ({ member: m, status: digestStatusOf(m.user_id) }))
+      .filter(
+        (row): row is { member: RosterMember; status: DigestReachabilityStatus } =>
+          row.status !== null && row.status !== "reachable"
+      );
+  }, [active, digestStatusOf]);
+
+  const openMemberStatus = member ? digestStatusOf(member.user_id) : null;
 
   /** Sections in the program's canonical order, then anyone without one. */
   const groups = useMemo(() => {
@@ -220,6 +297,8 @@ export function RosterScreen() {
     setMember(null);
     setConfirmRemove(null);
     await load();
+    // Membership just changed, so the email's own count has to change with it.
+    await loadDigest();
   }
 
   async function moveToSection(target: RosterMember, sectionId: string | null) {
@@ -405,6 +484,64 @@ export function RosterScreen() {
           </div>
         )}
 
+        {/* --- who the weekly email reaches (staff) --- */}
+        {canSeeDigest ? (
+          <section>
+            <SectionTitle className="mb-2">Upcoming-events email</SectionTitle>
+            <div className="cue-card space-y-3 rounded-[var(--radius-panel)] p-4">
+              {digestError ? (
+                <Alert tone="error">{digestError}</Alert>
+              ) : digest === null ? (
+                <Skeleton className="h-16 w-full" />
+              ) : (
+                <>
+                  <p className="text-sm">{digestSummary(digest)}</p>
+
+                  {digestMissed.length > 0 ? (
+                    <List>
+                      {digestMissed.map(({ member: missed, status }) => {
+                        const name = missed.profile.display_name || missed.profile.full_name;
+                        return (
+                          <Row
+                            key={missed.user_id}
+                            leading={
+                              <Avatar
+                                name={name}
+                                path={missed.profile.avatar_path}
+                                url={missed.profile.avatar_url}
+                                size={32}
+                              />
+                            }
+                            title={name}
+                            subtitle={DIGEST_STATUS_HINT[status]}
+                            trailing={
+                              <Badge className="shrink-0 bg-[var(--cue-raised)] text-[var(--cue-muted)]">
+                                {DIGEST_STATUS_LABEL[status]}
+                              </Badge>
+                            }
+                            onClick={() => setMember(missed)}
+                          />
+                        );
+                      })}
+                    </List>
+                  ) : (
+                    <p className="type-meta">
+                      Everyone active in this program is reachable.
+                    </p>
+                  )}
+
+                  <p className="type-meta">
+                    At most one email a day, one per person, covering the next{" "}
+                    {digest.window_days ?? 7} days. A member turns it off for this program —
+                    and only this program — under <strong>Email</strong> in their account
+                    settings.
+                  </p>
+                </>
+              )}
+            </div>
+          </section>
+        ) : null}
+
         {/* --- instruments & sections (directors) --- */}
         {app.isDirector ? (
           <section>
@@ -548,6 +685,16 @@ export function RosterScreen() {
                 <Badge className="bg-[var(--cue-present-bg)] text-[var(--cue-present)]">Active</Badge>
               )}
             </div>
+
+            {canSeeDigest && openMemberStatus ? (
+              <div>
+                <SectionTitle className="mb-2">Upcoming-events email</SectionTitle>
+                <div className="space-y-1 rounded-[var(--radius-panel)] border border-[var(--cue-line)] p-3">
+                  <p className="type-heading">{DIGEST_STATUS_LABEL[openMemberStatus]}</p>
+                  <p className="type-meta">{DIGEST_STATUS_HINT[openMemberStatus]}</p>
+                </div>
+              </div>
+            ) : null}
 
             {app.isDirector ? (
               <>

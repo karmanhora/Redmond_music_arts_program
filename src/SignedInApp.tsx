@@ -48,10 +48,15 @@ const RolesScreen = lazy(() =>
 
 function RouteSkeleton() {
   return (
+    /* `h-full` matters: this renders at the root while a route chunk loads, so
+     * the loader sat 192px above the middle of a phone screen on `min-h-64`
+     * alone. It now centres in the viewport — or, when it renders inside the
+     * shell instead, in the content area — and `min-h-64` keeps a floor for very
+     * short panes. */
     <main
       aria-busy="true"
       aria-label="Loading screen"
-      className="flex min-h-64 items-center justify-center p-6 text-[var(--cue-green)]"
+      className="flex h-full min-h-64 items-center justify-center p-6 text-[var(--cue-green)]"
     >
       <MusicLoader />
     </main>

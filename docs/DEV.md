@@ -289,11 +289,14 @@ anyone signs in**, because it is what resolves a Supabase Auth account to a
 `profiles` row — without it every request is `anon` and the app looks empty;
 022 is what lets a teacher start a program (`create_program()`).
 
-Migrations 029, 030 and 031 were applied to the live project on **2026-10-11**.
-The frontend that uses them still has to be deployed: the roster and profile
-queries select `avatar_path` and `bio`, the role screens call the 029 RPCs, and
-the create-program and roster screens now call 031. All three are additive and
-idempotent.
+Migrations 029, 030, 031, 032 and 033 were applied to the live project on
+**2026-10-11**. The frontend that uses them still has to be deployed: the roster
+and profile queries select `avatar_path` and `bio`, the role screens call the 029
+RPCs, the create-program and roster screens now call 031, and the roster screen
+reads who the weekly email reaches through 033. All five are additive and
+idempotent. 032's sending half — the `event-digest` edge function — is deployed
+too; the *upcoming-event emails* bullet below is the exact list of what is still
+missing.
 
 Migration 031 changes shape in two ways —
 
@@ -389,6 +392,27 @@ next apply:
   first — `capabilities_and_avatars.sql` (G3) does — otherwise it fails on the
   hosted project while passing locally, where no such guard exists.
 
+### Proving the digest sender without credentials
+
+```bash
+node scripts/dev/check_event_digest.mjs
+```
+
+[`scripts/dev/check_event_digest.mjs`](../scripts/dev/check_event_digest.mjs)
+imports the real `event-digest` edge function unmodified, shims `Deno.env` and
+`Deno.serve`, and stubs `fetch` at the network boundary — PostgREST for the two
+RPCs, `api.sendgrid.com` for the mail. So the shared secret, the JSON contract
+with `due_event_digests()`, the rendered subject and body, the SendGrid payload,
+and the rule that a failed send is not logged as sent are all checked without
+Deno, without a database, and without sending mail. It is the closest this
+repository gets to running a function in a terminal that has no Supabase CLI,
+and it is worth running after any change to the digest.
+
+The database half is a normal suite: `bash scripts/dev/verify_migrations_locally.sh`
+runs `supabase/tests/event_digest_emails.sql`, which pins down who is owed an
+email, the window, the once-per-day key, and that only the caller's own
+preference is writable.
+
 ## 6. How the frontend is put together
 
 ```
@@ -474,5 +498,27 @@ Rules the code follows, and that changes should keep:
   backfill (014) and are unaffected.
 - Existing `profiles.avatar_url` values (external URLs) still render as a
   fallback; nothing writes that column any more.
+- **Who the weekly email reaches is on the Roster screen** (033). Staff of a
+  program see the email's own view of the roster there: how many active members
+  it can reach, and the reason each of the rest is skipped — turned it off, no
+  working account behind the row, no address, unconfirmed, deactivated. It
+  reports the *state* of an address and never the address, which is why staff may
+  ask; anybody else is refused. `digest_reachability()` is applied live and the
+  card ships with the next frontend deploy.
+- **Apply migration 032 before deploying a frontend that reads it.**
+  `fetchMyMemberships` now selects `memberships.email_upcoming_events`, so a
+  deploy ahead of the migration fails that query for every signed-in person.
+  Migration first, then the app — the same order 029 and 030 needed.
+- **Upcoming-event emails are applied and deployed, still not switched on**
+  (migration 032 + the `event-digest` function). Both halves are on the live
+  project as of **2026-10-11**: the migration is applied and the function is
+  deployed with `verify_jwt = false`. What remains is configuration, not code —
+  the `SENDGRID_API_KEY`, `SENDGRID_FROM` and `EVENT_DIGEST_SECRET` secrets, then
+  `pg_cron` (+ `pg_net`) and the schedule itself.
+  `scripts/migrate/04_functions_config.md` §1–2 has all of it, and
+  `docs/EMAIL_SETUP.md` §6a explains what the digest does and who it skips.
+  Until then nothing is emailed to anyone, and the deployed function refuses
+  every caller: with no `EVENT_DIGEST_SECRET` set it answers `401` (verified
+  against the deployed function, 2026-10-11).
 - `docs/CUTOVER.md` and `scripts/migrate/run_all.sh` (Phase 4).
 - The new Vercel project for this frontend.

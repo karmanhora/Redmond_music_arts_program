@@ -117,6 +117,12 @@ export interface MembershipRow {
   roles: Role[];
   active: boolean;
   joined_at: string;
+  /**
+   * Whether this person receives the scheduled upcoming-events email digest for
+   * this program (migration 032). Opt-out: true unless they turned it off, and
+   * turned off per program — a student in band and orchestra can quiet one.
+   */
+  email_upcoming_events: boolean;
 }
 
 export interface EventRow {
@@ -255,6 +261,19 @@ export interface RpcResult {
   moved_to_no_section?: number;
   /** `remove_member()`: attendance rows deleted with the membership. */
   attendance_deleted?: number;
+
+  /** `digest_reachability()`: the window the counts below cover, in days. */
+  window_days?: number;
+  /** `digest_reachability()`: false for an archived program, which mails nobody. */
+  program_active?: boolean;
+  /** `digest_reachability()`: events in that window — zero means a quiet week. */
+  events?: number;
+  /** `digest_reachability()`: active members considered. */
+  members?: number;
+  /** `digest_reachability()`: how many of them the email can actually reach. */
+  reachable?: number;
+  /** `digest_reachability()`: every active member and why they are (not) reached. */
+  people?: DigestReachabilityRow[];
 }
 
 /**
@@ -303,6 +322,31 @@ export interface SectionStatRow {
   member_count: number;
   avg_attendance_pct: number;
   sort_order: number;
+}
+
+/**
+ * Why one member will, or will not, receive the scheduled upcoming-events email
+ * (migration 033). These are the filters `due_event_digests()` applies, in the
+ * order it applies them, so a label here and a silent skip there cannot disagree.
+ */
+export type DigestReachabilityStatus =
+  /** None of the reasons below: this person gets the email. */
+  | "reachable"
+  /** They turned the email off for this program — their choice, not a fault. */
+  | "opted_out"
+  /** On the roster, but no sign-in account is linked to them. */
+  | "no_sign_in"
+  /** The account exists but carries no address. */
+  | "no_address"
+  /** The address exists but was never confirmed. */
+  | "unconfirmed"
+  /** A deactivated account is muted. */
+  | "account_deactivated";
+
+/** One entry of `digest_reachability()` (033): who, and why not. Never an address. */
+export interface DigestReachabilityRow {
+  user_id: string;
+  status: DigestReachabilityStatus;
 }
 
 /** A member of the band: the person plus their membership and section. */

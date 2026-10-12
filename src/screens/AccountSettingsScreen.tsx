@@ -36,6 +36,8 @@ import {
 import { ProfileForm } from "../components/ProfileForm";
 import { CapabilityList, RoleBadges } from "../components/CapabilityList";
 import { updateMyProfile } from "../lib/queries";
+import type { EmbeddedMembership } from "../lib/queries";
+import { setEmailUpcomingEvents } from "../lib/rpc";
 import { fmtDate } from "../lib/date";
 import { APP_NAME, ORG_NAME, ROLE_LABEL } from "../lib/constants";
 import { useAuth } from "../hooks/useAuth";
@@ -50,9 +52,10 @@ type Tab = "profile" | "security" | "preferences" | "privacy";
  *
  * Split by what it actually affects: who you are (profile), how you sign in
  * (security), how the app behaves for you (preferences), and what happens to
- * your records (privacy). Nothing here is decorative: there is deliberately no
- * notification toggle, because this app has no notification channel to switch —
- * the in-app bell is fed by the `notifications` table and is always on.
+ * your records (privacy). Nothing here is decorative. There is still no toggle for
+ * the in-app bell — it is fed by the `notifications` table and is always on — but
+ * the *email* digest (migration 032) is a channel that leaves the app, so
+ * Preferences carries one switch per program for it.
  *
  * Credentials are never touched by this app's database. Passwords, the email
  * address and session revocation all go straight to Supabase Auth.
@@ -460,6 +463,43 @@ function SecurityTab() {
 function PreferencesTab() {
   const { dark, toggle } = useDark();
   const { preference, setPreference, reduced } = useReducedMotion();
+  const app = usePrograms();
+  const { toast } = useToast();
+  /** Program id → the value the switch should show while the server catches up. */
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+
+  const enabledFor = (membership: EmbeddedMembership) =>
+    pending[membership.ensemble_id] ?? membership.email_upcoming_events;
+
+  /**
+   * Saved on the spot rather than behind a Save button: the choice *is* the whole
+   * interaction. The switch moves first and the server writes only the caller's
+   * own membership for the program named here; if it refuses, the switch goes
+   * back where it was and says why.
+   */
+  async function setEmail(membership: EmbeddedMembership, next: boolean) {
+    const previous = pending[membership.ensemble_id];
+    setPending((current) => ({ ...current, [membership.ensemble_id]: next }));
+
+    const { result, error } = await setEmailUpcomingEvents(membership.ensemble_id, next);
+
+    if (error || !result?.ok) {
+      setPending((current) => {
+        const reverted = { ...current };
+        if (previous === undefined) delete reverted[membership.ensemble_id];
+        else reverted[membership.ensemble_id] = previous;
+        return reverted;
+      });
+      toast.error(error?.message ?? result?.message ?? "That could not be saved. Try again.");
+      return;
+    }
+
+    toast.success(
+      next
+        ? `You'll get event emails for ${membership.ensemble.name}.`
+        : `${membership.ensemble.name} event emails are off.`
+    );
+  }
 
   return (
     <div className="space-y-7">
@@ -496,14 +536,40 @@ function PreferencesTab() {
       </section>
 
       <section>
-        <SectionTitle className="mb-3">Notifications</SectionTitle>
-        <Card>
-          <p className="type-meta">
-            This app has one notification channel — the bell in the header, fed by your
-            program&rsquo;s events and open check-ins. There is nothing to configure yet, so there is
-            no toggle here pretending otherwise.
-          </p>
-        </Card>
+        <SectionTitle className="mb-3">Upcoming events by email</SectionTitle>
+        {app.memberships.length === 0 ? (
+          <Card>
+            <p className="type-meta">
+              Join a program and you can choose whether its upcoming events reach you by email.
+            </p>
+          </Card>
+        ) : (
+          <List>
+            {app.memberships.map((membership) => {
+              const on = enabledFor(membership);
+              return (
+                <Row
+                  key={membership.id}
+                  icon={<Mail aria-hidden="true" className="h-4 w-4" />}
+                  title={membership.ensemble.name}
+                  subtitle={on ? "On — included in your event email" : "Off — no event emails"}
+                  trailing={
+                    <Toggle
+                      checked={on}
+                      onChange={(next) => void setEmail(membership, next)}
+                      label={`Upcoming event emails for ${membership.ensemble.name}`}
+                    />
+                  }
+                />
+              );
+            })}
+          </List>
+        )}
+        <p className="type-meta mt-3">
+          At most one email a day, listing what is coming up in the next week across your programs —
+          together, so two programs are still one email. A quiet week sends nothing. The bell in the
+          header is separate and always on.
+        </p>
       </section>
     </div>
   );

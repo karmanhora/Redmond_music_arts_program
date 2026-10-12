@@ -13,9 +13,19 @@ deployment stay untouched.
 - [ ] `supabase functions deploy send_signup_reminder --project-ref <NEW_PROJECT_REF>`
 - [ ] After applying migration 027, deploy
       `supabase functions deploy invite-student --project-ref <NEW_PROJECT_REF>`.
+- [x] After applying migration 032, deploy
+      `supabase functions deploy event-digest --project-ref <NEW_PROJECT_REF>`.
+      Server-to-server only (no CORS): it is called by the cron job in §2, not by
+      the browser. **Deployed 2026-10-11** with `--no-verify-jwt --use-api`
+      (`[functions.event-digest] verify_jwt = false` in `supabase/config.toml`):
+      the cron call carries no `Authorization` header, so the platform check has
+      to be off and the function authorises the call itself.
 - [ ] Function secrets (`supabase secrets set … --project-ref <NEW_PROJECT_REF>`, values never logged):
   - [ ] `SENDGRID_API_KEY`
   - [ ] `SENDGRID_FROM` (verified sender)
+  - [ ] `EVENT_DIGEST_SECRET` (long random value; the digest cron job sends it as
+        the `x-event-digest-secret` header and the function refuses to run
+        without it)
   - [ ] `PUBLIC_APP_URL` (only for the reference `send_signup_reminder` function,
         which builds an image URL from it; this app's own auth emails in
         `supabase/templates/` contain no images, so nothing else reads it)
@@ -29,7 +39,17 @@ deployment stay untouched.
 
 - [ ] On OLD (read-only), inspect existing jobs:
       `psql "$OLD_DB_URL" -c "select jobid, schedule, command from cron.job order by jobid"`
-- [ ] On NEW, enable `pg_cron` + `pg_net` if not already (Dashboard → Database → Extensions).
+- [x] On NEW, enable `pg_cron` + `pg_net` (Dashboard → Database → Extensions, or
+      the SQL below). Both were enabled on the live project on **2026-10-11**
+      (`pg_cron` 1.6.4, `pg_net` 0.20.4). Before that `cron.job` was empty: there
+      was no schedule on NEW at all, not even the calendar sync.
+
+      ```sql
+      create extension if not exists pg_cron with schema pg_catalog;
+      grant usage on schema cron to postgres;
+      grant all privileges on all tables in schema cron to postgres;
+      create extension if not exists pg_net;
+      ```
 - [ ] Recreate each job, e.g. the calendar sync (secret header set):
       `select cron.schedule('google-calendar-sync', '*/5 * * * *', $$
          select net.http_post(url := 'https://<NEW_PROJECT_REF>.supabase.co/functions/v1/sync_google_calendar',
@@ -37,6 +57,52 @@ deployment stay untouched.
            body := '{}');
       $$);`
 - [ ] Recreate any `send_signup_reminder` schedule if one existed on OLD (check `cron.job` output above).
+- [x] **Event digest** — one email a day per member with something in the next
+      week, at **5pm Pacific**: `0 0 * * *` UTC, which is 5pm PDT / 4pm PST. A
+      fixed UTC time drifts an hour across daylight saving — `0 1 * * *` holds
+      5pm through standard time instead. `pg_cron` + `pg_net` were enabled on the
+      live project on 2026-10-11 (`cron.job` was empty: there was no schedule on
+      NEW at all, not even the calendar sync).
+
+      The job reads the shared secret from **Vault** rather than embedding it:
+      `cron.job` stores its command as plain text, and Supabase's own guidance is
+      not to put a key in there.
+
+      ```sql
+      select vault.create_secret('<EVENT_DIGEST_SECRET>', 'event_digest_secret',
+        'x-event-digest-secret header for the event-digest cron job');
+
+      select cron.schedule('event-digest', '0 0 * * *', $$
+        select net.http_post(
+          url := 'https://<NEW_PROJECT_REF>.supabase.co/functions/v1/event-digest',
+          headers := jsonb_build_object(
+            'x-event-digest-secret',
+            (select decrypted_secret from vault.decrypted_secrets
+              where name = 'event_digest_secret'),
+            'Content-Type', 'application/json'),
+          body := '{"days": 7}'::jsonb);
+      $$);
+      ```
+
+      Before scheduling it, run it once by hand with `{"days": 7, "dry_run":
+      true}` and read the JSON — it reports every recipient, subject and event and
+      sends nothing. Send it with the shared secret, not a service-role bearer:
+      this project's legacy `service_role` JWT presentation
+      (`Authorization: Bearer …`) is rejected with `401` by the deployed function
+      (observed 2026-10-11), while the `x-event-digest-secret` header is the path
+      the cron job uses:
+
+      ```bash
+      curl -sS -X POST "https://<NEW_PROJECT_REF>.supabase.co/functions/v1/event-digest" \
+        -H "Content-Type: application/json" \
+        -H "x-event-digest-secret: <EVENT_DIGEST_SECRET>" \
+        -d '{"days": 7, "dry_run": true}'
+      ```
+
+      Then run it once for real (`{"days": 7}`) and confirm the
+      emails arrive and `select count(*) from public.event_digest_deliveries`
+      rises. Running it twice in a row must email nobody the second time: that is
+      the once-per-day key doing its job.
 
 ## 3. Auth configuration — Supabase Auth
 

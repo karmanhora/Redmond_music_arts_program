@@ -58,7 +58,7 @@ export async function fetchMyMemberships(userId: string): Promise<EmbeddedMember
   const { data } = await supabase
     .from("memberships")
     .select(
-      "id,user_id,ensemble_id,section_id,roles,active,joined_at," +
+      "id,user_id,ensemble_id,section_id,roles,active,joined_at,email_upcoming_events," +
         "ensemble:ensembles(id,slug,name,short_name,theme_color,logo_url,active,created_at)," +
         "section:sections(id,name,sort_order)"
     )
