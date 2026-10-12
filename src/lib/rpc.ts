@@ -101,16 +101,38 @@ export const joinProgram = (slug: string, code: string, displayName?: string) =>
  * at an existing one. It also handles their first-ever `profiles` row (which is
  * why `displayName` matters when they have none), gives the program a join code
  * to start with, and refuses a blank name or a sixth program inside an hour.
+ *
+ * `instruments` become the new program's `sections` — the director names what
+ * is in it so students can be put in the right place from the start.
  */
 export const createProgram = (
   name: string,
-  opts?: { shortName?: string; displayName?: string }
-) =>
-  callRpc("create_program", {
+  opts?: { shortName?: string; displayName?: string; instruments?: string[] }
+) => {
+  const instruments = (opts?.instruments ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return callRpc("create_program", {
     p_name: name.trim(),
     p_short_name: opts?.shortName?.trim() || null,
     p_display_name: opts?.displayName?.trim() || null,
+    p_instruments: instruments.length > 0 ? instruments : null,
   });
+};
+
+// --- Sections / instruments (director) --------------------------------------
+
+/** Director-only: add one instrument/section to the program. */
+export const addProgramSection = (programId: string, name: string) =>
+  callRpc("add_program_section", { p_ensemble: programId, p_name: name.trim() });
+
+/** Director-only: rename a section; the people in it stay in it. */
+export const renameProgramSection = (sectionId: string, name: string) =>
+  callRpc("rename_program_section", { p_section: sectionId, p_name: name.trim() });
+
+/** Director-only: delete a section; its members fall under "No section". */
+export const removeProgramSection = (sectionId: string) =>
+  callRpc("remove_program_section", { p_section: sectionId });
 
 /** Director-only: archive a program from new joins or restore it. */
 export const setProgramActive = (programId: string, active: boolean) =>
@@ -177,7 +199,15 @@ export const setJoinCode = (programId: string, code: string) =>
 
 // --- Roster -----------------------------------------------------------------
 
-/** Director-only. `memberId` must be on this program's roster. */
+/**
+ * Director-only, and complete: the person's membership, custom role grants and
+ * attendance in *this* program go. Their account (and any other program they
+ * belong to) is untouched. `memberId` must be on this program's roster.
+ */
+export const removeMember = (programId: string, memberId: string) =>
+  callRpc("remove_member", { p_ensemble: programId, p_member_id: memberId });
+
+/** Director-only: pause a membership without deleting it (keeps attendance). */
 export const deactivateMember = (programId: string, memberId: string) =>
   callRpc("deactivate_member", { p_ensemble: programId, p_member_id: memberId });
 

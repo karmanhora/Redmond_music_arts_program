@@ -62,6 +62,12 @@ export interface ProgramsState {
   permissions: PermissionCode[];
   /** True when the current member's capabilities include `code`. */
   can: (code: PermissionCode) => boolean;
+  /**
+   * Re-read just the current program's sections. Used after a director adds,
+   * renames or removes one, so the roster updates in place instead of the whole
+   * session falling back to a splash via `refresh()`.
+   */
+  reloadSections: () => Promise<void>;
   setProgram: (ensembleId: string) => void;
   /**
    * Re-read the session. Pass a program id to land in *that* one instead of the
@@ -71,7 +77,10 @@ export interface ProgramsState {
   refresh: (preferEnsembleId?: string) => Promise<void>;
 }
 
-const EMPTY: Omit<ProgramsState, "refresh" | "setProgram" | "can" | "status" | "error"> = {
+const EMPTY: Omit<
+  ProgramsState,
+  "refresh" | "setProgram" | "can" | "reloadSections" | "status" | "error"
+> = {
   profile: null,
   memberships: [],
   membership: null,
@@ -124,7 +133,9 @@ function isStaffRole(roles: Role[]): boolean {
 
 export function ProgramsProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
-  const [state, setState] = useState<Omit<ProgramsState, "refresh" | "setProgram" | "can">>({
+  const [state, setState] = useState<
+    Omit<ProgramsState, "refresh" | "setProgram" | "can" | "reloadSections">
+  >({
     ...EMPTY,
     status: "loading",
     error: null,
@@ -273,9 +284,21 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
     [state.permissions]
   );
 
+  /** Reload only the sections of the program on screen (no splash). */
+  const reloadSections = useCallback(async () => {
+    const program = state.program;
+    if (!program) return;
+    try {
+      const sections = await fetchSections(program.id);
+      setState((prev) => (prev.program?.id === program.id ? { ...prev, sections } : prev));
+    } catch {
+      /* leave what is on screen; the server remains the source of truth */
+    }
+  }, [state.program]);
+
   const value = useMemo<ProgramsState>(
-    () => ({ ...state, can, setProgram, refresh }),
-    [state, can, setProgram, refresh]
+    () => ({ ...state, can, reloadSections, setProgram, refresh }),
+    [state, can, reloadSections, setProgram, refresh]
   );
 
   return <ProgramsContext.Provider value={value}>{children}</ProgramsContext.Provider>;

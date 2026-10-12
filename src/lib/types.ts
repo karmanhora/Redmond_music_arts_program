@@ -245,6 +245,16 @@ export interface RpcResult {
   join_code?: string;
   /** `join_program()`: true when the caller added a program they were in already. */
   existing?: boolean;
+  /** `create_program()`: how many sections its instruments produced. */
+  section_count?: number;
+  /** `add_program_section()` / `rename_program_section()`: the written section. */
+  section_id?: string;
+  /** `add_program_section()` / `rename_program_section()`: its name. */
+  name?: string;
+  /** `remove_program_section()`: members who moved to "No section". */
+  moved_to_no_section?: number;
+  /** `remove_member()`: attendance rows deleted with the membership. */
+  attendance_deleted?: number;
 }
 
 /**

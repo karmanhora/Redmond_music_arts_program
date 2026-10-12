@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { KeyRound, LogOut, Music, ShieldCheck } from "lucide-react";
 import { Alert, Button, Card, Field, Input, useToast } from "../components/ui";
+import { InstrumentPicker } from "../components/InstrumentPicker";
 import { createProgram } from "../lib/rpc";
 import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
@@ -35,6 +36,7 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
 
   const [name, setName] = useState("");
   const [shortName, setShortName] = useState("");
+  const [instruments, setInstruments] = useState<string[]>([]);
   const [yourName, setYourName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
     const { result, error: rpcError } = await createProgram(name, {
       shortName,
       displayName: yourName,
+      instruments,
     });
 
     if (rpcError) {
@@ -89,8 +92,9 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
           Start your own program
         </p>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Name it and you&rsquo;re its director. Nobody has to approve you, and the roster,
-          attendance and live check-in tools are ready as soon as it exists.
+          Name it, list its instruments, and you&rsquo;re its director. Nobody has to approve
+          you, and the roster, attendance and live check-in tools are ready as soon as it
+          exists.
         </p>
       </Card>
 
@@ -115,6 +119,13 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
           maxLength={40}
           autoComplete="off"
         />
+      </Field>
+
+      <Field
+        label="Instruments"
+        hint="What's in this program. Each one becomes a section your students can be put into."
+      >
+        <InstrumentPicker value={instruments} onChange={setInstruments} disabled={busy} />
       </Field>
 
       {needsName ? (

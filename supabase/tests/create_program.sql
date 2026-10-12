@@ -66,8 +66,8 @@ grant execute on function public.t_assert(boolean, text) to authenticated;
 -- ---------------------------------------------------------------------------
 do $$
 begin
-  if to_regprocedure('public.create_program(text, text, text, text)') is null then
-    raise exception 'FAIL: CP-0 public.create_program() missing — apply migration 022 first';
+  if to_regprocedure('public.create_program(text, text, text, text, text[])') is null then
+    raise exception 'FAIL: CP-0 public.create_program() missing — apply migrations 022 and 031 first';
   end if;
   if to_regprocedure('public.generate_join_code(int)') is null then
     raise exception 'FAIL: CP-0 public.generate_join_code() missing — apply migration 022 first';
@@ -519,13 +519,13 @@ begin
 
   perform public.t_assert(
     (select prosecdef from pg_proc
-      where oid = 'public.create_program(text, text, text, text)'::regprocedure),
+      where oid = 'public.create_program(text, text, text, text, text[])'::regprocedure),
     'CP-8c create_program is not SECURITY DEFINER, so it cannot write what it must');
 
   -- The structural reason CP-6 holds: there is no argument a caller could aim at
   -- a program that already exists, and none that names a role. If this ever
   -- changes, CP-6 has to be re-derived rather than trusted.
-  v_args := lower(pg_get_function_arguments('public.create_program(text, text, text, text)'::regprocedure));
+  v_args := lower(pg_get_function_arguments('public.create_program(text, text, text, text, text[])'::regprocedure));
   perform public.t_assert(
     v_args not like '%ensemble%'
       and v_args not like '%program%'

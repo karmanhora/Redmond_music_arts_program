@@ -30,11 +30,12 @@ import {
   useToast,
 } from "../components/ui";
 import { fetchRoster } from "../lib/queries";
+import { SectionManager } from "../components/SectionManager";
 import {
-  deactivateMember,
   getJoinCode,
   inviteProgramStudent,
   reactivateMember,
+  removeMember,
   setJoinCode,
   setMemberSection,
 } from "../lib/rpc";
@@ -74,7 +75,7 @@ export function RosterScreen() {
 
   const [member, setMember] = useState<RosterMember | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmDeactivate, setConfirmDeactivate] = useState<RosterMember | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<RosterMember | null>(null);
 
   const [code, setCode] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
@@ -202,15 +203,15 @@ export function RosterScreen() {
     setBusy(true);
     const { result, error: rpcError } = next
       ? await reactivateMember(programId, target.user_id)
-      : await deactivateMember(programId, target.user_id);
+      : await removeMember(programId, target.user_id);
     setBusy(false);
     if (rpcError || !result?.ok) {
       toast.error(rpcError?.message || result?.message || "That didn't work.");
       return;
     }
-    toast.success(next ? "Back on the roster." : "Removed from the roster.");
+    toast.success(next ? "Back on the roster." : "Removed from the program.");
     setMember(null);
-    setConfirmDeactivate(null);
+    setConfirmRemove(null);
     await load();
   }
 
@@ -354,6 +355,9 @@ export function RosterScreen() {
           )}
         </Card>
       ) : null}
+
+      {/* --- instruments & sections (directors) --- */}
+      {app.isDirector ? <SectionManager /> : null}
 
       {/* --- filters --- */}
       <div className="space-y-2">
@@ -565,9 +569,9 @@ export function RosterScreen() {
                       block
                       variant="danger"
                       icon={<Archive className="h-4 w-4" />}
-                      onClick={() => setConfirmDeactivate(member)}
+                      onClick={() => setConfirmRemove(member)}
                     >
-                      Remove from the roster
+                      Remove from the program
                     </Button>
                   ) : (
                     <Button
@@ -580,9 +584,9 @@ export function RosterScreen() {
                     </Button>
                   )}
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Removing keeps their attendance history, and the join code will not put them
-                    back on this roster. Putting them back restores everything — nothing is
-                    deleted.
+                    Removing takes them off this program completely — their section, any custom
+                    roles and their attendance here are deleted. Their account is kept, so the
+                    join code can put them back if you share it.
                   </p>
                 </div>
               </>
@@ -596,16 +600,17 @@ export function RosterScreen() {
       </Sheet>
 
       <ConfirmSheet
-        open={confirmDeactivate !== null}
-        title="Remove from the roster?"
+        open={confirmRemove !== null}
+        title="Remove from the program?"
         body={`${
-          confirmDeactivate?.profile.display_name || confirmDeactivate?.profile.full_name || "They"
-        } won't get into this program or check in any more. Their attendance history stays.`}
-        confirmLabel="Remove"
+          confirmRemove?.profile.display_name || confirmRemove?.profile.full_name || "They"
+        } will be taken off this roster completely: their place, any custom roles and their
+        attendance in this program are deleted. Their account is kept. This cannot be undone.`}
+        confirmLabel="Remove completely"
         loading={busy}
-        onCancel={() => setConfirmDeactivate(null)}
+        onCancel={() => setConfirmRemove(null)}
         onConfirm={() =>
-          confirmDeactivate ? void toggleMembership(confirmDeactivate, false) : undefined
+          confirmRemove ? void toggleMembership(confirmRemove, false) : undefined
         }
       />
     </div>

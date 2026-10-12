@@ -18,8 +18,8 @@ exists, but nothing in the code assumes it is the only one.
 | Path | What it is |
 | --- | --- |
 | `src/` | The web app: Vite + React 19 + TypeScript + Tailwind v4 |
-| `supabase/migrations/007`–`030` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account/program lifecycle, staff-managed email invitations, the capability layer (029) and profile pictures (030) |
-| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion, program archive, email invites, capabilities & avatars) run inside transactions |
+| `supabase/migrations/007`–`031` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account/program lifecycle, staff-managed email invitations, the capability layer (029), profile pictures (030), and program instruments + complete removal (031) |
+| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion, program archive, email invites, capabilities & avatars, program sections & removal) run inside transactions |
 | `supabase/templates/` | Branded Supabase auth emails and the password-change security notification — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
 | `public/` | The app's brand assets: one `logo.svg` and the icons rendered from it — see [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
 | `scripts/migrate/` | The clone pipeline: dump OLD → restore → migrate → verify |
@@ -219,10 +219,30 @@ anyone signs in**, because it is what resolves a Supabase Auth account to a
 `profiles` row — without it every request is `anon` and the app looks empty;
 022 is what lets a teacher start a program (`create_program()`).
 
-Migrations 029 and 030 were applied to the live project on **2026-10-11**. The
-frontend that uses them still has to be deployed: the roster and profile queries
-select `avatar_path` and `bio`, and the role screens call the 029 RPCs. Both are
-additive and idempotent.
+Migrations 029, 030 and 031 were applied to the live project on **2026-10-11**.
+The frontend that uses them still has to be deployed: the roster and profile
+queries select `avatar_path` and `bio`, the role screens call the 029 RPCs, and
+the create-program and roster screens now call 031. All three are additive and
+idempotent.
+
+Migration 031 changes shape in two ways —
+
+- **A program's instruments are named when it is created.** `create_program()`
+  gained a fifth parameter (`p_instruments text[]`), and each name becomes a row
+  in `sections`. Postgres cannot `create or replace` a function with a different
+  argument list, so the 4-argument version is dropped and recreated with every
+  parameter after the name defaulted — an existing 4-argument call still
+  resolves. A director can add, rename and remove sections afterwards too
+  (`add_program_section`, `rename_program_section`, `remove_program_section`,
+  all gated on `can_manage_ensemble`); the Roster screen's *Instruments &
+  sections* card is that surface.
+- **Removal is complete, and scoped to one program.** `remove_member()` deletes
+  the membership, the person's `user_role_assignments` in that program and their
+  attendance for that program's events (staff notes cascade). It keeps their
+  profile and sign-in account — so the join code can put them back, and any other
+  program is untouched. The Roster screen's *Remove from the program* calls it.
+  `deactivate_member()` still exists for a reversible pause but is no longer
+  reached from the UI.
 
 ```bash
 bash scripts/migrate/06_apply_migrations.sh --dry-run --with-tests   # rehearse
@@ -240,6 +260,10 @@ files and commit them together, the way the script does:
     supabase/migrations/030_profile_avatars.sql; } > /tmp/apply_pending.sql
 psql "$NEW_DB_URL" -X -v ON_ERROR_STOP=1 --single-transaction -f /tmp/apply_pending.sql
 ```
+
+The same rule applies to 031: it only *replaces* the teacher-gated
+`create_program()` and adds new functions, so as long as 022 and 023 have run it
+can be concatenated on its own.
 
 Migration 025 adds the service-role-only profile cleanup used by account
 deletion. Deploy `supabase/functions/delete-account` after applying it:
@@ -343,11 +367,15 @@ Rules the code follows, and that changes should keep:
   attendance history *and* no matching `auth.users` row, they must be linked by
   hand **before** they sign up — otherwise joining creates a second profile.
   §4 of [`docs/AUTH_MIGRATION.md`](AUTH_MIGRATION.md) has the reviewed SQL.
-- **Removing somebody does not lock their login.** `deactivate_member` sets
-  `memberships.active = false` and, when they are on no other roster,
-  `profiles.deactivated = true` — which makes `join_program` refuse them. They
-  can still authenticate; they cannot get back into the program. The Clerk-era
-  ban (`BanUser`) went with Clerk.
+- **Removing somebody is now a complete removal, scoped to the program.** The
+  Roster screen's *Remove from the program* calls `remove_member()` (031): the
+  membership, custom role grants and that person's attendance in **that program**
+  are deleted, and nothing else — their profile and sign-in account stay, so the
+  join code can put them back and any other program they belong to is untouched.
+  `deactivate_member()` remains for a reversible pause (and still mirrors
+  `profiles.deactivated`), but no longer has a button. Account deletion (the
+  `/settings` flow, migration 025) is separate: it de-identifies the profile and
+  *keeps* attendance.
 - **029 and 030 are applied** (live project, 2026-10-11). What remains for them
   is the deploy: the role-management screens, the biography and the uploaded
   picture all read the columns and functions those two migrations create.
@@ -360,6 +388,11 @@ Rules the code follows, and that changes should keep:
   migration 030 is what makes the bucket private immediately afterwards. Any
   pipeline run must therefore include 030 — a clone restored up to 028 alone
   would be world-readable.
+- **A new program gets sections only from the instruments its director names**
+  (031). A program created without any, or a section removed on the Roster
+  screen, simply leaves its members under "No section" — which every screen
+  already handles. The band's own sections came from the `profiles.instrument`
+  backfill (014) and are unaffected.
 - Existing `profiles.avatar_url` values (external URLs) still render as a
   fallback; nothing writes that column any more.
 - `docs/CUTOVER.md` and `scripts/migrate/run_all.sh` (Phase 4).
