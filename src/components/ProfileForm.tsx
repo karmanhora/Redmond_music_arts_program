@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Field, Input, Textarea, useToast } from "./ui";
 import { AvatarPicker } from "./AvatarPicker";
+import type { AvatarPickerHandle } from "./AvatarPicker";
 import { updateMyProfile } from "../lib/queries";
 import type { Profile } from "../lib/types";
 
@@ -31,6 +32,8 @@ export function ProfileForm({
   const [bio, setBio] = useState(profile.bio ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [avatarPending, setAvatarPending] = useState(false);
+  const avatarPicker = useRef<AvatarPickerHandle>(null);
 
   // Re-sync when the loaded profile changes (a save elsewhere, a program switch).
   useEffect(() => {
@@ -45,29 +48,45 @@ export function ProfileForm({
     bio !== (profile.bio ?? "");
 
   async function save() {
-    if (!fullName.trim()) {
-      setError("Your name can't be empty.");
-      return;
-    }
-    if (bio.length > BIO_LIMIT) {
-      setError(`Keep your biography under ${BIO_LIMIT} characters.`);
-      return;
+    if (dirty) {
+      if (!fullName.trim()) {
+        setError("Your name can't be empty.");
+        return;
+      }
+      if (bio.length > BIO_LIMIT) {
+        setError(`Keep your biography under ${BIO_LIMIT} characters.`);
+        return;
+      }
     }
 
     setSaving(true);
     setError(null);
-    const { error: writeError } = await updateMyProfile(profile.id, {
-      full_name: fullName.trim(),
-      display_name: displayName.trim(),
-      bio: bio.trim(),
-    });
-    setSaving(false);
 
-    if (writeError) {
-      setError(writeError.message);
-      return;
+    if (dirty) {
+      const { error: writeError } = await updateMyProfile(profile.id, {
+        full_name: fullName.trim(),
+        display_name: displayName.trim(),
+        bio: bio.trim(),
+      });
+
+      if (writeError) {
+        setSaving(false);
+        setError(writeError.message);
+        return;
+      }
     }
-    toast.success("Profile saved.");
+
+    if (avatarPending) {
+      const avatarSaved = (await avatarPicker.current?.save()) ?? false;
+      if (!avatarSaved) {
+        setSaving(false);
+        if (dirty) await onSaved();
+        return;
+      }
+    }
+
+    setSaving(false);
+    toast.success("Changes saved.");
     await onSaved();
   }
 
@@ -75,7 +94,13 @@ export function ProfileForm({
     <div className="space-y-5">
       {error ? <Alert tone="error">{error}</Alert> : null}
 
-      <AvatarPicker profile={profile} authUserId={authUserId} onSaved={onSaved} />
+      <AvatarPicker
+        ref={avatarPicker}
+        profile={profile}
+        authUserId={authUserId}
+        onSaved={onSaved}
+        onPendingChange={setAvatarPending}
+      />
 
       <div className="space-y-4 border-t border-[var(--cue-border)] pt-4">
         <Field label="Full name" hint="Your director sees this on the roster.">
@@ -111,7 +136,7 @@ export function ProfileForm({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button loading={saving} disabled={!dirty} onClick={() => void save()}>
+        <Button loading={saving} disabled={!dirty && !avatarPending} onClick={() => void save()}>
           Save changes
         </Button>
         {dirty ? (

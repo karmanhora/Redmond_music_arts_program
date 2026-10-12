@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2, Trash2, Upload } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { Alert, Avatar, Button, ConfirmSheet, cn, useToast } from "./ui";
 import {
   AVATAR_ACCEPT_ATTR,
@@ -22,17 +22,22 @@ import type { Profile } from "../lib/types";
  * policies mean this control can only ever write to the caller's own folder, so
  * the buttons are convenience, not the boundary.
  */
-export function AvatarPicker({
-  profile,
-  authUserId,
-  onSaved,
-  className,
-}: {
+export type AvatarPickerHandle = {
+  save: () => Promise<boolean>;
+};
+
+type AvatarPickerProps = {
   profile: Profile;
   authUserId: string;
   onSaved: () => Promise<void> | void;
+  onPendingChange: (pending: boolean) => void;
   className?: string;
-}) {
+};
+
+export const AvatarPicker = forwardRef<AvatarPickerHandle, AvatarPickerProps>(function AvatarPicker(
+  { profile, authUserId, onSaved, onPendingChange, className },
+  ref
+) {
   const { toast } = useToast();
   const input = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<PreparedAvatar | null>(null);
@@ -53,6 +58,10 @@ export function AvatarPicker({
     [pending]
   );
 
+  useEffect(() => {
+    onPendingChange(pending !== null);
+  }, [onPendingChange, pending]);
+
   async function choose(file: File | undefined) {
     if (!file) return;
     setError(null);
@@ -70,7 +79,7 @@ export function AvatarPicker({
   }
 
   async function save() {
-    if (!pending) return;
+    if (!pending) return false;
     setSaving(true);
     setError(null);
 
@@ -78,7 +87,7 @@ export function AvatarPicker({
     if ("error" in uploaded) {
       setSaving(false);
       setError(uploaded.error);
-      return;
+      return false;
     }
 
     const previousPath = profile.avatar_path;
@@ -93,7 +102,7 @@ export function AvatarPicker({
       setError(`Couldn't save your picture: ${writeError.message}`);
       // The object exists but nothing points at it — clean it up.
       void deleteAvatarObject(uploaded.path);
-      return;
+      return false;
     }
 
     // The row is safely pointing at the new object, so the old one can go.
@@ -110,9 +119,10 @@ export function AvatarPicker({
     URL.revokeObjectURL(pending.previewUrl);
     setPending(null);
     setSaving(false);
-    toast.success("Your picture is updated.");
-    await onSaved();
+    return true;
   }
+
+  useImperativeHandle(ref, () => ({ save }), [save]);
 
   async function remove() {
     setRemoving(true);
@@ -173,6 +183,7 @@ export function AvatarPicker({
               size="sm"
               variant="secondary"
               loading={reading}
+              disabled={saving}
               icon={<ImagePlus className="h-4 w-4" />}
               onClick={() => input.current?.click()}
             >
@@ -180,15 +191,10 @@ export function AvatarPicker({
             </Button>
 
             {pending ? (
-              <Button size="sm" loading={saving} icon={<Upload className="h-4 w-4" />} onClick={() => void save()}>
-                Save picture
-              </Button>
-            ) : null}
-
-            {pending ? (
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={saving}
                 onClick={() => {
                   URL.revokeObjectURL(pending.previewUrl);
                   setPending(null);
@@ -233,4 +239,4 @@ export function AvatarPicker({
       />
     </div>
   );
-}
+});
