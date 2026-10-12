@@ -6,9 +6,9 @@ import {
   ChevronRight,
   Copy,
   KeyRound,
-  Mail,
   RefreshCw,
   Search,
+  UserPlus,
   Users,
 } from "lucide-react";
 import {
@@ -16,14 +16,17 @@ import {
   Avatar,
   Badge,
   Button,
-  Card,
   ConfirmSheet,
   EmptyState,
-  IconButton,
   Field,
+  IconButton,
   Input,
+  List,
+  PageHeader,
   Row,
+  SectionTitle,
   SegmentedControl,
+  Select,
   Sheet,
   Skeleton,
   cn,
@@ -45,10 +48,11 @@ import { ROLE_LABEL } from "../lib/constants";
 import { fmtDate } from "../lib/date";
 
 /**
- * `/roster` — everyone in the band, grouped by section.
+ * `/roster` — everyone in the program, grouped by section.
  *
- * Program staff invite students by email or share the program's join code. Email
- * invitations add new students after they accept and confirm their account.
+ * The page's job is finding a person and acting on them, so the list owns the
+ * page: invitation, the join code and the instrument list are tools, and tools
+ * live behind a button until they are needed.
  */
 
 /** No I, O, 0 or 1 — a code gets read off a whiteboard and typed by a teenager. */
@@ -77,6 +81,8 @@ export function RosterScreen() {
   const [busy, setBusy] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<RosterMember | null>(null);
 
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -139,7 +145,7 @@ export function RosterScreen() {
     });
   }, [members, scope, section, query]);
 
-  /** Sections in the band's canonical order, then anyone without one. */
+  /** Sections in the program's canonical order, then anyone without one. */
   const groups = useMemo(() => {
     const out: { key: string; label: string; members: RosterMember[] }[] = [];
     const push = (key: string, label: string, list: RosterMember[]) => {
@@ -195,6 +201,7 @@ export function RosterScreen() {
     }
     setInviteName("");
     setInviteEmail("");
+    setInviteOpen(false);
     toast.success(message ?? "Invitation sent.");
   }
 
@@ -231,103 +238,242 @@ export function RosterScreen() {
 
   if (!programId) {
     return (
-      <div className="space-y-3 p-4">
-        <Skeleton className="h-24 w-full" />
+      <div className="mx-auto max-w-6xl space-y-3 px-4 py-5 sm:px-6">
+        <Skeleton className="h-16 w-40" />
         <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 p-4 pb-6">
-      {error ? <Alert tone="error">{error}</Alert> : null}
+    <div className="mx-auto max-w-6xl px-4 py-5 pb-10 sm:px-6 sm:py-6">
+      <div className="cue-stagger space-y-5">
+        {error ? <Alert tone="error">{error}</Alert> : null}
 
-      {/* --- numbers --- */}
-      <Card className="space-y-3">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <p className="text-2xl font-extrabold tabular-nums">{members?.length ?? 0}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">on the roster</p>
+        <PageHeader
+          kicker={app.program?.short_name || app.program?.name || "Program"}
+          title="Roster"
+          note={[
+            `${active.length} active`,
+            inactive.length > 0 ? `${inactive.length} removed` : null,
+            app.sections.length > 0
+              ? `${app.sections.length} ${app.sections.length === 1 ? "section" : "sections"}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          actions={
+            <>
+              {app.isDirector ? (
+                <Button
+                  variant="secondary"
+                  icon={<KeyRound className="h-4 w-4" />}
+                  onClick={() => setCodeOpen(true)}
+                >
+                  Join code
+                </Button>
+              ) : null}
+              {app.isStaff ? (
+                <Button icon={<UserPlus className="h-4 w-4" />} onClick={() => setInviteOpen(true)}>
+                  Invite a student
+                </Button>
+              ) : null}
+            </>
+          }
+        />
+
+        {/* --- filters --- */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[10rem] flex-1">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--cue-subtle)]"
+              />
+              <Input
+                className="pl-9"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Find a member"
+                aria-label="Find a member"
+              />
+            </div>
+            {sectionChoices.length > 1 ? (
+              <Select
+                aria-label="Filter by section"
+                className="w-auto min-w-[9rem] flex-none"
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+              >
+                <option value="all">All sections</option>
+                {sectionChoices.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
           </div>
-          <div>
-            <p className="text-2xl font-extrabold tabular-nums">{active.length}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">active</p>
-          </div>
-          <div>
-            <p className="text-2xl font-extrabold tabular-nums">{sectionChoices.length}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">sections</p>
-          </div>
+
+          {inactive.length > 0 ? (
+            <SegmentedControl
+              value={scope}
+              onChange={setScope}
+              options={[
+                { value: "active", label: `Active ${active.length}` },
+                { value: "all", label: `Everyone ${members?.length ?? 0}` },
+              ]}
+            />
+          ) : null}
         </div>
-        {inactive.length > 0 ? (
-          <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-            {inactive.length} removed {inactive.length === 1 ? "member" : "members"} — switch to
-            Everyone to see them.
-          </p>
+
+        {/* --- the roster --- */}
+        {members === null ? (
+          <Skeleton className="h-64 w-full" />
+        ) : members.length === 0 ? (
+          <div className="cue-card rounded-[var(--radius-panel)]">
+            <EmptyState
+              icon={<Users className="h-4 w-4" />}
+              title="The roster is empty"
+              body={
+                app.isDirector
+                  ? "Share the join code — students appear here as soon as they use it. Or invite them by email and they are added when they accept."
+                  : "Nobody has been added to this program yet."
+              }
+              action={
+                app.isDirector ? (
+                  <Button variant="secondary" onClick={() => setCodeOpen(true)}>
+                    Show the join code
+                  </Button>
+                ) : null
+              }
+            />
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="cue-card rounded-[var(--radius-panel)]">
+            <EmptyState
+              icon={<Search className="h-4 w-4" />}
+              title="No one matches"
+              body="Try a different name, another section, or include the people who have been removed."
+            />
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {groups.map((group) => (
+              <section key={group.key}>
+                <SectionTitle
+                  className="mb-2"
+                  action={<span className="type-meta tabular">{group.members.length}</span>}
+                >
+                  {group.label}
+                </SectionTitle>
+                <List>
+                  {group.members.map((m) => {
+                    const name = m.profile.display_name || m.profile.full_name;
+                    return (
+                      <Row
+                        key={m.user_id}
+                        className={cn("gap-3", !m.active && "opacity-60")}
+                        leading={
+                          <Avatar
+                            name={name}
+                            path={m.profile.avatar_path}
+                            url={m.profile.avatar_url}
+                            size={32}
+                          />
+                        }
+                        title={name}
+                        subtitle={[
+                          m.roles.map((r) => ROLE_LABEL[r]).join(" · ") || ROLE_LABEL.student,
+                          !m.active ? "removed" : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                        trailing={
+                          <ChevronRight
+                            aria-hidden="true"
+                            className="h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+                          />
+                        }
+                        onClick={() => setMember(m)}
+                      />
+                    );
+                  })}
+                </List>
+              </section>
+            ))}
+          </div>
+        )}
+
+        {/* --- instruments & sections (directors) --- */}
+        {app.isDirector ? (
+          <section>
+            <SectionTitle className="mb-2">Instruments &amp; sections</SectionTitle>
+            <SectionManager />
+          </section>
         ) : null}
-      </Card>
+      </div>
 
-      {/* --- invite a student (program staff) --- */}
-      {app.isStaff ? (
-        <Card className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-band dark:text-emerald-300" />
-            <p className="font-semibold">Invite a student by email</p>
-          </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            We&rsquo;ll email them a secure invitation. They&rsquo;ll be added to this roster after
-            they accept and confirm their email. For someone with an existing account, ask a
-            director to share the program join code.
-          </p>
+      {/* --- invite a student --- */}
+      <Sheet
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title="Invite a student"
+        description="They are added to this roster after they accept and confirm their email."
+      >
+        <form className="space-y-4" onSubmit={(event) => void sendInvitation(event)}>
           {inviteError ? <Alert tone="error">{inviteError}</Alert> : null}
-          <form className="space-y-3" onSubmit={(event) => void sendInvitation(event)}>
-            <Field label="Student name">
-              <Input
-                value={inviteName}
-                onChange={(event) => setInviteName(event.target.value)}
-                placeholder="Alex Rivera"
-                autoComplete="name"
-                required
-                maxLength={80}
-              />
-            </Field>
-            <Field label="Student email">
-              <Input
-                type="email"
-                value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
-                placeholder="student@example.edu"
-                autoComplete="email"
-                required
-              />
-            </Field>
-            <Button
-              block
-              type="submit"
-              loading={inviting}
-              disabled={!inviteName.trim() || !inviteEmail.trim()}
-            >
-              Send invitation
-            </Button>
-          </form>
-        </Card>
-      ) : null}
+          <p className="type-meta">
+            Invitations are for people who have no account yet. For someone who already has one, send
+            them the join code instead.
+          </p>
+          <Field label="Student name">
+            <Input
+              value={inviteName}
+              onChange={(event) => setInviteName(event.target.value)}
+              placeholder="Alex Rivera"
+              autoComplete="name"
+              required
+              maxLength={80}
+            />
+          </Field>
+          <Field label="Student email">
+            <Input
+              type="email"
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              placeholder="student@example.edu"
+              autoComplete="email"
+              required
+            />
+          </Field>
+          <Button
+            block
+            type="submit"
+            loading={inviting}
+            disabled={!inviteName.trim() || !inviteEmail.trim()}
+          >
+            Send invitation
+          </Button>
+        </form>
+      </Sheet>
 
-      {/* --- join code (directors) --- */}
-      {app.isDirector ? (
-        <Card className="space-y-3">
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-band dark:text-emerald-300" />
-            <p className="font-semibold">Join code</p>
-          </div>
-
+      {/* --- join code --- */}
+      <Sheet
+        open={codeOpen}
+        onClose={() => setCodeOpen(false)}
+        title="Join code"
+        description="Someone who has signed up types this to get onto the roster."
+      >
+        <div className="space-y-4">
           {codeError ? <Alert tone="error">{codeError}</Alert> : null}
 
           {code === null ? (
-            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-20 w-full" />
           ) : (
             <>
               <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded-xl bg-black/[0.05] px-3 py-3 text-center font-mono text-2xl font-extrabold tracking-[0.25em] dark:bg-white/[0.08]">
+                <code className="min-w-0 flex-1 truncate rounded-[var(--radius-control)] border border-[var(--cue-line-strong)] bg-[var(--cue-raised)] px-3 py-3 text-center font-mono text-2xl font-semibold tracking-[0.25em]">
                   {code || "—"}
                 </code>
                 <IconButton
@@ -338,9 +484,9 @@ export function RosterScreen() {
                   disabled={!code}
                 />
               </div>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Someone who has signed up types this on their program&rsquo;s join screen — it is
-                what puts them on the roster. Without it they are signed in but see nothing.
+              <p className="type-meta">
+                Without it, somebody can sign in and still see nothing — the code is what puts them
+                on this program&rsquo;s roster.
               </p>
               <Button
                 block
@@ -351,130 +497,13 @@ export function RosterScreen() {
               >
                 Make a new code
               </Button>
+              <p className="type-meta">
+                A new code stops working for anyone who has not used the old one yet.
+              </p>
             </>
           )}
-        </Card>
-      ) : null}
-
-      {/* --- instruments & sections (directors) --- */}
-      {app.isDirector ? <SectionManager /> : null}
-
-      {/* --- filters --- */}
-      <div className="space-y-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-          <Input
-            className="pl-9"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a member"
-            aria-label="Find a member"
-          />
         </div>
-
-        <SegmentedControl
-          value={scope}
-          onChange={setScope}
-          options={[
-            { value: "active", label: `Active (${active.length})` },
-            { value: "all", label: `Everyone (${members?.length ?? 0})` },
-          ]}
-        />
-
-        {sectionChoices.length > 1 ? (
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
-            <button
-              type="button"
-              onClick={() => setSection("all")}
-              className={cn(
-                "min-h-9 shrink-0 rounded-full px-3 text-sm font-semibold transition-colors",
-                section === "all"
-                  ? "bg-band text-white"
-                  : "bg-black/[0.05] text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300"
-              )}
-            >
-              All sections
-            </button>
-            {sectionChoices.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSection(s.name)}
-                className={cn(
-                  "min-h-9 shrink-0 rounded-full px-3 text-sm font-semibold transition-colors",
-                  section === s.name
-                    ? "bg-band text-white"
-                    : "bg-black/[0.05] text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300"
-                )}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {/* --- the roster --- */}
-      {members === null ? (
-        <Skeleton className="h-64 w-full" />
-      ) : members.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Users className="h-6 w-6" />}
-            title="The roster is empty"
-            body={
-              app.isDirector
-                ? "Share the join code above — students appear here as soon as they join with it."
-                : "Your director hasn't added anyone yet."
-            }
-          />
-        </Card>
-      ) : groups.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Search className="h-6 w-6" />}
-            title="No one matches"
-            body="Try a different name, or show everyone instead of just the active roster."
-          />
-        </Card>
-      ) : (
-        groups.map((group) => (
-          <div key={group.key} className="space-y-1">
-            <div className="flex items-end justify-between px-1">
-              <h2 className="text-xs font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-                {group.label}
-              </h2>
-              <span className="text-xs text-zinc-400">{group.members.length}</span>
-            </div>
-            <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
-              {group.members.map((m) => {
-                const name = m.profile.display_name || m.profile.full_name;
-                return (
-                  <button
-                    key={m.user_id}
-                    type="button"
-                    onClick={() => setMember(m)}
-                    className={cn(
-                      "flex min-h-14 w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
-                      !m.active && "opacity-55"
-                    )}
-                  >
-                    <Avatar name={name} path={m.profile.avatar_path} url={m.profile.avatar_url} size={36} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{name}</span>
-                      <span className="block truncate text-sm text-zinc-500 dark:text-zinc-400">
-                        {m.roles.map((r) => ROLE_LABEL[r]).join(" · ") || ROLE_LABEL.student}
-                        {!m.active ? " · removed" : ""}
-                      </span>
-                    </span>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
-                  </button>
-                );
-              })}
-            </Card>
-          </div>
-        ))
-      )}
+      </Sheet>
 
       {/* --- one member --- */}
       <Sheet
@@ -485,58 +514,56 @@ export function RosterScreen() {
         size="tall"
       >
         {member ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center gap-3">
               <Avatar
                 name={member.profile.display_name || member.profile.full_name}
                 path={member.profile.avatar_path}
                 url={member.profile.avatar_url}
-                size={56}
+                size={52}
               />
               <div className="min-w-0">
-                <p className="truncate font-bold">{member.profile.full_name}</p>
+                <p className="type-heading truncate">{member.profile.full_name}</p>
                 {member.profile.display_name ? (
-                  <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
-                    Goes by {member.profile.display_name}
-                  </p>
+                  <p className="type-meta truncate">Goes by {member.profile.display_name}</p>
                 ) : null}
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Joined {fmtDate(new Date(member.joined_at))}
-                </p>
+                <p className="type-meta">Joined {fmtDate(new Date(member.joined_at))}</p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
               {member.roles.map((r) => (
-                <Badge key={r} className="bg-band/12 text-band-deep dark:bg-band/25 dark:text-emerald-200">
+                <Badge
+                  key={r}
+                  className="bg-[var(--cue-green-soft)] text-[var(--cue-green)]"
+                >
                   {ROLE_LABEL[r]}
                 </Badge>
               ))}
               {!member.active ? (
-                <Badge className="bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <Badge className="bg-[var(--cue-raised)] text-[var(--cue-muted)]">
                   Removed from the roster
                 </Badge>
               ) : (
-                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                  Active
-                </Badge>
+                <Badge className="bg-[var(--cue-present-bg)] text-[var(--cue-present)]">Active</Badge>
               )}
             </div>
 
             {app.isDirector ? (
               <>
-                <div className="space-y-1">
-                  <p className="px-1 text-xs font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-                    Section
-                  </p>
-                  <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+                <div>
+                  <SectionTitle className="mb-2">Section</SectionTitle>
+                  <List>
                     {app.sections.map((s) => (
                       <Row
                         key={s.id}
                         title={s.name}
                         trailing={
                           member.section_id === s.id ? (
-                            <Check className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+                            <Check
+                              aria-hidden="true"
+                              className="h-5 w-5 shrink-0 text-[var(--cue-green)]"
+                            />
                           ) : null
                         }
                         onClick={
@@ -548,10 +575,13 @@ export function RosterScreen() {
                     ))}
                     <Row
                       title="No section"
-                      subtitle="They'll show up under everyone else"
+                      subtitle="They show up under everyone else"
                       trailing={
                         member.section_id === null ? (
-                          <Check className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+                          <Check
+                            aria-hidden="true"
+                            className="h-5 w-5 shrink-0 text-[var(--cue-green)]"
+                          />
                         ) : null
                       }
                       onClick={
@@ -560,7 +590,7 @@ export function RosterScreen() {
                           : () => void moveToSection(member, null)
                       }
                     />
-                  </Card>
+                  </List>
                 </div>
 
                 <div className="space-y-2">
@@ -583,10 +613,10 @@ export function RosterScreen() {
                       Put them back on the roster
                     </Button>
                   )}
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Removing takes them off this program completely — their section, any custom
-                    roles and their attendance here are deleted. Their account is kept, so the
-                    join code can put them back if you share it.
+                  <p className="type-meta">
+                    Removing takes them off this program completely — their section, any custom roles
+                    and their attendance here are deleted. Their account is kept, so the join code
+                    can put them back.
                   </p>
                 </div>
               </>
@@ -609,9 +639,7 @@ export function RosterScreen() {
         confirmLabel="Remove completely"
         loading={busy}
         onCancel={() => setConfirmRemove(null)}
-        onConfirm={() =>
-          confirmRemove ? void toggleMembership(confirmRemove, false) : undefined
-        }
+        onConfirm={() => (confirmRemove ? void toggleMembership(confirmRemove, false) : undefined)}
       />
     </div>
   );

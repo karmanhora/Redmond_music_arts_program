@@ -217,16 +217,16 @@ export function LegalScreen({ page }: { page: LegalPage }) {
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Back to the app
         </Link>
-        <span className="truncate text-[10px] font-bold tracking-[0.2em] text-[var(--cue-muted)] uppercase">
+        <span className="type-label truncate">
           {ORG_NAME}
         </span>
       </header>
 
       <main className="mx-auto max-w-3xl px-5 pb-16 sm:px-8">
-        <p className="font-display text-sm font-bold tracking-[0.18em] text-[var(--cue-green)] uppercase">
+        <p className="type-label text-[var(--cue-green)]">
           {doc.kicker}
         </p>
-        <h1 className="mt-2 font-display text-4xl leading-none font-bold uppercase tracking-[-0.03em] sm:text-5xl">
+        <h1 className="type-title mt-2">
           {doc.title}
         </h1>
         <p className="mt-3 text-sm text-[var(--cue-muted)]">{doc.updated}</p>
@@ -238,7 +238,7 @@ export function LegalScreen({ page }: { page: LegalPage }) {
         <div className="mt-8 space-y-7">
           {doc.sections.map((section) => (
             <section key={section.heading}>
-              <h2 className="font-display text-xl font-bold tracking-wide">{section.heading}</h2>
+              <h2 className="type-heading">{section.heading}</h2>
               {section.paragraphs?.map((text) => (
                 <p key={text} className="mt-2 text-sm leading-relaxed text-[var(--cue-muted)]">
                   {text}

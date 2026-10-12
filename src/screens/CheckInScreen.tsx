@@ -10,15 +10,16 @@ import {
 } from "lucide-react";
 import {
   Alert,
-  Badge,
   Button,
   Card,
   EmptyState,
   Field,
   Input,
+  PageHeader,
   SegmentedControl,
   Sheet,
   Skeleton,
+  Spinner,
   cn,
 } from "../components/ui";
 import { QrScanner } from "../components/QrScanner";
@@ -65,28 +66,16 @@ export function CheckInScreen() {
 function StudentCheckIn({ token }: { token: string | null }) {
   const app = usePrograms();
   return (
-    <div className="cue-stagger mx-auto max-w-xl space-y-4 p-4 pb-6 sm:p-6">
+    <div className="cue-stagger mx-auto max-w-xl space-y-5 px-4 py-5 pb-8 sm:px-6 sm:py-6">
       {token ? (
         <TokenResult token={token} />
       ) : (
         <>
-          <div>
-            <p className="font-display text-lg font-bold tracking-wide text-[var(--cue-green)] uppercase">
-              {app.program?.short_name || app.program?.name || "Your program"}
-            </p>
-            <h1 className="font-display text-4xl leading-none font-bold uppercase sm:text-5xl">
-              <span className="cue-line">
-                <span className="cue-line-inner">Check in</span>
-              </span>
-            </h1>
-            <span
-              aria-hidden="true"
-              className="cue-rule-draw mt-3 block h-0.5 w-16 bg-[var(--cue-gold)]"
-            />
-            <p className="mt-2 text-sm text-[var(--cue-muted)]">
-              Scan the code on the rehearsal-room screen, or enter it below.
-            </p>
-          </div>
+          <PageHeader
+            kicker={app.program?.short_name || app.program?.name || "Your program"}
+            title="Check in"
+            note="Scan the code on the rehearsal-room screen, or type the 8 characters."
+          />
           <CheckInForm />
         </>
       )}
@@ -96,7 +85,6 @@ function StudentCheckIn({ token }: { token: string | null }) {
 
 /** Submits a token from the URL exactly once and renders the outcome. */
 function TokenResult({ token }: { token: string }) {
-  const navigate = useNavigate();
   const [state, setState] = useState<"working" | "done">(() =>
     tokenOutcomes.has(token) || submittedTokens.has(token) ? "done" : "working"
   );
@@ -142,79 +130,69 @@ function TokenResult({ token }: { token: string }) {
 
   if (state === "working") {
     return (
-      <Card className="flex flex-col items-center gap-3 py-10">
-        <Skeleton className="h-12 w-12 rounded-full" />
-        <p className="font-semibold">Checking you in…</p>
-        <p className="text-sm text-zinc-500">Hold on a second.</p>
+      <Card className="flex items-center gap-3 py-8">
+        <Spinner className="text-[var(--cue-green)]" />
+        <div>
+          <p className="font-semibold">Checking you in…</p>
+          <p className="type-meta">Hold on a second.</p>
+        </div>
       </Card>
     );
   }
 
-  if (outcome?.ok) {
-    return (
-      <div className="space-y-3">
-        <Card
-          role="status"
-          aria-live="polite"
-          className={`checkin-confirmation ${outcome.is_late ? "checkin-confirmation--late" : ""} flex flex-col items-center gap-2 py-8 text-center`}
-        >
-          <span className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-control)] bg-band/12 dark:bg-band/25">
-            <CheckCircle2 className="checkin-mark h-9 w-9 text-[var(--cue-green)]" />
-          </span>
-          <p className="font-display text-3xl font-bold uppercase">
-            <span className="cue-line">
-              <span className="cue-line-inner">
-                {outcome.is_late ? "Checked in · late" : "You’re checked in"}
-              </span>
-            </span>
-          </p>
-          <span
-            aria-hidden="true"
-            className={cn(
-              "cue-rule-draw block h-0.5 w-12",
-              outcome.is_late ? "bg-[var(--cue-gold)]" : "bg-[var(--cue-green)]"
-            )}
-          />
-          <p className="text-sm font-semibold text-[var(--cue-muted)]">
-            {outcome.is_late ? "Marked late for this event." : "Nice and early."}
-          </p>
-          {outcome.event_name ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {outcome.event_name}
-              {outcome.checked_in_at ? ` · ${fmtTime(outcome.checked_in_at)}` : ""}
-            </p>
-          ) : null}
-          {outcome.message ? (
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{outcome.message}</p>
-          ) : null}
-        </Card>
-        <Button block variant="secondary" onClick={() => navigate("/")}>
-          Done
-        </Button>
-      </div>
-    );
-  }
+  if (outcome?.ok) return <CheckInOutcome outcome={outcome} />;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Alert tone="error" className="checkin-error">
         {failure ?? outcome?.message ?? "That check-in code didn't work."}
       </Alert>
-      <Card className="space-y-2">
-        <p className="font-semibold">Try another way</p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          If the code on screen has changed, ask your director or section leader for the
-          current one.
-        </p>
-      </Card>
+      <p className="type-meta">
+        If the code on screen has changed, ask your director or section leader for the current one.
+      </p>
       <CheckInForm />
+    </div>
+  );
+}
+
+/**
+ * The one confirmation both flows end on: a mark, the outcome in words, and the
+ * event it belongs to. Green for present, gold for late — the same two colours
+ * the rest of the app uses for those states.
+ */
+function CheckInOutcome({ outcome }: { outcome: RpcResult }) {
+  const navigate = useNavigate();
+  const late = Boolean(outcome.is_late);
+  return (
+    <div className="cue-stagger space-y-3">
+      <Card role="status" aria-live="polite" className="p-5">
+        <p
+          className={cn(
+            "checkin-mark inline-flex items-center gap-2 font-semibold",
+            late ? "text-[var(--cue-late)]" : "text-[var(--cue-present)]"
+          )}
+        >
+          <CheckCircle2 aria-hidden="true" className="h-5 w-5" />
+          {late ? "Marked late" : "Present"}
+        </p>
+        <p className="type-title mt-2">{late ? "Checked in — late" : "You're checked in"}</p>
+        {outcome.event_name ? (
+          <p className="type-meta mt-1.5 tabular">
+            {outcome.event_name}
+            {outcome.checked_in_at ? ` · ${fmtTime(outcome.checked_in_at)}` : ""}
+          </p>
+        ) : null}
+        {outcome.message ? <p className="type-meta mt-1">{outcome.message}</p> : null}
+      </Card>
+      <Button block variant="secondary" onClick={() => navigate("/")}>
+        Done
+      </Button>
     </div>
   );
 }
 
 /** Scan-or-type check-in. Shared by students and by staff checking themselves in. */
 function CheckInForm() {
-  const navigate = useNavigate();
   const app = usePrograms();
   const [tab, setTab] = useState<"scan" | "code">("scan");
   const [code, setCode] = useState("");
@@ -262,57 +240,14 @@ function CheckInForm() {
 
   const onScannerError = useCallback((message: string) => setFailure(message), []);
 
-  if (outcome?.ok) {
-    return (
-      <div className="space-y-3">
-        <Card
-          role="status"
-          aria-live="polite"
-          className={`checkin-confirmation ${outcome.is_late ? "checkin-confirmation--late" : ""} flex flex-col items-center gap-2 py-8 text-center`}
-        >
-          <span className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-control)] bg-band/12 dark:bg-band/25">
-            <CheckCircle2 className="checkin-mark h-9 w-9 text-[var(--cue-green)]" />
-          </span>
-          <p className="font-display text-3xl font-bold uppercase">
-            <span className="cue-line">
-              <span className="cue-line-inner">
-                {outcome.is_late ? "Checked in · late" : "You’re checked in"}
-              </span>
-            </span>
-          </p>
-          <span
-            aria-hidden="true"
-            className={cn(
-              "cue-rule-draw block h-0.5 w-12",
-              outcome.is_late ? "bg-[var(--cue-gold)]" : "bg-[var(--cue-green)]"
-            )}
-          />
-          <p className="text-sm font-semibold text-[var(--cue-muted)]">
-            {outcome.is_late ? "Marked late for this event." : "Nice and early."}
-          </p>
-          {outcome.event_name ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {outcome.event_name}
-              {outcome.checked_in_at ? ` · ${fmtTime(outcome.checked_in_at)}` : ""}
-            </p>
-          ) : null}
-          {outcome.is_late ? (
-            <Badge className="bg-accent text-[var(--cue-gold-ink)]">Late</Badge>
-          ) : null}
-        </Card>
-        <Button block variant="secondary" onClick={() => navigate("/")}>
-          Done
-        </Button>
-      </div>
-    );
-  }
+  if (outcome?.ok) return <CheckInOutcome outcome={outcome} />;
 
   return (
-    <div className="cue-stagger space-y-3">
+    <div className="cue-stagger space-y-4">
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
-          <QrCode className="h-5 w-5 text-[var(--cue-green)]" />
-          <p className="font-display text-2xl font-bold uppercase">Scan or enter your code</p>
+          <QrCode aria-hidden="true" className="h-4 w-4 text-[var(--cue-muted)]" />
+          <p className="type-heading">Scan or enter your code</p>
         </div>
 
         <SegmentedControl
@@ -333,7 +268,7 @@ function CheckInForm() {
           {tab === "scan" ? (
             <div className="space-y-2">
               <QrScanner active={!busy} onDecode={onDecode} onError={onScannerError} />
-              <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="type-meta text-center">
                 Point your camera at the QR code on the screen.
               </p>
             </div>
@@ -432,7 +367,7 @@ function TodayHint({ programId }: { programId: string | null }) {
     };
   }, [programId, retry]);
 
-  if (loading) return <Skeleton className="h-28 w-full" />;
+  if (loading) return <Skeleton className="h-24 w-full" />;
   if (error) {
     return (
       <Card className="space-y-3">
@@ -452,8 +387,8 @@ function TodayHint({ programId }: { programId: string | null }) {
   if (!event) {
     return (
       <Card className="space-y-3">
-        <p className="font-semibold">Nothing on today&rsquo;s call sheet.</p>
-        <p className="text-sm text-[var(--cue-muted)]">See when the next rehearsal or event is scheduled.</p>
+        <p className="type-heading">Nothing on today&rsquo;s call sheet</p>
+        <p className="type-meta">See when the next rehearsal or event is scheduled.</p>
         <Button variant="secondary" onClick={() => navigate("/calendar", { viewTransition: true })}>
           Open calendar
         </Button>
@@ -462,17 +397,17 @@ function TodayHint({ programId }: { programId: string | null }) {
   }
 
   return (
-    <Card className="space-y-1">
-      <p className="text-xs font-bold tracking-wide text-zinc-500 uppercase">Today</p>
-      <p className="font-semibold">{event.name}</p>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+    <Card>
+      <p className="type-label">Today</p>
+      <p className="type-heading mt-1.5">{event.name}</p>
+      <p className="type-meta mt-0.5 tabular">
         {relativeDay(event.date)} · {event.all_day ? "All day" : fmtTime(event.date)} ·{" "}
         {eventTypeLabel(event.event_type)}
       </p>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="type-meta mt-1.5">
         {hasSession ? (
-          <span className="flex items-center gap-1.5 font-medium text-[var(--cue-green)]">
-            <Timer className="h-4 w-4" /> A code is live right now
+          <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--cue-green)]">
+            <Timer aria-hidden="true" className="h-4 w-4" /> A code is live right now
           </span>
         ) : (
           "No live code yet — ask your director or section leader."
@@ -547,24 +482,14 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
     setSelectedId((today ?? selectable[0]!).id);
   }, [selectable, selectedId, stopped]);
 
-  if (mode === "self") {
-    return (
-      <div className="cue-stagger space-y-4 p-4 pb-6">
-        <SegmentedControl
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: "run", label: "Run a check-in" },
-            { value: "self", label: "Check in myself" },
-          ]}
-        />
-        <CheckInForm />
-      </div>
-    );
-  }
-
   return (
-    <div className="cue-stagger space-y-4 p-4 pb-6">
+    <div className="cue-stagger mx-auto max-w-3xl space-y-5 px-4 py-5 pb-8 sm:px-6 sm:py-6">
+      <PageHeader
+        kicker={app.program?.short_name || app.program?.name || "Program"}
+        title="Check-in"
+        note="Run a live code for the room, or check yourself in the same way a student does."
+      />
+
       <SegmentedControl
         value={mode}
         onChange={setMode}
@@ -574,7 +499,9 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
         ]}
       />
 
-      {eventsError ? (
+      {mode === "self" ? (
+        <CheckInForm />
+      ) : eventsError ? (
         <Card className="space-y-3">
           <Alert tone="error">{eventsError}</Alert>
           <Button
@@ -587,36 +514,34 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
       ) : events === null ? (
         <Skeleton className="h-40 w-full" />
       ) : selectable.length === 0 ? (
-        <Card>
+        <div className="cue-card rounded-[var(--radius-panel)]">
           <EmptyState
-            icon={<ClipboardCheck className="h-6 w-6" />}
+            icon={<ClipboardCheck className="h-4 w-4" />}
             title="No event takes a check-in code"
             body="Add an event with QR or both check-in, or mark the roll from the Attendance screen."
           />
-        </Card>
+        </div>
       ) : (
         <>
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-white p-3 text-left ring-1 ring-black/5 transition-colors hover:bg-black/[0.03] dark:bg-zinc-900 dark:ring-white/10"
+            className="cue-card motion-press flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-panel)] p-3 text-left hover:bg-[var(--cue-raised)]"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-band/10 text-band dark:bg-band/20 dark:text-emerald-300">
-              <QrCode className="h-5 w-5" />
-            </span>
             <span className="min-w-0 flex-1">
+              <span className="type-label block">Event</span>
               <span className="block truncate font-semibold">
                 {selected?.name ?? "Choose an event"}
               </span>
-              <span className="block truncate text-sm text-zinc-500 dark:text-zinc-400">
+              <span className="type-meta block truncate tabular">
                 {selected
                   ? `${relativeDay(selected.date)} · ${
                       selected.all_day ? "All day" : fmtTime(selected.date)
                     } · ${CHECKIN_MODE_LABEL[selected.checkin_mode]}`
-                  : "Tap to pick which event you're running"}
+                  : "Pick which event you're running"}
               </span>
             </span>
-            <ChevronRight className="cue-nudge h-5 w-5 shrink-0 text-zinc-400" />
+            <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
           </button>
 
           {selected ? (
@@ -629,9 +554,9 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
             />
           ) : (
             <EmptyState
-              icon={<QrCode className="h-6 w-6" />}
+              icon={<QrCode className="h-4 w-4" />}
               title="Pick an event"
-              body="Choose the rehearsal or game you're taking attendance for."
+              body="Choose the rehearsal or performance you're taking attendance for."
             />
           )}
 
@@ -641,7 +566,7 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
             title="Which event?"
             size="tall"
           >
-            <ul className="space-y-1">
+            <ul className="cue-card cue-list overflow-hidden rounded-[var(--radius-panel)]">
               {selectable.map((e) => (
                 <li key={e.id}>
                   <button
@@ -651,18 +576,25 @@ function StaffCheckIn({ initialEventId }: { initialEventId: string | null }) {
                       setSelectedId(e.id);
                       setPickerOpen(false);
                     }}
-                    className="flex min-h-14 w-full items-center gap-2 rounded-xl px-2 py-3 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+                    aria-current={e.id === selectedId}
+                    className={cn(
+                      "flex min-h-14 w-full items-center gap-2 px-3 py-2.5 text-left",
+                      e.id === selectedId ? "bg-[var(--cue-raised)]" : "hover:bg-[var(--cue-raised)]"
+                    )}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">{e.name}</span>
-                      <span className="block truncate text-sm text-zinc-500 dark:text-zinc-400">
+                      <span className="type-meta block truncate tabular">
                         {relativeDay(e.date)} ·{" "}
                         {e.all_day ? "All day" : fmtTime(e.date)} ·{" "}
                         {eventTypeLabel(e.event_type)}
                       </span>
                     </span>
                     {e.id === selectedId ? (
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+                      <CheckCircle2
+                        aria-hidden="true"
+                        className="h-5 w-5 shrink-0 text-[var(--cue-green)]"
+                      />
                     ) : null}
                   </button>
                 </li>

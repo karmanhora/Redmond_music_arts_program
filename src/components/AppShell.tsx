@@ -25,7 +25,16 @@ import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
 import { useDark } from "../hooks/useDark";
 import { ProgramSwitcher } from "./ProgramSwitcher";
-import { Alert, Avatar, Button, Card, IconButton, Row, SectionTitle, Sheet, cn } from "./ui";
+import {
+  Alert,
+  Avatar,
+  Button,
+  IconButton,
+  List,
+  Row,
+  Sheet,
+  cn,
+} from "./ui";
 
 interface NavItem {
   to: string;
@@ -89,85 +98,100 @@ export function AppShell() {
 
   return (
     <div className="app-shell flex h-full flex-col bg-[var(--cue-page)]">
-      {/* --- app bar: the umbrella, then the program you are actually in --- */}
-      <header className="safe-t sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-2 border-b border-[var(--cue-border)] bg-[var(--cue-page)] px-3 py-1">
-        <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-            {ORG_NAME}
-          </p>
-          {inSeveral ? (
-            <button
-              type="button"
-              onClick={() => setSwitcherOpen(true)}
-              aria-label={`Switch program — currently ${programName}`}
-              className="motion-press -ml-1 flex min-h-11 max-w-full items-center gap-1 rounded-[var(--radius-control)] px-1 text-left hover:bg-[var(--cue-raised)]"
-            >
-              <span className="truncate text-sm font-bold">{programName}</span>
-              <span className="hidden truncate text-xs text-zinc-500 sm:inline dark:text-zinc-400">
-                {under}
-              </span>
-              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-            </button>
-          ) : (
-            <p className="truncate text-sm font-bold">
-              {programName}
-              <span className="ml-1.5 text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                {under}
-              </span>
+      {/* --- masthead: the umbrella, then the program you are actually in --- */}
+      <header className="safe-t sticky top-0 z-30 shrink-0 border-b border-[var(--cue-line)] bg-[var(--cue-page)]">
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-2 px-3 py-1 sm:px-5">
+          <div className="min-w-0 flex-1">
+            <p className="type-wordmark truncate text-[0.6875rem] leading-tight text-[var(--cue-subtle)]">
+              {ORG_NAME}
             </p>
-          )}
-        </div>
-        <nav aria-label="Main navigation" className="hidden items-center gap-1 lg:flex">
-          {items.map((item) => (
-            <NavLink
-              key={item.to}
-              viewTransition
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                cn(
-                  "motion-press inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-semibold",
-                  isActive
-                    ? "bg-[var(--cue-raised)] text-[var(--cue-green)]"
-                    : "text-[var(--cue-muted)] hover:bg-[var(--cue-raised)]"
-                )
-              }
-            >
-              <item.icon aria-hidden="true" className="h-4 w-4" />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <IconButton
-          label="Notifications"
-          onClick={() => setBellOpen(true)}
-          variant="ghost"
-          icon={<Bell className="h-5 w-5" />}
-        />
-        <IconButton
-          label={dark ? "Use light mode" : "Use dark mode"}
-          onClick={toggle}
-          variant="ghost"
-          icon={dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        />
-        <button
-          type="button"
-          onClick={() => setAccountOpen(true)}
-          aria-label={`Your account — ${name}`}
-          aria-haspopup="dialog"
-          className="motion-press shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cue-focus)]"
-        >
-          <Avatar
-            name={name}
-            path={app.profile?.avatar_path}
-            url={app.profile?.avatar_url}
-            size={34}
+            {inSeveral ? (
+              <button
+                type="button"
+                onClick={() => setSwitcherOpen(true)}
+                aria-label={`Switch program — currently ${programName}`}
+                className="motion-press -ml-1 flex min-h-8 max-w-full items-baseline gap-1.5 rounded-[var(--radius-control)] px-1 text-left hover:bg-[var(--cue-raised)]"
+              >
+                <span className="truncate text-[0.9375rem] font-semibold">{programName}</span>
+                <span className="type-meta hidden truncate sm:inline">{under}</span>
+                <ChevronsUpDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-[var(--cue-subtle)]" />
+              </button>
+            ) : (
+              <p className="flex items-baseline gap-1.5 truncate leading-tight">
+                <span className="truncate text-[0.9375rem] font-semibold">{programName}</span>
+                <span className="type-meta truncate">{under}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Desktop: the same underline tabs the rest of the app uses. */}
+          <nav aria-label="Main navigation" className="hidden items-stretch self-stretch lg:flex">
+            {items.map((item) => (
+              <NavLink
+                key={item.to}
+                viewTransition
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive }) =>
+                  cn(
+                    "motion-press relative inline-flex min-h-14 items-center gap-2 px-3 text-[0.8125rem] font-semibold tracking-[0.06em] uppercase",
+                    isActive
+                      ? "text-[var(--cue-ink)]"
+                      : "text-[var(--cue-muted)] hover:text-[var(--cue-ink)]"
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.icon aria-hidden="true" className="h-4 w-4" />
+                    {item.label}
+                    <span
+                      aria-hidden="true"
+                      className={cn("cue-tab-rule", isActive && "cue-tab-rule--on")}
+                    />
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+
+          <span aria-hidden="true" className="hidden h-6 w-px bg-[var(--cue-line)] lg:block" />
+
+          <IconButton
+            label="Notifications"
+            onClick={() => setBellOpen(true)}
+            variant="ghost"
+            className="h-9 w-9"
+            icon={<Bell className="h-5 w-5" />}
           />
-        </button>
+          <IconButton
+            label={dark ? "Use light mode" : "Use dark mode"}
+            onClick={toggle}
+            variant="ghost"
+            className="h-9 w-9"
+            icon={dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          />
+          <button
+            type="button"
+            onClick={() => setAccountOpen(true)}
+            aria-label={`Your account — ${name}`}
+            aria-haspopup="dialog"
+            /* The avatar is 32px; the target is 44px. A picture is not a tap
+               target, and the masthead row is already 56px tall. */
+            className="motion-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cue-focus)]"
+          >
+            <Avatar
+              name={name}
+              path={app.profile?.avatar_path}
+              url={app.profile?.avatar_url}
+              size={32}
+            />
+          </button>
+        </div>
       </header>
 
       {!online ? (
-        <div className="px-3 pt-2">
+        <div className="mx-auto w-full max-w-6xl px-3 pt-3 sm:px-5">
           <Alert tone="warn">
             You&rsquo;re offline. Anything you see may be out of date — check-in needs a
             connection.
@@ -176,7 +200,7 @@ export function AppShell() {
       ) : null}
 
       {auth.accountTypeSetupError ? (
-        <div className="px-3 pt-2">
+        <div className="mx-auto w-full max-w-6xl px-3 pt-3 sm:px-5">
           <Alert tone="error">
             We couldn&rsquo;t save your student or teacher account choice. Sign out and try again.{" "}
             {auth.accountTypeSetupError}
@@ -185,7 +209,7 @@ export function AppShell() {
       ) : null}
 
       {app.profile?.must_change_password ? (
-        <div className="px-3 pt-2">
+        <div className="mx-auto w-full max-w-6xl px-3 pt-3 sm:px-5">
           <Alert tone="info">
             Your director issued you a temporary password.{" "}
             <button className="font-semibold underline" onClick={() => navigate("/me")}>
@@ -197,18 +221,16 @@ export function AppShell() {
       ) : null}
 
       {/* --- content --- */}
-      <main
-        className="app-content min-h-0 flex-1 overflow-y-auto overscroll-contain"
-      >
+      <main className="app-content min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </main>
 
-      {/* --- bottom nav --- */}
+      {/* --- bottom nav: the same five destinations, a rule above the one you're on --- */}
       <nav
         aria-label="Main navigation"
-        className="safe-b z-30 shrink-0 border-t border-[var(--cue-border)] bg-[var(--cue-page)] lg:hidden"
+        className="safe-b z-30 shrink-0 border-t border-[var(--cue-line)] bg-[var(--cue-page)] lg:hidden"
       >
-        <ul className="flex items-stretch justify-around pt-1 pb-0.5">
+        <ul className="flex items-stretch">
           {items.map((item) => (
             <li key={item.to} className="flex-1">
               <NavLink
@@ -217,16 +239,14 @@ export function AppShell() {
                 end={item.to === "/"}
                 className={({ isActive }) =>
                   cn(
-                    "motion-press relative mx-auto flex min-h-12 w-full flex-col items-center justify-center gap-0.5 rounded-none px-1 py-1 text-[10px] font-semibold",
-                    isActive
-                      ? "text-[var(--cue-green)]"
-                      : "text-[var(--cue-muted)]"
+                    "motion-press relative mx-auto flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 pt-1.5 text-[10px] font-semibold tracking-wide uppercase",
+                    isActive ? "text-[var(--cue-ink)]" : "text-[var(--cue-muted)]"
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
+                    <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.25]")} />
                     <span>{item.label}</span>
                     {isActive ? <span aria-hidden="true" className="cue-tab-indicator" /> : null}
                   </>
@@ -264,56 +284,55 @@ function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void })
 
   return (
     <Sheet open={open} onClose={onClose} title="Your account" size="tall">
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center gap-3">
-          <Avatar name={name} path={app.profile?.avatar_path} url={app.profile?.avatar_url} size={52} />
+          <Avatar name={name} path={app.profile?.avatar_path} url={app.profile?.avatar_url} size={48} />
           <div className="min-w-0">
-            <p className="truncate font-bold">{name}</p>
-            <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="type-heading truncate">{name}</p>
+            <p className="type-meta truncate">
               {ROLE_LABEL[app.primaryRole]}
               {app.program?.name ? ` · ${app.program.name}` : ""}
             </p>
           </div>
         </div>
 
-        <SectionTitle>Account</SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+        <List>
           <Row
-            icon={<User className="h-5 w-5" />}
+            icon={<User className="h-4 w-4" />}
             title="Profile"
             subtitle="Your picture, name, roles and attendance"
-            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />}
             onClick={() => go("/me")}
           />
           <Row
-            icon={<Settings className="h-5 w-5" />}
+            icon={<Settings className="h-4 w-4" />}
             title="Account settings"
             subtitle="Password, email, appearance, privacy"
-            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />}
             onClick={() => go("/settings")}
           />
           {app.can("roles.view") ? (
             <Row
-              icon={<UserCog className="h-5 w-5" />}
+              icon={<UserCog className="h-4 w-4" />}
               title="Roles & permissions"
               subtitle={`Who can do what in ${app.program?.name ?? "this program"}`}
-              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />}
               onClick={() => go("/roles")}
             />
           ) : null}
           {app.memberships.length > 1 ? (
             <Row
-              icon={<ChevronsUpDown className="h-5 w-5" />}
+              icon={<ChevronsUpDown className="h-4 w-4" />}
               title="Switch program"
               subtitle={`${app.memberships.length} programs`}
-              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
+              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />}
               onClick={() => {
                 onClose();
                 navigate("/");
               }}
             />
           ) : null}
-        </Card>
+        </List>
 
         <Button
           block
@@ -351,30 +370,23 @@ function NotificationsSheet({ open, onClose }: { open: boolean; onClose: () => v
   return (
     <Sheet open={open} onClose={onClose} title="Notifications" size="tall">
       {rows === null ? (
-        <p className="py-8 text-center text-sm text-zinc-500">Loading…</p>
+        <p className="type-meta py-8 text-center">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-zinc-500">
+        <p className="type-meta py-8 text-center">
           Nothing yet. New events and open check-ins show up here.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <List>
           {rows.map((n) => (
-            <li
-              key={n.id}
-              className="rounded-xl bg-white p-3 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10"
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="font-semibold">{n.title}</p>
-                <span className="shrink-0 text-[11px] text-zinc-400">
-                  {relativeDay(n.created_at)}
-                </span>
+            <div key={n.id} className="px-3 py-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="type-heading truncate">{n.title}</p>
+                <span className="type-meta shrink-0 tabular">{relativeDay(n.created_at)}</span>
               </div>
-              <p className="mt-0.5 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-300">
-                {n.body}
-              </p>
-            </li>
+              <p className="type-meta mt-1 line-clamp-3">{n.body}</p>
+            </div>
           ))}
-        </ul>
+        </List>
       )}
     </Sheet>
   );

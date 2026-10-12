@@ -6,21 +6,24 @@ import {
   CheckCircle2,
   ClipboardCheck,
   MapPin,
-  Music,
-  Plus,
   QrCode,
-  Users,
 } from "lucide-react";
 import {
   Alert,
   Badge,
   Button,
-  Card,
   EmptyState,
+  List,
+  Metric,
+  MetricStrip,
+  PageHeader,
+  Poster,
   ProgressRing,
   Row,
   SectionTitle,
   Skeleton,
+  Stage,
+  TempoBars,
   cn,
 } from "../components/ui";
 import { fetchAttendance, fetchEvents } from "../lib/queries";
@@ -29,18 +32,49 @@ import { getMyAttendancePct, getMyAttendanceTrend } from "../lib/rpc";
 import type { EventRow, MyAttendanceRow } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import {
-  APP_DESCRIPTION,
   ATTENDANCE_REQUIREMENT_LABEL,
   ATTENDANCE_STATUS_CHIP,
   ATTENDANCE_STATUS_LABEL,
+  CHECKIN_MODE_LABEL,
+  eventTypeChip,
   eventTypeLabel,
+  ROLE_LABEL,
 } from "../lib/constants";
 import { endOfDay, fmtTime, isSameDay, relativeDay, startOfDay, untilLabel } from "../lib/date";
 
 /**
- * Signed-in student dashboard. It keeps the existing Band implementation alive
- * below the same routes, but frames it as one program inside the larger hub.
+ * The dashboard.
+ *
+ * It has one focal point — the next event, on a deep-green stage with the
+ * program's staff motif behind it — and one primary action. Everything else
+ * (what is coming, how the record stands, which programs you are in) is
+ * arranged around that in two uneven columns, because a page where every block
+ * has the same weight is a page with no point of view.
  */
+
+/** A date gutter: weekday, big condensed day number, month. */
+function DayMark({ iso, className }: { iso: string; className?: string }) {
+  const d = new Date(iso);
+  return (
+    <span
+      className={cn(
+        "flex w-14 shrink-0 flex-col items-center border-r border-[var(--cue-line)] pr-3",
+        className
+      )}
+    >
+      <span className="type-label text-[10px]">
+        {d.toLocaleDateString("en-US", { weekday: "short" })}
+      </span>
+      <span className="type-poster-sm text-2xl leading-none">
+        {d.getDate()}
+      </span>
+      <span className="type-label text-[10px]">
+        {d.toLocaleDateString("en-US", { month: "short" })}
+      </span>
+    </span>
+  );
+}
+
 export function HomeScreen() {
   const app = usePrograms();
   const navigate = useNavigate();
@@ -116,208 +150,429 @@ export function HomeScreen() {
   );
 
   const upcoming = useMemo(
-    () => (events ?? []).filter((e) => new Date(e.date).getTime() >= now).slice(0, 4),
+    () => (events ?? []).filter((e) => new Date(e.date).getTime() >= now).slice(0, 6),
     [events, now]
   );
 
   const nextEvent = todayEvent ?? upcoming[0] ?? null;
+  const alsoUpcoming = upcoming.filter((e) => e.id !== nextEvent?.id).slice(0, 4);
+  const missed = attendanceRows.filter((r) => r.status === "absent" || r.status === "late").length;
+  const isNextToday = nextEvent?.id === todayEvent?.id;
 
   if (!programId) {
     return (
-      <div className="space-y-3 p-4">
-        <Skeleton className="h-12 w-36" />
-        <Skeleton className="h-52 w-full" />
-        <Skeleton className="h-24 w-full" />
+      <div className="mx-auto max-w-6xl space-y-3 px-4 py-5 sm:px-6">
+        <Skeleton className="h-16 w-56" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-40 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="cue-stagger mx-auto max-w-6xl space-y-6 p-4 pb-6 sm:p-6">
-      {error ? <Alert tone="error">{error}</Alert> : null}
+    <div className="mx-auto max-w-6xl px-4 py-5 pb-10 sm:px-6 sm:py-7">
+      <div className="cue-stagger space-y-7">
+        {error ? <Alert tone="error">{error}</Alert> : null}
 
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <p className="font-display text-lg font-bold tracking-wide text-[var(--cue-green)] uppercase">
-            {app.program?.short_name || app.program?.name || "Your program"}
-          </p>
-          <h1 className="font-display text-4xl leading-none font-bold uppercase sm:text-5xl">
-            You&rsquo;re up, {firstName}
-          </h1>
-        </div>
-        <p className="max-w-xs text-sm text-[var(--cue-muted)]">{APP_DESCRIPTION}</p>
-      </div>
-
-      {loading && !events ? (
-        <>
-          <Skeleton className="h-56 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </>
-      ) : nextEvent ? (
-        <HeroEventCard
-          event={nextEvent}
-          isToday={nextEvent.id === todayEvent?.id}
-          alreadyCheckedIn={checkedInEventId === nextEvent.id}
-          checkedInAt={checkedInAt}
-          onCheckIn={() => navigate("/checkin", { viewTransition: true })}
-          onStartCheckIn={() =>
-            navigate(`/checkin?event=${nextEvent.id}`, { viewTransition: true })
+        <PageHeader
+          kicker={[app.program?.short_name || app.program?.name, app.membership?.section?.name]
+            .filter(Boolean)
+            .join(" · ")}
+          title={new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })}
+          note={
+            app.isStaff
+              ? `${firstName} — you're on staff here. Take the roll, or open a code for the room.`
+              : `Hello, ${firstName}. Here's what's next, and where your attendance stands.`
           }
-          onMarkAttendance={() => navigate("/attendance", { viewTransition: true })}
-          isStaff={app.isStaff}
-        />
-      ) : (
-        <Card className="border-l-4 border-l-[var(--cue-gold)]">
-          <EmptyState
-            icon={<Music className="h-6 w-6" />}
-            title="No upcoming events yet"
-            body="Nothing on the call sheet yet. Check the calendar for what’s next."
-            action={
-              <Button variant="secondary" onClick={() => navigate("/calendar", { viewTransition: true })}>
-                Open calendar
+          actions={
+            app.isStaff ? (
+              <>
+                <Button
+                  icon={<ClipboardCheck className="h-4 w-4" />}
+                  onClick={() => navigate("/attendance", { viewTransition: true })}
+                >
+                  Take attendance
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={<QrCode className="h-4 w-4" />}
+                  onClick={() =>
+                    navigate(
+                      nextEvent?.checkin_mode === "qr" || nextEvent?.checkin_mode === "both"
+                        ? `/checkin?event=${nextEvent.id}`
+                        : "/checkin",
+                      { viewTransition: true }
+                    )
+                  }
+                >
+                  Start check-in
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="secondary"
+                icon={<CalendarDays className="h-4 w-4" />}
+                onClick={() => navigate("/calendar", { viewTransition: true })}
+              >
+                Calendar
               </Button>
-            }
-          />
-        </Card>
-      )}
+            )
+          }
+        />
 
-      <section className="space-y-2">
-        <SectionTitle action={<button className="min-h-11 px-2 text-sm font-bold text-[var(--cue-green)] underline underline-offset-4" onClick={() => navigate("/calendar", { viewTransition: true })}>View calendar</button>}>
-          Your Upcoming Events
-        </SectionTitle>
-        {upcoming.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {upcoming.map((e) => (
-              <EventCard key={e.id} event={e} programName={app.program?.short_name || app.program?.name || "Program"} />
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <EmptyState
-              icon={<CalendarDays className="h-6 w-6" />}
-              title="Nothing scheduled"
-              body="Only actual events from the database appear here."
-            />
-          </Card>
-        )}
-      </section>
-
-      <section className="space-y-2">
-        <SectionTitle>{app.program?.short_name ?? "Program"} Attendance</SectionTitle>
-        <div className="grid gap-3 lg:grid-cols-[280px_1fr]">
-          {percentage !== null && !app.isDirector ? (
-            <Card className="flex items-center gap-4">
-              <ProgressRing value={percentage} size={72} stroke={8} animateValue />
+        {/* --- the focal point: what is next, and what to do about it --- */}
+        {loading && !events ? (
+          <Skeleton className="h-56 w-full" />
+        ) : nextEvent ? (
+          <Stage motif className="px-5 py-6 sm:px-7 sm:py-8">
+            <div className="grid gap-8 lg:grid-cols-[1.45fr_1fr] lg:items-end">
               <div className="min-w-0">
-                <p className="font-semibold">Overall attendance</p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Based on your recorded required events.
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <span className="type-kicker text-[var(--cue-gold-on-brand)]">
+                    {isNextToday ? "Today" : "Next up"}
+                  </span>
+                  <span className="text-[0.8125rem] text-[var(--cue-stage-ink)]/70">
+                    {relativeDay(nextEvent.date)} ·{" "}
+                    {nextEvent.all_day ? "All day" : fmtTime(nextEvent.date)}
+                  </span>
+                  <Badge className="border border-[var(--cue-stage-line)] bg-white/10 text-[var(--cue-stage-ink)]">
+                    {eventTypeLabel(nextEvent.event_type)}
+                  </Badge>
                 </p>
-              </div>
-            </Card>
-          ) : (
-            <Card>
-              <EmptyState
-                icon={<ClipboardCheck className="h-6 w-6" />}
-                title="Attendance percentage unavailable"
-                body="Your percentage appears once the system has records to calculate."
-              />
-            </Card>
-          )}
 
-          <Card className="overflow-hidden p-0">
-            {attendanceRows.length > 0 ? (
-              <div className="divide-y divide-black/5 dark:divide-white/10">
-                {attendanceRows.map((row) => (
-                  <div key={row.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-4">
+                <h2 className="mt-3 text-[var(--cue-stage-ink)]">
+                  <Poster rule tone="stage">{nextEvent.name}</Poster>
+                </h2>
+
+                <dl className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-[0.8125rem] text-[var(--cue-stage-ink)]/80">
+                  <div className="flex items-center gap-1.5">
+                    <dt className="sr-only">Time</dt>
+                    <CalendarDays aria-hidden="true" className="h-4 w-4 opacity-70" />
+                    <dd className="tabular">
+                      {nextEvent.all_day ? "All day" : fmtTime(nextEvent.date)}
+                    </dd>
+                  </div>
+                  {nextEvent.location ? (
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <dt className="sr-only">Location</dt>
+                      <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 opacity-70" />
+                      <dd className="truncate">{nextEvent.location}</dd>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center gap-1.5">
+                    <dt className="sr-only">Attendance</dt>
+                    <dd>
+                      Attendance:{" "}
+                      <span className="font-semibold text-[var(--cue-stage-ink)]">
+                        {ATTENDANCE_REQUIREMENT_LABEL[nextEvent.attendance_requirement]}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* The countdown: the one number this page cares about. */}
+              <div className="flex flex-col gap-4 border-t border-[var(--cue-stage-line)] pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+                <div>
+                  <p className="type-kicker text-[var(--cue-stage-ink)]/60">
+                    {isNextToday ? "Call time" : "Starts"}
+                  </p>
+                  <p className="type-poster mt-1.5 text-[2rem] leading-none text-[var(--cue-stage-ink)] tabular sm:text-[2.5rem]">
+                    {nextEvent.all_day ? relativeDay(nextEvent.date) : untilLabel(nextEvent.date)}
+                  </p>
+                  {isNextToday && !nextEvent.all_day ? (
+                    <p className="mt-2 flex items-center gap-2 text-[0.8125rem] text-[var(--cue-stage-ink)]/70">
+                      <TempoBars className="text-[var(--cue-gold-on-brand)]" />
+                      <span className="tabular">call at {fmtTime(nextEvent.date)}</span>
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {nextEvent.checkin_mode === "none" ? (
+                    <span className="text-[0.8125rem] text-[var(--cue-stage-ink)]/75">
+                      No attendance is taken for this event.
+                    </span>
+                  ) : checkedInEventId === nextEvent.id ? (
+                    <span className="inline-flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--cue-mint)] px-3 py-2.5 text-[0.8125rem] font-semibold text-[var(--cue-forest)]">
+                      <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                      Checked in
+                      {checkedInAt ? <span className="tabular">· {fmtTime(checkedInAt)}</span> : null}
+                    </span>
+                  ) : nextEvent.checkin_mode === "toggle" ? (
+                    <span className="text-[0.8125rem] text-[var(--cue-stage-ink)]/75">
+                      {CHECKIN_MODE_LABEL[nextEvent.checkin_mode]} — your section leader marks this
+                      one.
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        app.isStaff
+                          ? navigate("/attendance", { viewTransition: true })
+                          : navigate(`/checkin?event=${nextEvent.id}`, { viewTransition: true })
+                      }
+                      className="motion-press inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--cue-stage-ink)] px-5 text-sm font-semibold text-[var(--cue-forest)] shadow-[0_14px_28px_-18px_rgb(0_0_0/70%)] hover:-translate-y-px hover:bg-white"
+                    >
+                      {app.isStaff ? (
+                        <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
+                      ) : (
+                        <QrCode aria-hidden="true" className="h-4 w-4" />
+                      )}
+                      {app.isStaff ? "Mark the roll" : "Check in"}
+                    </button>
+                  )}
+                </div>
+
+                {nextEvent.checkin_mode === "qr" || nextEvent.checkin_mode === "both" ? (
+                  <p className="text-[0.75rem] text-[var(--cue-stage-ink)]/60">
+                    {app.isStaff
+                      ? "Project the code and students scan it."
+                      : "Scan the code on the screen, or type the eight characters."}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </Stage>
+        ) : (
+          /* An empty dashboard is still a designed page: the stage stays, with
+             the program's motif and the one thing worth doing next. */
+          <Stage motif className="px-5 py-10 text-center sm:px-8 sm:py-14">
+            <p className="type-kicker text-[var(--cue-gold-on-brand)]">Call sheet empty</p>
+            <h2 className="mt-3 flex justify-center text-[var(--cue-stage-ink)]">
+              <Poster tone="stage">Nothing scheduled</Poster>
+            </h2>
+            <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-[var(--cue-stage-ink)]/75">
+              No rehearsals, performances or meetings are on {app.program?.name ?? "this program"}
+              &rsquo;s calendar yet. When a director adds one, it lands right here.
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/calendar", { viewTransition: true })}
+                className="motion-press inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-control)] bg-[var(--cue-stage-ink)] px-5 text-sm font-semibold text-[var(--cue-forest)] hover:-translate-y-px hover:bg-white"
+              >
+                <CalendarDays aria-hidden="true" className="h-4 w-4" />
+                Open the calendar
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/me", { viewTransition: true })}
+                className="motion-press inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--cue-stage-line)] px-5 text-sm font-semibold text-[var(--cue-stage-ink)] hover:-translate-y-px hover:bg-white/10"
+              >
+                See your record
+              </button>
+            </div>
+          </Stage>
+        )}
+
+        {/* --- two uneven columns: what's coming, and who you are here --- */}
+        <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:gap-10">
+          <div className="space-y-8">
+            {alsoUpcoming.length > 0 ? (
+              <section aria-labelledby="coming-up">
+                <SectionTitle
+                  className="mb-3"
+                  action={
+                    <button
+                      className="text-[0.8125rem] font-semibold text-[var(--cue-leaf)] underline decoration-2 underline-offset-4"
+                      onClick={() => navigate("/calendar", { viewTransition: true })}
+                    >
+                      Full calendar
+                    </button>
+                  }
+                >
+                  <span id="coming-up">Coming up</span>
+                </SectionTitle>
+                <List>
+                  {alsoUpcoming.map((e) => (
+                    <Row
+                      key={e.id}
+                      className="gap-4"
+                      leading={<DayMark iso={e.date} />}
+                      title={
+                        <span className="flex items-baseline gap-2">
+                          <span className="truncate">{e.name}</span>
+                          <Badge className={eventTypeChip(e.event_type)}>
+                            {eventTypeLabel(e.event_type)}
+                          </Badge>
+                        </span>
+                      }
+                      subtitle={
+                        <span className="tabular">
+                          {relativeDay(e.date)} · {e.all_day ? "All day" : fmtTime(e.date)}
+                          {e.location ? ` · ${e.location}` : ""}
+                        </span>
+                      }
+                      trailing={
+                        <ArrowRight
+                          aria-hidden="true"
+                          className="cue-nudge h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+                        />
+                      }
+                      onClick={() => navigate("/calendar", { viewTransition: true })}
+                    />
+                  ))}
+                </List>
+              </section>
+            ) : null}
+
+            {/* --- the record --- */}
+            {percentage !== null ? (
+              <section aria-labelledby="my-attendance">
+                <SectionTitle
+                  className="mb-3"
+                  action={<span className="type-meta">Required events only</span>}
+                >
+                  <span id="my-attendance">Your attendance</span>
+                </SectionTitle>
+                <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-4 p-5">
+                    <ProgressRing value={percentage} size={84} stroke={8} animateValue />
                     <div className="min-w-0">
-                      <p className="truncate font-semibold">{row.name}</p>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {relativeDay(row.date)} · {eventTypeLabel(row.event_type)}
+                      <p className="type-heading">
+                        {percentage >= 80
+                          ? "In good standing"
+                          : percentage >= 60
+                            ? "Slipping below the line"
+                            : "Needs attention"}
+                      </p>
+                      <p className="type-meta mt-1">
+                        Across the last {attendanceRows.length}{" "}
+                        {attendanceRows.length === 1 ? "recorded event" : "recorded events"}
+                        {missed > 0 ? ` · ${missed} missed or late` : " · nothing missed"}
                       </p>
                     </div>
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {new Date(row.date).toLocaleDateString([], { month: "short", day: "numeric" })}
-                    </span>
-                    <Badge className={ATTENDANCE_STATUS_CHIP[row.status]}>
-                      {ATTENDANCE_STATUS_LABEL[row.status]}
-                    </Badge>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={<ClipboardCheck className="h-6 w-6" />}
-                title="No attendance history yet"
-                body="Past required events with recorded attendance will appear here."
-              />
-            )}
-          </Card>
-        </div>
-      </section>
 
-      <section id="my-programs" className="space-y-3">
-        <SectionTitle
-          action={
-            app.canCreateProgram ? (
-              <Button
-                size="sm"
-                variant="accent"
-                icon={<Plus className="h-4 w-4" />}
-                onClick={() => navigate("/new-program", { viewTransition: true })}
+                  {attendanceRows.length > 0 ? (
+                    <ul className="cue-list">
+                      {attendanceRows.map((row) => (
+                        <li key={row.id} className="flex items-center gap-4 px-4 py-2.5">
+                          <DayMark iso={row.date} className="w-12 pr-2" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[0.9375rem] font-semibold">
+                              {row.name}
+                            </span>
+                            <span className="type-meta">
+                              {relativeDay(row.date)} · {eventTypeLabel(row.event_type)}
+                            </span>
+                          </span>
+                          {/* Keyed by status so a corrected mark visibly lands. */}
+                          <Badge
+                            key={row.status}
+                            className={cn("cue-status-pop", ATTENDANCE_STATUS_CHIP[row.status])}
+                          >
+                            {ATTENDANCE_STATUS_LABEL[row.status]}
+                          </Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState
+                      icon={<ClipboardCheck className="h-4 w-4" />}
+                      title="No attendance recorded yet"
+                      body="Once a required event has been marked, the record — and this percentage — fills in."
+                    />
+                  )}
+                </div>
+              </section>
+            ) : null}
+          </div>
+
+          {/* --- the narrow column: your standing in this program --- */}
+          <aside className="space-y-8">
+            <section aria-labelledby="my-programs">
+              <SectionTitle
+                className="mb-3"
+                action={
+                  app.canCreateProgram ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => navigate("/new-program", { viewTransition: true })}
+                    >
+                      Start one
+                    </Button>
+                  ) : null
+                }
               >
-                Start a program
-              </Button>
-            ) : null
-          }
-        >
-          My Programs
-        </SectionTitle>
-        <div className="grid gap-3 md:grid-cols-2">
-          {app.memberships.map((m) => (
-            <ProgramCard
-              key={m.id}
-              membership={m}
-              current={m.ensemble.id === app.program?.id}
-              onOpen={() => {
-                app.setProgram(m.ensemble.id);
-                navigate("/");
-              }}
-            />
-          ))}
-        </div>
-      </section>
+                <span id="my-programs">Your programs</span>
+              </SectionTitle>
+              <List>
+                {app.memberships.map((m) => (
+                  <ProgramRow
+                    key={m.id}
+                    membership={m}
+                    current={m.ensemble.id === app.program?.id}
+                    onOpen={() => {
+                      if (m.ensemble.id !== app.program?.id) app.setProgram(m.ensemble.id);
+                      navigate("/");
+                    }}
+                  />
+                ))}
+              </List>
+            </section>
 
-      {app.isStaff ? (
-        <section className="space-y-2">
-          <SectionTitle>Staff Tools</SectionTitle>
-          <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
-            <Row
-              icon={<ClipboardCheck className="h-5 w-5" />}
-              title="Attendance"
-              subtitle="Mark the roll, excuses and notes"
-              onClick={() => navigate("/attendance", { viewTransition: true })}
-            />
-            <Row
-              icon={<Users className="h-5 w-5" />}
-              title="Roster"
-              subtitle={`${app.program?.short_name ?? "Program"} members and sections`}
-              onClick={() => navigate("/roster", { viewTransition: true })}
-            />
-            <Row
-              icon={<QrCode className="h-5 w-5" />}
-              title="Start a check-in"
-              subtitle="Show the QR code and the 8-character code"
-              onClick={() => navigate("/checkin", { viewTransition: true })}
-            />
-          </Card>
-        </section>
-      ) : null}
+            {app.isStaff ? (
+              <section aria-labelledby="today-work">
+                <SectionTitle className="mb-3">
+                  <span id="today-work">This program</span>
+                </SectionTitle>
+                <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
+                  <MetricStrip columns={2}>
+                    <Metric
+                      label="Events ahead"
+                      value={upcoming.length}
+                      hint={nextEvent ? `next ${relativeDay(nextEvent.date).toLowerCase()}` : "none scheduled"}
+                    />
+                    <Metric
+                      label="Sections"
+                      value={app.sections.length || "—"}
+                      hint="instruments on the roster"
+                    />
+                    <Metric label="Your role" value={ROLE_LABEL[app.primaryRole]} hint="in this program" />
+                    <Metric
+                      label="Your programs"
+                      value={app.memberships.length}
+                      hint={app.memberships.length === 1 ? "membership" : "memberships"}
+                    />
+                  </MetricStrip>
+                </div>
+              </section>
+            ) : (
+              <section aria-labelledby="quick-links">
+                <SectionTitle className="mb-3">
+                  <span id="quick-links">Quick links</span>
+                </SectionTitle>
+                <List>
+                  <Row
+                    icon={<QrCode className="h-4 w-4" />}
+                    title="Check in"
+                    subtitle="Scan a code or type the eight characters"
+                    onClick={() => navigate("/checkin", { viewTransition: true })}
+                  />
+                  <Row
+                    icon={<CalendarDays className="h-4 w-4" />}
+                    title="Calendar"
+                    subtitle="Everything the program has scheduled"
+                    onClick={() => navigate("/calendar", { viewTransition: true })}
+                  />
+                </List>
+              </section>
+            )}
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }
 
-function ProgramCard({
+function ProgramRow({
   membership,
   current,
   onOpen,
@@ -327,129 +582,33 @@ function ProgramCard({
   onOpen: () => void;
 }) {
   return (
-    <Card className="flex items-center gap-3">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-band/10 text-band dark:bg-band/20 dark:text-emerald-300">
-        <Music className="h-6 w-6" />
+    <div
+      className={cn(
+        "flex items-center gap-3 px-4 py-3",
+        current && "border-l-[3px] border-l-[var(--cue-leaf)] pl-[13px]"
+      )}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="type-heading block truncate">
+          {membership.ensemble.short_name || membership.ensemble.name}
+        </span>
+        <span className="type-meta mt-0.5 block truncate">
+          {membership.roles.map((r) => ROLE_LABEL[r]).join(" · ") || ROLE_LABEL.student}
+          {membership.section?.name ? ` · ${membership.section.name}` : ""}
+        </span>
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-black">{membership.ensemble.short_name || membership.ensemble.name}</h3>
-          <Badge className="bg-band text-white">Available</Badge>
-        </div>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Attendance & Events</p>
-      </div>
-      <Button size="sm" variant={current ? "accent" : "secondary"} icon={<ArrowRight className="h-4 w-4" />} onClick={onOpen}>
-        {current ? "Open" : "Switch"}
-      </Button>
-    </Card>
-  );
-}
-
-function EventCard({ event, programName }: { event: EventRow; programName: string }) {
-  const required = ATTENDANCE_REQUIREMENT_LABEL[event.attendance_requirement];
-  return (
-    <Card className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate font-black">{event.name}</p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{programName}</p>
-        </div>
-        <Badge className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-          {eventTypeLabel(event.event_type)}
-        </Badge>
-      </div>
-      <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-        <p>
-          {relativeDay(event.date)} · {event.all_day ? "All day" : fmtTime(event.date)}
-        </p>
-        {event.location ? (
-          <p className="flex items-center gap-1 truncate">
-            <MapPin className="h-4 w-4 shrink-0 text-zinc-400" />
-            {event.location}
-          </p>
-        ) : null}
-      </div>
-      <Badge className={event.attendance_requirement === "required" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}>
-        Attendance: {required}
-      </Badge>
-    </Card>
-  );
-}
-
-function HeroEventCard({
-  event,
-  isToday,
-  alreadyCheckedIn,
-  checkedInAt,
-  isStaff,
-  onCheckIn,
-  onStartCheckIn,
-  onMarkAttendance,
-}: {
-  event: EventRow;
-  isToday: boolean;
-  alreadyCheckedIn: boolean;
-  checkedInAt: string | null;
-  isStaff: boolean;
-  onCheckIn: () => void;
-  onStartCheckIn: () => void;
-  onMarkAttendance: () => void;
-}) {
-  const isQr = event.checkin_mode === "qr" || event.checkin_mode === "both";
-  const isToggle = event.checkin_mode === "toggle";
-  const noAttendance = event.checkin_mode === "none";
-
-  return (
-    <Card className="overflow-hidden p-0">
-      <div className="bg-[var(--cue-action)] px-4 py-4 text-white sm:px-5">
-        <div className="flex items-center gap-2">
-          <Badge className="bg-white/15 text-white">{eventTypeLabel(event.event_type)}</Badge>
-          {isToday ? <Badge className="bg-[var(--cue-gold)] text-[var(--cue-gold-ink)]">Today</Badge> : null}
-        </div>
-        <p className="mt-3 font-display text-lg font-bold tracking-wide text-white/75 uppercase">
-          {isToday ? "Next up · today" : "Next up"}
-        </p>
-        <h2 className="mt-1 font-display text-4xl leading-[0.98] font-bold uppercase sm:text-5xl">{event.name}</h2>
-        <p className="mt-1 text-sm text-white/85">
-          {relativeDay(event.date)} · {event.all_day ? "All day" : fmtTime(event.date)}
-          {isToday ? ` · ${untilLabel(event.date)}` : ""}
-        </p>
-        {event.location ? <p className="mt-0.5 truncate text-sm text-white/70">{event.location}</p> : null}
-      </div>
-
-      <div className="space-y-2 p-4">
-        {noAttendance ? (
-          <Alert tone="info">No attendance is taken for this event.</Alert>
-        ) : alreadyCheckedIn ? (
-          <div className="flex items-center gap-2 rounded-xl bg-band/10 px-3 py-3 dark:bg-band/20">
-            <CheckCircle2 className="h-5 w-5 text-band dark:text-emerald-300" />
-            <p className="text-sm font-semibold">
-              You&rsquo;re checked in{checkedInAt ? ` · ${fmtTime(checkedInAt)}` : ""}
-            </p>
-          </div>
-        ) : isStaff ? (
-          <Button
-            block
-            size="lg"
-            icon={isQr ? <QrCode className="h-5 w-5" /> : <ClipboardCheck className="h-5 w-5" />}
-            onClick={isQr ? onStartCheckIn : onMarkAttendance}
-          >
-            {isQr ? "Start check-in" : "Mark attendance"}
-          </Button>
-        ) : isQr ? (
-          <Button block size="lg" icon={<QrCode className="h-5 w-5" />} onClick={onCheckIn}>
-            Check in
-          </Button>
-        ) : isToggle ? (
-          <Alert tone="info">Your section leader or director marks the roll for this one.</Alert>
-        ) : null}
-
-        {isQr && !alreadyCheckedIn ? (
-          <p className={cn("text-center text-xs text-zinc-500 dark:text-zinc-400")}>
-            {isStaff ? "Project the screen so students can scan it." : "Scan the QR code on screen, or type the 8-character code."}
-          </p>
-        ) : null}
-      </div>
-    </Card>
+      {current ? (
+        <Badge className="bg-[var(--cue-leaf-soft)] text-[var(--cue-leaf)]">Here</Badge>
+      ) : (
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<ArrowRight className="h-4 w-4" />}
+          onClick={onOpen}
+        >
+          Switch
+        </Button>
+      )}
+    </div>
   );
 }

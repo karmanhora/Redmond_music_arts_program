@@ -214,7 +214,7 @@ export const AvatarPicker = forwardRef<AvatarPickerHandle, AvatarPickerProps>(fu
             ) : null}
           </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="type-meta">
             {pending
               ? "Cropped square and resized before saving — nothing larger than 512px is stored."
               : "JPEG, PNG or WebP, up to 5 MB. Pictures are stored privately and shown only to people who can already see your profile."}
@@ -223,7 +223,7 @@ export const AvatarPicker = forwardRef<AvatarPickerHandle, AvatarPickerProps>(fu
       </div>
 
       {saving ? (
-        <p className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="type-meta flex items-center gap-2">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
         </p>
       ) : null}

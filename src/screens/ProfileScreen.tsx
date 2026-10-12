@@ -5,14 +5,11 @@ import {
   ArchiveRestore,
   Check,
   ChevronRight,
-  Clock,
   KeyRound,
   LogOut,
-  Music,
   Pencil,
   Plus,
   RefreshCw,
-  Settings,
   ShieldCheck,
   UserCog,
   UserPlus,
@@ -26,6 +23,8 @@ import {
   Card,
   ConfirmSheet,
   EmptyState,
+  List,
+  PageHeader,
   ProgressRing,
   Row,
   SectionTitle,
@@ -44,7 +43,13 @@ import {
 import type { MyAttendanceRow } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
-import { APP_NAME, ATTENDANCE_STATUS_CHIP, ATTENDANCE_STATUS_LABEL, ORG_NAME } from "../lib/constants";
+import {
+  APP_NAME,
+  ATTENDANCE_STATUS_CHIP,
+  ATTENDANCE_STATUS_LABEL,
+  ORG_NAME,
+  ROLE_LABEL,
+} from "../lib/constants";
 import { fmtDate, relativeDay } from "../lib/date";
 
 /**
@@ -60,9 +65,9 @@ import { fmtDate, relativeDay } from "../lib/date";
  * membership are *not* editable here (see `CapabilityList`, which shows why).
  */
 function verdict(pct: number): string {
-  if (pct >= 80) return "You're in good standing. Keep it up.";
-  if (pct >= 60) return "You're slipping — a couple of rehearsals a week adds up fast.";
-  return "At risk. If something is getting in the way, talk to your director.";
+  if (pct >= 80) return "In good standing.";
+  if (pct >= 60) return "Slipping — a couple of missed rehearsals adds up fast.";
+  return "At risk. If something is in the way, talk to your director.";
 }
 
 export function ProfileScreen() {
@@ -154,282 +159,300 @@ export function ProfileScreen() {
     setSigningOut(false);
   }
 
+  const facts: Array<[string, string]> = [
+    ["Program", app.program?.name ?? APP_NAME],
+    ["Section", app.membership?.section?.name || "None yet"],
+    ...(app.membership?.joined_at
+      ? ([["On the roster since", fmtDate(new Date(app.membership.joined_at))]] as Array<
+          [string, string]
+        >)
+      : []),
+    ...(app.profile?.created_at
+      ? ([["Account created", fmtDate(new Date(app.profile.created_at))]] as Array<
+          [string, string]
+        >)
+      : []),
+    ...(email ? ([["Signed in as", email]] as Array<[string, string]>) : []),
+  ];
+
   return (
-    <div className="space-y-4 p-4 pb-6">
-      {error ? <Alert tone="error">{error}</Alert> : null}
+    <div className="mx-auto max-w-3xl px-4 py-5 pb-10 sm:px-6 sm:py-6">
+      <div className="cue-stagger space-y-7">
+        {error ? <Alert tone="error">{error}</Alert> : null}
 
-      {/* --- who you are --- */}
-      <Card className="space-y-3">
-        <div className="flex items-center gap-4">
-          <Avatar
-            name={name}
-            path={app.profile?.avatar_path}
-            url={app.profile?.avatar_url}
-            size={64}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-lg leading-tight font-extrabold">{name}</p>
-            {app.profile?.full_name && app.profile.full_name !== name ? (
-              <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
-                {app.profile.full_name}
-              </p>
-            ) : null}
-            <RoleBadges roles={app.roles} className="mt-1.5" />
-          </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<Pencil className="h-4 w-4" />}
-            onClick={() => setEditOpen(true)}
-          >
-            Edit
-          </Button>
-        </div>
+        <PageHeader
+          kicker={app.program?.short_name || app.program?.name || "Program"}
+          title={name}
+          note={[
+            ROLE_LABEL[app.primaryRole],
+            app.membership?.section?.name,
+            app.membership?.joined_at
+              ? `on the roster since ${fmtDate(new Date(app.membership.joined_at))}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          actions={
+            <Button
+              variant="secondary"
+              icon={<Pencil className="h-4 w-4" />}
+              onClick={() => setEditOpen(true)}
+            >
+              Edit profile
+            </Button>
+          }
+        />
 
-        {app.profile?.bio ? (
-          <p className="border-t border-black/5 pt-3 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-300">
-            {app.profile.bio}
-          </p>
-        ) : null}
-
-        <dl className="grid grid-cols-1 gap-1 border-t border-black/5 pt-3 text-sm dark:border-white/10">
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-zinc-500 dark:text-zinc-400">Program</dt>
-            <dd className="truncate font-medium">{app.program?.name ?? APP_NAME}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-zinc-500 dark:text-zinc-400">Section</dt>
-            <dd className="truncate font-medium">{app.membership?.section?.name || "None yet"}</dd>
-          </div>
-          {app.membership?.joined_at ? (
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-zinc-500 dark:text-zinc-400">On the roster since</dt>
-              <dd className="font-medium">{fmtDate(new Date(app.membership.joined_at))}</dd>
-            </div>
-          ) : null}
-          {app.profile?.created_at ? (
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-zinc-500 dark:text-zinc-400">Account created</dt>
-              <dd className="font-medium">{fmtDate(new Date(app.profile.created_at))}</dd>
-            </div>
-          ) : null}
-          {email ? (
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-zinc-500 dark:text-zinc-400">Signed in as</dt>
-              <dd className="min-w-0 truncate font-medium">{email}</dd>
-            </div>
-          ) : null}
-        </dl>
-      </Card>
-
-      {app.profile?.must_change_password ? (
-        <Alert tone="info">
-          Your director set a temporary password for this account.{" "}
-          <button className="font-semibold underline" onClick={() => navigate("/settings")}>
-            Choose your own
-          </button>{" "}
-          and this note clears.
-        </Alert>
-      ) : null}
-
-      {/* --- what I may do here --- */}
-      <div className="space-y-1">
-        <SectionTitle>Roles & permissions</SectionTitle>
-        <Card className="space-y-3">
-          <CapabilityList permissions={app.permissions} />
-          <p className="border-t border-black/5 pt-3 text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-            These come from your roles in {app.program?.name ?? "this program"} and are checked again
-            on the server for every action. A padlocked item can only come with a role, never from a
-            custom one.
-          </p>
-        </Card>
-      </div>
-
-      {/* --- the programs I belong to --- */}
-      <div className="space-y-1">
-        <SectionTitle className="pt-1">My programs</SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
-          {app.memberships.map((m) => {
-            const here = m.ensemble.id === app.program?.id;
-            return (
-              <Row
-                key={m.id}
-                icon={<Music className="h-5 w-5" />}
-                title={m.ensemble.name}
-                subtitle={
-                  !m.ensemble.active
-                    ? "Archived"
-                    : here
-                      ? "You're looking at this one"
-                      : "Tap to switch to it"
-                }
-                trailing={
-                  here ? <Check className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" /> : null
-                }
-                onClick={here ? undefined : () => app.setProgram(m.ensemble.id)}
+        {/* --- who you are --- */}
+        <section aria-label="Your details">
+          <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
+            <div className="flex items-start gap-4 p-4">
+              <Avatar
+                name={name}
+                path={app.profile?.avatar_path}
+                url={app.profile?.avatar_url}
+                size={64}
               />
-            );
-          })}
-          {app.isDirector && app.program ? (
-            <Row
-              icon={
-                app.program.active ? (
-                  <Archive className="h-5 w-5" />
+              <div className="min-w-0 flex-1">
+                <RoleBadges roles={app.roles} />
+                {app.profile?.bio ? (
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--cue-muted)]">
+                    {app.profile.bio}
+                  </p>
                 ) : (
-                  <ArchiveRestore className="h-5 w-5" />
-                )
-              }
-              title={app.program.active ? "Archive this program" : "Restore this program"}
-              subtitle={
-                app.program.active
-                  ? "Hide it from new members; keep existing members and attendance."
-                  : "Make it available for new members to join again."
-              }
-              onClick={() => setConfirmProgramArchive(true)}
-            />
-          ) : null}
-          <Row
-            icon={<UserPlus className="h-5 w-5" />}
-            title="Join another program"
-            subtitle="Use the join code from that program's director"
-            onClick={() => navigate("/join")}
-          />
-          {app.canCreateProgram ? (
-            <Row
-              icon={<Plus className="h-5 w-5" />}
-              title="Start a new program"
-              subtitle="Name it and you're its director"
-              onClick={() => navigate("/new-program")}
-            />
-          ) : null}
-        </Card>
-        <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
-          {ORG_NAME}. Roles, sections and colours follow whichever program you are in.
-        </p>
-      </div>
-
-      {/* --- my attendance --- */}
-      <div className="space-y-1">
-        <SectionTitle className="pt-1">My attendance</SectionTitle>
-        {refusal ? (
-          <Card>
-            <EmptyState icon={<UserRound className="h-6 w-6" />} title="Not available" body={refusal} />
-          </Card>
-        ) : loading ? (
-          <Skeleton className="h-32 w-full" />
-        ) : (
-          <Card className="space-y-3">
-            <div className="flex items-center gap-4">
-              <ProgressRing value={pct ?? 0} size={76} stroke={8} />
-              <div className="min-w-0">
-                {pct === null ? (
-                  <>
-                    <p className="font-semibold">No required events yet</p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      Your percentage appears after your first required rehearsal or game.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-semibold">Required events attended</p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">{verdict(pct)}</p>
-                  </>
+                  <p className="type-meta mt-2">
+                    No biography yet — add a line or two so your section knows who you are.
+                  </p>
                 )}
               </div>
             </div>
+            <dl className="cue-list">
+              {facts.map(([label, value]) => (
+                <div key={label} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
+                  <dt className="type-label shrink-0">{label}</dt>
+                  <dd className="min-w-0 truncate text-sm font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
 
-            {trend.length > 0 ? (
-              <div className="space-y-1 border-t border-black/5 pt-2 dark:border-white/10">
-                {trend.map((row) => (
-                  <Row
-                    key={row.id}
-                    icon={<Clock className="h-5 w-5" />}
-                    title={row.name}
-                    subtitle={relativeDay(row.date)}
-                    trailing={
+        {app.profile?.must_change_password ? (
+          <Alert tone="info">
+            Your director set a temporary password for this account.{" "}
+            <button className="font-semibold underline" onClick={() => navigate("/settings")}>
+              Choose your own
+            </button>{" "}
+            and this note clears.
+          </Alert>
+        ) : null}
+
+        {/* --- how my record stands --- */}
+        <section>
+          <SectionTitle className="mb-3">My attendance</SectionTitle>
+          {refusal ? (
+            <div className="cue-card rounded-[var(--radius-panel)]">
+              <EmptyState
+                icon={<UserRound className="h-4 w-4" />}
+                title="Not available"
+                body={refusal}
+              />
+            </div>
+          ) : loading ? (
+            <Skeleton className="h-32 w-full" />
+          ) : (
+            <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
+              <div className="flex items-center gap-5 p-4">
+                <ProgressRing value={pct ?? 0} size={76} stroke={7} />
+                <div className="min-w-0">
+                  {pct === null ? (
+                    <>
+                      <p className="type-heading">No required events yet</p>
+                      <p className="type-meta mt-1">
+                        Your percentage appears after your first required rehearsal or performance.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="type-heading">{verdict(pct)}</p>
+                      <p className="type-meta mt-1">
+                        Share of required events you attended. Excused absences are left out.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {trend.length > 0 ? (
+                <ul className="cue-list">
+                  {trend.map((row) => (
+                    <li key={row.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{row.name}</span>
+                        <span className="type-meta block tabular">{relativeDay(row.date)}</span>
+                      </span>
                       <Badge className={ATTENDANCE_STATUS_CHIP[row.status]}>
                         {ATTENDANCE_STATUS_LABEL[row.status]}
                       </Badge>
-                    }
-                  />
-                ))}
-                <p className="pt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  Excused absences are left out of your percentage.
-                </p>
-              </div>
-            ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          )}
+        </section>
+
+        {/* --- what I may do here --- */}
+        <section>
+          <SectionTitle
+            className="mb-3"
+            action={
+              <span className="type-meta">
+                from your roles in {app.program?.name ?? "this program"}
+              </span>
+            }
+          >
+            What you can do here
+          </SectionTitle>
+          <Card>
+            <CapabilityList permissions={app.permissions} />
+            <p className="type-meta mt-3 border-t border-[var(--cue-line)] pt-3">
+              Every one of these is checked again on the server for each action. A padlocked item can
+              only come with a role, never from a custom one.
+            </p>
           </Card>
-        )}
-      </div>
+        </section>
 
-      {/* --- my section --- */}
-      <div className="space-y-1">
-        <SectionTitle className="pt-1">My section</SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
-          <Row
-            icon={<UserRound className="h-5 w-5" />}
-            title={app.membership?.section?.name || "No section yet"}
-            subtitle="Tap to change where you sit in the program"
-            onClick={() => setSectionOpen(true)}
-          />
-        </Card>
-      </div>
-
-      {/* --- settings --- */}
-      <div className="space-y-1">
-        <SectionTitle className="pt-1">Settings & access</SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
-          <Row
-            icon={<Settings className="h-5 w-5" />}
-            title="Account settings"
-            subtitle="Name, picture, password, email, appearance"
-            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
-            onClick={() => navigate("/settings")}
-          />
-          <Row
-            icon={<KeyRound className="h-5 w-5" />}
-            title="Password & sign-in"
-            subtitle="Change your password, confirm your email"
-            trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
-            onClick={() => navigate("/settings")}
-          />
-          {app.can("roles.view") ? (
+        {/* --- my section --- */}
+        <section>
+          <SectionTitle className="mb-3">My section</SectionTitle>
+          <List>
             <Row
-              icon={<UserCog className="h-5 w-5" />}
-              title="Roles & permissions"
-              subtitle="Assign roles and build custom ones for this program"
-              trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-zinc-400" />}
-              onClick={() => navigate("/roles")}
+              icon={<UserRound className="h-4 w-4" />}
+              title={app.membership?.section?.name || "No section yet"}
+              subtitle="Where you sit in this program — change it or ask a director"
+              trailing={
+                <ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />
+              }
+              onClick={() => setSectionOpen(true)}
             />
-          ) : null}
-        </Card>
-      </div>
+          </List>
+        </section>
 
-      {/* --- the public notices, one tap away --- */}
-      <div className="space-y-1">
-        <SectionTitle className="pt-1">Privacy</SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
-          <Row
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title="Privacy Policy"
-            subtitle="What is collected, who can see it, and how to request deletion"
-            onClick={() => navigate("/privacy")}
-          />
-        </Card>
-        <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Deleting your account, and what is kept afterwards, lives in Account settings →
-          Privacy.
-        </p>
-      </div>
+        {/* --- the programs I belong to --- */}
+        <section>
+          <SectionTitle className="mb-3">My programs</SectionTitle>
+          <List>
+            {app.memberships.map((m) => {
+              const here = m.ensemble.id === app.program?.id;
+              return (
+                <Row
+                  key={m.id}
+                  title={m.ensemble.name}
+                  subtitle={
+                    !m.ensemble.active
+                      ? "Archived"
+                      : here
+                        ? "You're looking at this one"
+                        : `${m.roles.map((r) => ROLE_LABEL[r]).join(" · ") || ROLE_LABEL.student} — switch to it`
+                  }
+                  trailing={
+                    here ? (
+                      <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--cue-green)]" />
+                    ) : (
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+                      />
+                    )
+                  }
+                  onClick={here ? undefined : () => app.setProgram(m.ensemble.id)}
+                />
+              );
+            })}
+            {app.isDirector && app.program ? (
+              <Row
+                icon={
+                  app.program.active ? (
+                    <Archive className="h-4 w-4" />
+                  ) : (
+                    <ArchiveRestore className="h-4 w-4" />
+                  )
+                }
+                title={app.program.active ? "Archive this program" : "Restore this program"}
+                subtitle={
+                  app.program.active
+                    ? "Hide it from new members; keep existing members and attendance"
+                    : "Let new members join it again"
+                }
+                onClick={() => setConfirmProgramArchive(true)}
+              />
+            ) : null}
+            <Row
+              icon={<UserPlus className="h-4 w-4" />}
+              title="Join another program"
+              subtitle="Use the join code from that program's director"
+              onClick={() => navigate("/join")}
+            />
+            {app.canCreateProgram ? (
+              <Row
+                icon={<Plus className="h-4 w-4" />}
+                title="Start a new program"
+                subtitle="Name it and you're its director"
+                onClick={() => navigate("/new-program")}
+              />
+            ) : null}
+          </List>
+        </section>
 
-      <Button
-        block
-        variant="secondary"
-        icon={<LogOut className="h-4 w-4" />}
-        onClick={() => setConfirmSignOut(true)}
-      >
-        Sign out
-      </Button>
+        {/* --- account, roles and the notices --- */}
+        <section>
+          <SectionTitle className="mb-3">Your account</SectionTitle>
+          <List>
+            <Row
+              icon={<KeyRound className="h-4 w-4" />}
+              title="Account settings"
+              subtitle="Name, picture, password, email, appearance, privacy"
+              trailing={
+                <ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />
+              }
+              onClick={() => navigate("/settings")}
+            />
+            {app.can("roles.view") ? (
+              <Row
+                icon={<UserCog className="h-4 w-4" />}
+                title="Roles & permissions"
+                subtitle="Who can do what, and the custom roles in this program"
+                trailing={
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />
+                }
+                onClick={() => navigate("/roles")}
+              />
+            ) : null}
+            <Row
+              icon={<ShieldCheck className="h-4 w-4" />}
+              title="Privacy policy"
+              subtitle="What is collected, who can see it, how to request deletion"
+              trailing={
+                <ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />
+              }
+              onClick={() => navigate("/privacy")}
+            />
+          </List>
+          <p className="type-meta mt-2">
+            {ORG_NAME}. Deleting your account, and what is kept afterwards, lives in Account settings
+            → Privacy.
+          </p>
+        </section>
+
+        <Button
+          variant="secondary"
+          icon={<LogOut className="h-4 w-4" />}
+          onClick={() => setConfirmSignOut(true)}
+        >
+          Sign out
+        </Button>
+      </div>
 
       {/* --- edit profile --- */}
       <Sheet
@@ -456,11 +479,12 @@ export function ProfileScreen() {
         description="Your director can move you too."
         size="tall"
       >
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+        <List>
           {app.sections.length === 0 ? (
-            <p className="p-3 text-sm text-zinc-500 dark:text-zinc-400">
-              Your director hasn&rsquo;t set up sections yet.
-            </p>
+            <EmptyState
+              title="No sections set up yet"
+              body="Your director has not created any instruments or sections for this program."
+            />
           ) : (
             app.sections.map((s) => (
               <Row
@@ -468,9 +492,12 @@ export function ProfileScreen() {
                 title={s.name}
                 trailing={
                   app.membership?.section_id === s.id ? (
-                    <Check className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+                    <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--cue-green)]" />
                   ) : busySection === s.id ? (
-                    <RefreshCw className="h-4 w-4 animate-spin text-zinc-400" />
+                    <RefreshCw
+                      aria-hidden="true"
+                      className="h-4 w-4 animate-spin text-[var(--cue-subtle)]"
+                    />
                   ) : null
                 }
                 onClick={
@@ -486,9 +513,12 @@ export function ProfileScreen() {
             subtitle="You'll show up under everyone else"
             trailing={
               app.membership?.section_id === null ? (
-                <Check className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+                <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--cue-green)]" />
               ) : busySection === "none" ? (
-                <RefreshCw className="h-4 w-4 animate-spin text-zinc-400" />
+                <RefreshCw
+                  aria-hidden="true"
+                  className="h-4 w-4 animate-spin text-[var(--cue-subtle)]"
+                />
               ) : null
             }
             onClick={
@@ -497,7 +527,7 @@ export function ProfileScreen() {
                 : () => void moveToSection(null)
             }
           />
-        </Card>
+        </List>
       </Sheet>
 
       <ConfirmSheet

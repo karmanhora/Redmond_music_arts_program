@@ -24,6 +24,8 @@ import {
   ConfirmSheet,
   Field,
   Input,
+  List,
+  PageHeader,
   Row,
   SectionTitle,
   SegmentedControl,
@@ -35,7 +37,7 @@ import { ProfileForm } from "../components/ProfileForm";
 import { CapabilityList, RoleBadges } from "../components/CapabilityList";
 import { updateMyProfile } from "../lib/queries";
 import { fmtDate } from "../lib/date";
-import { APP_NAME, ORG_NAME } from "../lib/constants";
+import { APP_NAME, ORG_NAME, ROLE_LABEL } from "../lib/constants";
 import { useAuth } from "../hooks/useAuth";
 import { useDark } from "../hooks/useDark";
 import { usePrograms } from "../hooks/usePrograms";
@@ -62,7 +64,7 @@ export function AccountSettingsScreen() {
 
   if (!app.profile) {
     return (
-      <div className="space-y-3 p-4 pb-6">
+      <div className="mx-auto max-w-3xl space-y-3 px-4 py-5 sm:px-6">
         <Skeleton className="h-11 w-full" />
         <Skeleton className="h-32 w-full" />
       </div>
@@ -70,44 +72,52 @@ export function AccountSettingsScreen() {
   }
 
   return (
-    <div className="space-y-4 p-4 pb-6">
-      <SectionTitle>Account settings</SectionTitle>
+    <div className="mx-auto max-w-3xl px-4 py-5 pb-10 sm:px-6 sm:py-6">
+      <div className="cue-stagger space-y-5">
+        <PageHeader
+          kicker={app.program?.short_name || app.program?.name || ORG_NAME}
+          title="Account settings"
+          note="Who you are, how you sign in, how the app behaves for you, and what happens to your records."
+        />
 
-      <SegmentedControl
-        value={tab}
-        onChange={setTab}
-        className="sticky top-0 z-10"
-        options={[
-          { value: "profile", label: "Profile" },
-          { value: "security", label: "Security" },
-          { value: "preferences", label: "Preferences" },
-          { value: "privacy", label: "Privacy" },
-        ]}
-      />
-
-      {tab === "profile" ? <ProfileTab /> : null}
-      {tab === "security" ? <SecurityTab /> : null}
-      {tab === "preferences" ? <PreferencesTab /> : null}
-      {tab === "privacy" ? <PrivacyTab /> : null}
-
-      <div className="space-y-1">
-        <Card className="p-1">
-          <Row
-            icon={<FileText className="h-5 w-5" />}
-            title="Privacy Policy"
-            subtitle="What is collected, who can see it, and how to request deletion"
-            onClick={() => navigate("/privacy")}
+        <div className="sticky top-0 z-10 bg-[var(--cue-page)] pt-1">
+          <SegmentedControl
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "profile", label: "Profile" },
+              { value: "security", label: "Security" },
+              { value: "preferences", label: "Preferences" },
+              { value: "privacy", label: "Privacy" },
+            ]}
           />
-          <Row
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title="Terms of Use"
-            subtitle="The rules for using the app"
-            onClick={() => navigate("/terms")}
-          />
-        </Card>
-        <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
-          {APP_NAME} is part of {ORG_NAME}.
-        </p>
+        </div>
+
+        {tab === "profile" ? <ProfileTab /> : null}
+        {tab === "security" ? <SecurityTab /> : null}
+        {tab === "preferences" ? <PreferencesTab /> : null}
+        {tab === "privacy" ? <PrivacyTab /> : null}
+
+        <section>
+          <SectionTitle className="mb-3">Legal</SectionTitle>
+          <List>
+            <Row
+              icon={<FileText className="h-4 w-4" />}
+              title="Privacy policy"
+              subtitle="What is collected, who can see it, and how to request deletion"
+              onClick={() => navigate("/privacy")}
+            />
+            <Row
+              icon={<ShieldCheck className="h-4 w-4" />}
+              title="Terms of use"
+              subtitle="The rules for using the app"
+              onClick={() => navigate("/terms")}
+            />
+          </List>
+          <p className="type-meta mt-2">
+            {APP_NAME} is part of {ORG_NAME}.
+          </p>
+        </section>
       </div>
     </div>
   );
@@ -123,7 +133,7 @@ function ProfileTab() {
   if (!app.profile) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-7">
       <Card>
         <ProfileForm
           profile={app.profile}
@@ -132,43 +142,44 @@ function ProfileTab() {
         />
       </Card>
 
-      <div className="space-y-1">
-        <SectionTitle>What you can change</SectionTitle>
-        <Card className="space-y-3">
-          <CapabilityList permissions={app.permissions} />
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Your roles and program membership are set by your program&rsquo;s staff, not here — a
-            profile change can never grant a role or move you between programs. Ask your director if
-            something looks wrong.
-          </p>
-        </Card>
-      </div>
-
-      <div className="space-y-1">
-        <SectionTitle>Roles & programs</SectionTitle>
-        <Card className="space-y-3">
-          <div>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">In {app.program?.name}</p>
-            <RoleBadges roles={app.roles} className="mt-1.5" />
-          </div>
-          <ul className="space-y-1 border-t border-[var(--cue-border)] pt-3">
+      <section>
+        <SectionTitle className="mb-3">Roles &amp; programs</SectionTitle>
+        <Card>
+          <p className="type-label">In {app.program?.name}</p>
+          <RoleBadges roles={app.roles} className="mt-2" />
+          <ul className="mt-3 border-t border-[var(--cue-line)]">
             {app.memberships.map((membership) => (
-              <li key={membership.id} className="flex items-center justify-between gap-3 text-sm">
+              <li
+                key={membership.id}
+                className="flex items-center justify-between gap-3 border-b border-[var(--cue-line)] py-2 text-sm last:border-b-0"
+              >
                 <span className="truncate font-medium">{membership.ensemble.name}</span>
-                <span className="shrink-0 text-zinc-500 dark:text-zinc-400">
-                  {membership.roles?.join(", ") || "student"}
+                <span className="type-meta shrink-0">
+                  {membership.roles?.map((r) => ROLE_LABEL[r]).join(" · ") || ROLE_LABEL.student}
                   {membership.section?.name ? ` · ${membership.section.name}` : ""}
                 </span>
               </li>
             ))}
           </ul>
           {app.membership?.joined_at ? (
-            <p className="border-t border-[var(--cue-border)] pt-3 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="type-meta mt-3 border-t border-[var(--cue-line)] pt-3">
               On this roster since {fmtDate(new Date(app.membership.joined_at))}.
             </p>
           ) : null}
         </Card>
-      </div>
+      </section>
+
+      <section>
+        <SectionTitle className="mb-3">What this account may do</SectionTitle>
+        <Card>
+          <CapabilityList permissions={app.permissions} />
+          <p className="type-meta mt-3 border-t border-[var(--cue-line)] pt-3">
+            Your roles and program membership are set by your program&rsquo;s staff, not here — a
+            profile change can never grant a role or move you between programs. Ask your director if
+            something looks wrong.
+          </p>
+        </Card>
+      </section>
     </div>
   );
 }
@@ -282,25 +293,23 @@ function SecurityTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-7">
       {/* --- email --- */}
-      <div className="space-y-1">
-        <SectionTitle>Email</SectionTitle>
-        <Card className="space-y-3">
+      <section>
+        <SectionTitle className="mb-3">Email</SectionTitle>
+        <Card className="space-y-4">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-band/10 text-band dark:bg-band/20 dark:text-emerald-300">
-              <Mail className="h-5 w-5" />
-            </span>
+            <Mail aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{auth.email ?? "No address on file"}</p>
-              <div className="mt-1">
+              <div className="mt-1.5">
                 {auth.emailVerified ? (
-                  <Badge className="bg-band/12 text-band-deep dark:bg-band/25 dark:text-emerald-200">
-                    <BadgeCheck aria-hidden="true" className="mr-1 h-3 w-3" /> Verified
+                  <Badge className="bg-[var(--cue-present-bg)] text-[var(--cue-present)]">
+                    <BadgeCheck aria-hidden="true" className="h-3 w-3" /> Verified
                   </Badge>
                 ) : (
-                  <Badge className="bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                    <MailWarning aria-hidden="true" className="mr-1 h-3 w-3" /> Not verified yet
+                  <Badge className="bg-[var(--cue-late-bg)] text-[var(--cue-late)]">
+                    <MailWarning aria-hidden="true" className="h-3 w-3" /> Not verified yet
                   </Badge>
                 )}
               </div>
@@ -310,15 +319,20 @@ function SecurityTab() {
           {!auth.emailVerified ? (
             <Alert tone="warn">
               Confirm this address so you can reset your password if you forget it.
-              <div className="mt-2">
-                <Button size="sm" variant="secondary" loading={busy === "resend"} onClick={() => void resend()}>
-                  Resend confirmation email
-                </Button>
-              </div>
             </Alert>
           ) : null}
+          {!auth.emailVerified ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={busy === "resend"}
+              onClick={() => void resend()}
+            >
+              Resend confirmation email
+            </Button>
+          ) : null}
 
-          <div className="space-y-3 border-t border-[var(--cue-border)] pt-3">
+          <div className="space-y-3 border-t border-[var(--cue-line)] pt-4">
             {emailError ? <Alert tone="error">{emailError}</Alert> : null}
             <Field
               label="Change email address"
@@ -332,20 +346,25 @@ function SecurityTab() {
                 autoComplete="email"
               />
             </Field>
-            <Button size="sm" variant="secondary" loading={savingEmail} onClick={() => void changeEmail()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={savingEmail}
+              onClick={() => void changeEmail()}
+            >
               Send confirmation links
             </Button>
           </div>
         </Card>
-      </div>
+      </section>
 
       {/* --- password --- */}
-      <div className="space-y-1">
-        <SectionTitle>Password</SectionTitle>
-        <Card className="space-y-3">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            This is the password you sign in with. It is held by the sign-in service (Supabase
-            Auth), never by this app&rsquo;s database.
+      <section>
+        <SectionTitle className="mb-3">Password</SectionTitle>
+        <Card className="space-y-4">
+          <p className="type-meta">
+            This is the password you sign in with. It is held by the sign-in service (Supabase Auth),
+            never by this app&rsquo;s database.
           </p>
           {app.profile?.must_change_password ? (
             <Alert tone="info">
@@ -372,7 +391,12 @@ function SecurityTab() {
             />
           </Field>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" loading={savingPassword} icon={<KeyRound className="h-4 w-4" />} onClick={() => void changePassword()}>
+            <Button
+              size="sm"
+              loading={savingPassword}
+              icon={<KeyRound className="h-4 w-4" />}
+              onClick={() => void changePassword()}
+            >
               Change password
             </Button>
             <Button
@@ -386,26 +410,26 @@ function SecurityTab() {
             </Button>
           </div>
         </Card>
-      </div>
+      </section>
 
       {/* --- sessions --- */}
-      <div className="space-y-1">
-        <SectionTitle>Sessions</SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+      <section>
+        <SectionTitle className="mb-3">Sessions</SectionTitle>
+        <List>
           <Row
-            icon={<MonitorSmartphone className="h-5 w-5" />}
+            icon={<MonitorSmartphone className="h-4 w-4" />}
             title="Sign out of other devices"
-            subtitle="Keeps this device signed in; ends every other session."
+            subtitle="Keeps this device signed in; ends every other session"
             onClick={() => setConfirmOthers(true)}
           />
           <Row
-            icon={<LogOut className="h-5 w-5" />}
+            icon={<LogOut className="h-4 w-4" />}
             title="Sign out"
-            subtitle="You'll need your password again on this device."
+            subtitle="You'll need your password again on this device"
             onClick={() => setConfirmSignOut(true)}
           />
-        </Card>
-      </div>
+        </List>
+      </section>
 
       <ConfirmSheet
         open={confirmOthers}
@@ -438,21 +462,21 @@ function PreferencesTab() {
   const { preference, setPreference, reduced } = useReducedMotion();
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <SectionTitle>Appearance</SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+    <div className="space-y-7">
+      <section>
+        <SectionTitle className="mb-3">Appearance</SectionTitle>
+        <List>
           <Row
-            icon={dark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            icon={dark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             title="Dark mode"
             subtitle={dark ? "On — easier at night" : "Off — follows your device"}
             trailing={<Toggle checked={dark} onChange={toggle} label="Dark mode" />}
           />
-        </Card>
-      </div>
+        </List>
+      </section>
 
-      <div className="space-y-1">
-        <SectionTitle>Motion</SectionTitle>
+      <section>
+        <SectionTitle className="mb-3">Motion</SectionTitle>
         <Card className="space-y-3">
           <SegmentedControl
             value={preference}
@@ -463,24 +487,24 @@ function PreferencesTab() {
               { value: "full", label: "Full motion" },
             ]}
           />
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="type-meta">
             {reduced
               ? "Screen transitions and movement are reduced on this device."
               : "Screen transitions play normally. Choose “Reduce motion” to turn them off."}
           </p>
         </Card>
-      </div>
+      </section>
 
-      <div className="space-y-1">
-        <SectionTitle>Notifications</SectionTitle>
+      <section>
+        <SectionTitle className="mb-3">Notifications</SectionTitle>
         <Card>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            This app has one notification channel — the bell in the header, fed by your program&rsquo;s
-            events and open check-ins. There is nothing to configure yet, so there is no toggle here
-            pretending otherwise.
+          <p className="type-meta">
+            This app has one notification channel — the bell in the header, fed by your
+            program&rsquo;s events and open check-ins. There is nothing to configure yet, so there is
+            no toggle here pretending otherwise.
           </p>
         </Card>
-      </div>
+      </section>
     </div>
   );
 }
@@ -514,54 +538,62 @@ function PrivacyTab() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <SectionTitle>Your records</SectionTitle>
+    <div className="space-y-7">
+      <section>
+        <SectionTitle className="mb-3">Your records</SectionTitle>
         <Card className="space-y-3">
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-[var(--cue-muted)]">
             Your name, picture and biography belong to your account and can be changed at any time
             from the Profile tab. Your attendance record is a school record.
           </p>
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2">
-              <UserRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-band dark:text-emerald-300" />
+              <UserRound
+                aria-hidden="true"
+                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+              />
               <span>
-                <strong>Deleted when you ask:</strong> your sign-in account, and your profile details
-                (name, picture, biography).
+                <strong className="font-semibold">Deleted when you ask:</strong> your sign-in
+                account, and your profile details (name, picture, biography).
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <Clock aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-band dark:text-emerald-300" />
+              <Clock aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
               <span>
-                <strong>Kept, de-identified:</strong> attendance already recorded is retained under
-                &ldquo;Deleted account&rdquo; so the program&rsquo;s records stay accurate. No name or picture
-                remains attached.
+                <strong className="font-semibold">Kept, de-identified:</strong> attendance already
+                recorded is retained under &ldquo;Deleted account&rdquo; so the program&rsquo;s
+                records stay accurate. No name or picture remains attached.
               </span>
             </li>
           </ul>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Retention follows the school district&rsquo;s records policy. To inspect, correct or delete a
-            record before then, contact your school&rsquo;s records office (LWSD Policy 3231).
+          <p className="type-meta">
+            Retention follows the school district&rsquo;s records policy. To inspect, correct or
+            delete a record before then, contact your school&rsquo;s records office (LWSD Policy
+            3231).
           </p>
         </Card>
-      </div>
+      </section>
 
-      <div className="space-y-1">
-        <SectionTitle>Request help</SectionTitle>
+      <section>
+        <SectionTitle className="mb-3">Request help</SectionTitle>
         <Card className="space-y-3">
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-[var(--cue-muted)]">
             If something is wrong with your account — a name misspelled, the wrong program, a record
             that should be corrected — ask your director first. They can fix rosters and attendance
             directly.
           </p>
-          <Button variant="secondary" icon={<Mail className="h-4 w-4" />} onClick={() => navigate("/privacy")}>
+          <Button
+            variant="secondary"
+            icon={<ShieldCheck className="h-4 w-4" />}
+            onClick={() => navigate("/privacy")}
+          >
             Read the privacy notice
           </Button>
         </Card>
-      </div>
+      </section>
 
-      <div className="space-y-1">
-        <SectionTitle>Delete your account</SectionTitle>
+      <section>
+        <SectionTitle className="mb-3">Delete your account</SectionTitle>
         <Card className="space-y-3">
           <Alert tone="warn">
             This is permanent. It removes your sign-in account and profile details. Attendance
@@ -569,15 +601,19 @@ function PrivacyTab() {
             archived rather than deleted.
           </Alert>
           {error ? <Alert tone="error">{error}</Alert> : null}
-          <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDelete(true)}>
+          <Button
+            variant="danger"
+            icon={<Trash2 className="h-4 w-4" />}
+            onClick={() => setConfirmDelete(true)}
+          >
             Delete my account
           </Button>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="type-meta">
             Prefer to keep everything and just be removed from the roster? Ask your director to pause
             your membership instead — your attendance stays attributed to you.
           </p>
         </Card>
-      </div>
+      </section>
 
       <ConfirmSheet
         open={confirmDelete}
@@ -589,7 +625,7 @@ function PrivacyTab() {
         onConfirm={() => void doDelete()}
       />
 
-      <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
+      <p className="type-meta">
         Signed in to {app.program?.name ?? "this program"} as {auth.email ?? "—"}.
       </p>
     </div>

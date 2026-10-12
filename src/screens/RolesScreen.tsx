@@ -22,6 +22,8 @@ import {
   EmptyState,
   Field,
   Input,
+  List,
+  PageHeader,
   Row,
   SectionTitle,
   SegmentedControl,
@@ -172,8 +174,8 @@ export function RolesScreen() {
 
   if (roster === null && !error) {
     return (
-      <div className="space-y-3 p-4 pb-6">
-        <Skeleton className="h-11 w-full" />
+      <div className="mx-auto max-w-4xl space-y-3 px-4 py-5 sm:px-6">
+        <Skeleton className="h-16 w-56" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-24 w-full" />
       </div>
@@ -181,10 +183,15 @@ export function RolesScreen() {
   }
 
   return (
-    <div className="space-y-4 p-4 pb-6">
-      <div className="space-y-1">
-        <SectionTitle
-          action={
+    <div className="mx-auto max-w-4xl px-4 py-5 pb-10 sm:px-6 sm:py-6">
+      <div className="cue-stagger space-y-7">
+        {error ? <Alert tone="error">{error}</Alert> : null}
+
+        <PageHeader
+          kicker={app.program?.name}
+          title="Roles & permissions"
+          note={`${roster?.length ?? 0} members. You can only hand out roles that grant capabilities you hold yourself — and the server checks that again on every change.`}
+          actions={
             <Button
               size="sm"
               variant="secondary"
@@ -194,76 +201,89 @@ export function RolesScreen() {
               Refresh
             </Button>
           }
-        >
-          Roles & permissions
-        </SectionTitle>
-        <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">
-          {app.program?.name} · {roster?.length ?? 0} members. You can only assign roles that grant
-          capabilities you hold yourself.
-        </p>
-      </div>
+        />
 
-      {error ? <Alert tone="error">{error}</Alert> : null}
+        {/* --- find a member --- */}
+        <section>
+          <SectionTitle className="mb-3">Members</SectionTitle>
+          <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
+            <div className="relative border-b border-[var(--cue-line)]">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--cue-subtle)]"
+              />
+              <Input
+                className="rounded-none border-0 pl-9"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by name or section"
+                aria-label="Search members"
+                type="search"
+              />
+            </div>
 
-      {/* --- find a member --- */}
-      <Card className="space-y-3">
-        <div className="relative">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400"
-          />
-          <Input
-            className="pl-9"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by name or section"
-            aria-label="Search members"
-            type="search"
-          />
-        </div>
-
-        {filtered.length === 0 ? (
-          <EmptyState
-            icon={<Users className="h-6 w-6" />}
-            title={query ? "No matching members" : "No members yet"}
-            body={query ? "Try a different name or section." : "Once people join this program they appear here."}
-          />
-        ) : (
-          <ul className="divide-y divide-black/5 dark:divide-white/10">
-            {filtered.map((member) => {
-              const custom = assignments.filter((a) => a.user_id === member.user_id);
-              const name = member.profile.display_name || member.profile.full_name;
-              return (
-                <li key={member.user_id}>
-                  <Row
-                    icon={<Avatar name={name} path={member.profile.avatar_path} url={member.profile.avatar_url} size={40} />}
-                    title={name}
-                    subtitle={
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        {member.section_name ? <span>{member.section_name}</span> : <span>No section</span>}
-                        {custom.length > 0 ? (
-                          <Badge className="bg-accent text-[var(--cue-gold-ink)]">
-                            {custom.length} custom
-                          </Badge>
-                        ) : null}
-                        {!member.active ? (
-                          <Badge className="bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">Paused</Badge>
-                        ) : null}
-                      </span>
-                    }
-                    trailing={<RoleBadges roles={member.roles} className="hidden max-w-48 justify-end sm:flex" />}
-                    onClick={() => setSelected(member)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon={<Users className="h-4 w-4" />}
+                title={query ? "No matching members" : "No members yet"}
+                body={
+                  query
+                    ? "Try a different name or section."
+                    : "Once people join this program they appear here."
+                }
+              />
+            ) : (
+              <ul className="cue-list">
+                {filtered.map((member) => {
+                  const custom = assignments.filter((a) => a.user_id === member.user_id);
+                  const name = member.profile.display_name || member.profile.full_name;
+                  return (
+                    <li key={member.user_id}>
+                      <Row
+                        leading={
+                          <Avatar
+                            name={name}
+                            path={member.profile.avatar_path}
+                            url={member.profile.avatar_url}
+                            size={28}
+                          />
+                        }
+                        title={name}
+                        subtitle={
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span>{member.section_name || "No section"}</span>
+                            {custom.length > 0 ? (
+                              <Badge className="bg-[var(--cue-gold-soft)] text-[var(--cue-gold-ink)]">
+                                {custom.length} custom
+                              </Badge>
+                            ) : null}
+                            {!member.active ? (
+                              <Badge className="bg-[var(--cue-raised)] text-[var(--cue-muted)]">
+                                Paused
+                              </Badge>
+                            ) : null}
+                          </span>
+                        }
+                        trailing={
+                          <RoleBadges
+                            roles={member.roles}
+                            className="hidden max-w-48 justify-end sm:flex"
+                          />
+                        }
+                        onClick={() => setSelected(member)}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </section>
 
       {/* --- custom roles --- */}
-      <div className="space-y-1">
+      <section>
         <SectionTitle
+          className="mb-3"
           action={
             app.can("roles.assign") ? (
               <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setBuilderFor("new")}>
@@ -274,23 +294,24 @@ export function RolesScreen() {
         >
           Custom roles
         </SectionTitle>
-        <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+        <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
           {customRoles.length === 0 ? (
-            <p className="p-3 text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="p-4 text-sm text-[var(--cue-muted)]">
               None yet. A custom role is a named set of capabilities — useful when a secretary should
               see analytics, or a section leader should manage the roster, without handing over your
               own role.
             </p>
           ) : (
             customRoles.map((role) => (
-              <div key={role.id} className="space-y-2 p-3">
+              <div key={role.id} className="space-y-2 border-b border-[var(--cue-line)] p-4 last:border-b-0">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-band/10 text-band dark:bg-band/20 dark:text-emerald-300">
-                    <KeyRound className="h-5 w-5" />
-                  </span>
+                  <KeyRound
+                    aria-hidden="true"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{role.name}</p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="type-meta">
                       {role.holder_count === 0
                         ? "Nobody holds this role"
                         : `${role.holder_count} ${role.holder_count === 1 ? "person holds" : "people hold"} this role`}
@@ -298,7 +319,7 @@ export function RolesScreen() {
                       {role.scope === "section" ? "Section scope" : "Program scope"}
                     </p>
                     {role.description ? (
-                      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{role.description}</p>
+                      <p className="mt-1 text-sm text-[var(--cue-muted)]">{role.description}</p>
                     ) : null}
                   </div>
                 </div>
@@ -326,40 +347,48 @@ export function RolesScreen() {
               </div>
             ))
           )}
-        </Card>
-      </div>
+        </div>
+      </section>
 
       {/* --- audit history --- */}
-      <div className="space-y-1">
-        <SectionTitle>Recent changes</SectionTitle>
-        <Card className="p-1">
+      <section>
+        <SectionTitle
+          className="mb-3"
+          action={<span className="type-meta">Last {audit.length}</span>}
+        >
+          Recent changes
+        </SectionTitle>
+        <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
           {audit.length === 0 ? (
-            <p className="p-3 text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="p-4 text-sm text-[var(--cue-muted)]">
               No role changes recorded yet. Every assignment, removal and custom-role edit shows up
               here with who did it.
             </p>
           ) : (
-            <ul className="divide-y divide-black/5 dark:divide-white/10">
+            <ul className="cue-list">
               {audit.map((entry) => (
-                <li key={entry.id} className="flex items-start gap-3 py-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-black/[0.05] text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300">
-                    <History className="h-5 w-5" />
-                  </span>
+                <li key={entry.id} className="flex items-start gap-3 px-4 py-3">
+                  <History
+                    aria-hidden="true"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{auditLabel(entry)}</p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    <p className="type-meta">
                       {entry.actor_name}
                       {entry.target_name ? ` → ${entry.target_name}` : ""}
                       {entry.detail?.role ? ` · ${entry.detail.role}` : ""}
                     </p>
                   </div>
-                  <span className="shrink-0 text-[11px] text-zinc-400">{relativeDay(entry.created_at)}</span>
+                  <span className="type-meta shrink-0 tabular">
+                    {relativeDay(entry.created_at)}
+                  </span>
                 </li>
               ))}
             </ul>
           )}
-        </Card>
-      </div>
+        </div>
+      </section>
 
       <MemberRolesSheet
         member={selected}
@@ -384,6 +413,7 @@ export function RolesScreen() {
           await Promise.all([load(), app.refresh()]);
         }}
       />
+      </div>
     </div>
   );
 }
@@ -470,24 +500,25 @@ function MemberRolesSheet({
             <div className="min-w-0">
               <RoleBadges roles={member.roles} />
               {member.profile.bio ? (
-                <p className="mt-1 line-clamp-3 text-sm text-zinc-500 dark:text-zinc-400">{member.profile.bio}</p>
+                <p className="type-meta mt-1 line-clamp-3">{member.profile.bio}</p>
               ) : null}
             </div>
           </div>
 
           {/* --- roles they hold --- */}
           <div className="space-y-2">
-            <p className="text-[11px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-              Current roles
-            </p>
+            <p className="type-label">Current roles</p>
             {[...heldSystem, ...heldCustom].map((role) => (
               <Card key={role.id} className="space-y-2">
                 <div className="flex items-start gap-3">
-                  <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+                  <ShieldCheck
+                    aria-hidden="true"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-green)]"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{role.name}</p>
                     {role.description ? (
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">{role.description}</p>
+                      <p className="type-meta">{role.description}</p>
                     ) : null}
                   </div>
                   {canRevoke ? (
@@ -504,21 +535,15 @@ function MemberRolesSheet({
           {/* --- roles they could get --- */}
           {canAssign ? (
             <div className="space-y-2">
-              <p className="text-[11px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-                Assign another role
-              </p>
-              <ul className="divide-y divide-black/5 dark:divide-white/10">
+              <p className="type-label">Assign another role</p>
+              <List>
                 {available.map((role) => {
                   const allowed = canDelegateEverything(role);
                   return (
                     <li key={role.id}>
                       <Row
                         icon={
-                          allowed ? (
-                            <Plus className="h-5 w-5" />
-                          ) : (
-                            <Lock className="h-5 w-5" />
-                          )
+                          allowed ? <Plus className="h-4 w-4" /> : <Lock className="h-4 w-4" />
                         }
                         title={role.name}
                         subtitle={
@@ -541,14 +566,14 @@ function MemberRolesSheet({
                   );
                 })}
                 {available.length === 0 ? (
-                  <li className="p-3 text-sm text-zinc-500 dark:text-zinc-400">
+                  <li className="p-4 text-sm text-[var(--cue-muted)]">
                     {name} already holds every role available to you.
                   </li>
                 ) : null}
-              </ul>
+              </List>
             </div>
           ) : (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="type-meta">
               You can see roles but not change them. A director can grant you that.
             </p>
           )}
@@ -591,23 +616,21 @@ function MemberRolesSheet({
         {pending ? (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <Avatar name={name} path={member.profile.avatar_path} url={member.profile.avatar_url} size={44} />
+              <Avatar name={name} path={member.profile.avatar_path} url={member.profile.avatar_url} size={40} />
               <div>
                 <p className="font-semibold">{name}</p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="type-meta">
                   {pending.scope === "section" ? "Applies to their section" : "Applies to the whole program"}
                 </p>
               </div>
             </div>
 
             {pending.description ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">{pending.description}</p>
+              <p className="text-sm text-[var(--cue-muted)]">{pending.description}</p>
             ) : null}
 
             <div>
-              <p className="mb-1 text-[11px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-                Capabilities
-              </p>
+              <p className="type-label mb-2">Capabilities</p>
               <CapabilityList permissions={pending.permissions} />
             </div>
 
@@ -806,11 +829,9 @@ function CustomRoleSheet({
           </Field>
 
           <div className="space-y-3">
-            <p className="text-[11px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-              Capabilities ({selected.length} chosen)
-            </p>
+            <p className="type-label">Capabilities ({selected.length} chosen)</p>
             {offered.length === 0 ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="type-meta">
                 You don&rsquo;t hold any delegable capability, so there is nothing you can put in a
                 custom role.
               </p>
@@ -834,22 +855,24 @@ function CustomRoleSheet({
                             className={cn(
                               "motion-press flex w-full items-start gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left",
                               on
-                                ? "border-band bg-band/10 dark:border-emerald-700 dark:bg-band/20"
-                                : "border-[var(--cue-border)] hover:bg-[var(--cue-raised)]"
+                                ? "border-[var(--cue-green)] bg-[var(--cue-green-soft)]"
+                                : "border-[var(--cue-line-strong)] hover:bg-[var(--cue-raised)]"
                             )}
                           >
                             <span
                               aria-hidden="true"
                               className={cn(
                                 "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border",
-                                on ? "border-band bg-band text-white" : "border-[var(--cue-border)]"
+                                on
+                                  ? "border-[var(--cue-green)] bg-[var(--cue-action)] text-white"
+                                  : "border-[var(--cue-line-strong)]"
                               )}
                             >
                               {on ? <Check className="h-3.5 w-3.5" /> : null}
                             </span>
                             <span className="min-w-0">
                               <span className="block text-sm font-semibold">{permission.label}</span>
-                              <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                              <span className="type-meta block">
                                 {permission.description}
                                 {permission.scope === "section" ? " (section scope)" : ""}
                               </span>

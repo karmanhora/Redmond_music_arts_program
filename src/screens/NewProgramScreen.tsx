@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, LogOut, Music, ShieldCheck } from "lucide-react";
-import { Alert, Button, Card, Field, Input, useToast } from "../components/ui";
+import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
+import { Alert, Button, Card, Field, Input, PageHeader, useToast } from "../components/ui";
 import { InstrumentPicker } from "../components/InstrumentPicker";
 import { createProgram } from "../lib/rpc";
 import { usePrograms } from "../hooks/usePrograms";
@@ -83,20 +83,14 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
   }
 
   const form = (
-    <div className="space-y-4 p-4 pb-6">
+    <div className="cue-stagger mx-auto max-w-2xl space-y-5 px-4 py-5 pb-10 sm:px-6 sm:py-6">
       {error ? <Alert tone="error">{error}</Alert> : null}
 
-      <Card className="space-y-2">
-        <p className="flex items-center gap-2 font-semibold">
-          <Music className="h-5 w-5 text-band dark:text-emerald-300" />
-          Start your own program
-        </p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Name it, list its instruments, and you&rsquo;re its director. Nobody has to approve
-          you, and the roster, attendance and live check-in tools are ready as soon as it
-          exists.
-        </p>
-      </Card>
+      <PageHeader
+        kicker="New program"
+        title="Start your own program"
+        note="Name it, list its instruments, and you're its director. Nobody has to approve you, and the roster, attendance and live check-in tools are ready as soon as it exists."
+      />
 
       <Field label="Program name" hint="What everybody will call it — you can be specific.">
         <Input
@@ -150,17 +144,17 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
         </Button>
       ) : null}
 
-      <Card className="flex items-start gap-2">
-        <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <Card className="flex items-start gap-3">
+        <KeyRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
+        <p className="text-sm text-[var(--cue-muted)]">
           It starts closed. Your program gets its own join code, and only the people you give that
           code to can join it — you can replace the code whenever you like on the Roster screen.
         </p>
       </Card>
 
-      <Card className="flex items-start gap-2">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      <Card className="flex items-start gap-3">
+        <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
+        <p className="type-meta">
           You become the director of this program only. Nothing here can change your access to
           somebody else&rsquo;s program — that is a director&rsquo;s decision, made on their roster.
         </p>
@@ -171,14 +165,12 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
   if (!standalone) return form;
 
   return (
-    <div className="safe-t flex min-h-full flex-col bg-surface dark:bg-[#0c0f0a]">
-      <div className="bg-band px-6 pt-8 pb-6 text-white">
-        <img src="/logo.svg" alt="" className="h-10 w-10" />
-        <p className="mt-3 text-[11px] font-bold tracking-widest text-white/70 uppercase">
-          {ORG_NAME}
-        </p>
-        <h1 className="mt-1 text-xl font-extrabold">{APP_NAME}</h1>
-        <p className="mt-1 text-sm text-white/80">
+    <div className="safe-t flex min-h-full flex-col bg-[var(--cue-page)]">
+      <div className="bg-[var(--cue-brand-panel)] px-6 pt-8 pb-6 text-[var(--cue-brand-ink)]">
+        <img src="/logo.svg" alt="" className="h-9 w-9" />
+        <p className="type-label mt-3 text-[var(--cue-gold-on-brand)]">{ORG_NAME}</p>
+        <p className="type-title mt-1.5">{APP_NAME}</p>
+        <p className="mt-1 max-w-md text-sm text-[var(--cue-brand-ink)]/80">
           You&rsquo;re signed in — name a program and you&rsquo;re its director straight away.
         </p>
       </div>
@@ -198,7 +190,7 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
           Sign out
         </Button>
         {auth.email ? (
-          <p className="text-center text-xs text-zinc-400">Signed in as {auth.email}</p>
+          <p className="type-meta text-center">Signed in as {auth.email}</p>
         ) : null}
       </div>
     </div>

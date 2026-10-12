@@ -3,7 +3,6 @@ import {
   Archive,
   ArchiveRestore,
   CalendarDays,
-  CalendarPlus,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -22,6 +21,8 @@ import {
   Field,
   IconButton,
   Input,
+  List,
+  PageHeader,
   Row,
   SegmentedControl,
   Select,
@@ -365,7 +366,7 @@ export function CalendarScreen() {
 
   if (!programId) {
     return (
-      <div className="space-y-3 p-4">
+      <div className="mx-auto max-w-6xl space-y-3 px-4 py-5 sm:px-6">
         <Skeleton className="h-64 w-full" />
         <Skeleton className="h-20 w-full" />
       </div>
@@ -373,207 +374,252 @@ export function CalendarScreen() {
   }
 
   return (
-    <div className="space-y-4 p-4 pb-6">
+    <div className="cue-stagger mx-auto max-w-6xl space-y-6 px-4 py-5 pb-10 sm:px-6 sm:py-6">
       {error ? <Alert tone="error">{error}</Alert> : null}
 
-      {/* --- month header --- */}
-      <div className="flex items-center gap-2">
-        <IconButton
-          label="Previous month"
-          icon={<ChevronLeft className="h-5 w-5" />}
-          onClick={() => setCursor((c) => addMonths(c, -1))}
-        />
-        <div className="min-w-0 flex-1 text-center">
-          <p className="truncate font-bold">{fmtMonthYear(cursor.getFullYear(), cursor.getMonth())}</p>
-          {!isThisMonth ? (
-            <button
-              type="button"
-              className="text-xs font-semibold text-band underline dark:text-emerald-300"
-              onClick={() => {
-                setCursor(new Date(today.getFullYear(), today.getMonth(), 1));
-                setSelectedDay(today);
-              }}
-            >
-              Back to today
-            </button>
-          ) : null}
-        </div>
-        <IconButton
-          label="Next month"
-          icon={<ChevronRight className="h-5 w-5" />}
-          onClick={() => setCursor((c) => addMonths(c, 1))}
-        />
-        {app.isStaff ? (
-          <Button
-            size="sm"
-            icon={<CalendarPlus className="h-4 w-4" />}
-            onClick={() => {
-              setFormError(null);
-              setForm(newForm(selectedDay));
-            }}
-          >
-            Add
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        kicker={app.program?.short_name || app.program?.name || "Program"}
+        title={fmtMonthYear(cursor.getFullYear(), cursor.getMonth())}
+        note={`${events?.length ?? 0} ${
+          (events?.length ?? 0) === 1 ? "event" : "events"
+        } in view · pick a day to read its schedule`}
+        actions={
+          <>
+            <div className="flex items-center">
+              <IconButton
+                label="Previous month"
+                icon={<ChevronLeft className="h-4 w-4" />}
+                onClick={() => setCursor((c) => addMonths(c, -1))}
+              />
+              <IconButton
+                label="Next month"
+                icon={<ChevronRight className="h-4 w-4" />}
+                onClick={() => setCursor((c) => addMonths(c, 1))}
+              />
+            </div>
+            {!isThisMonth ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setCursor(new Date(today.getFullYear(), today.getMonth(), 1));
+                  setSelectedDay(today);
+                }}
+              >
+                Today
+              </Button>
+            ) : null}
+            {app.isStaff ? (
+              <Button
+                size="sm"
+                icon={<Plus className="h-4 w-4" />}
+                onClick={() => {
+                  setFormError(null);
+                  setForm(newForm(selectedDay));
+                }}
+              >
+                Add event
+              </Button>
+            ) : null}
+          </>
+        }
+      />
 
-      {/* --- the grid --- */}
-      <Card className="p-2">
-        <div className="grid grid-cols-7 pb-1">
+      {/* --- the grid: a month as a ruled table, not a tray of tiles --- */}
+      <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
+        <div className="grid grid-cols-7 border-b border-[var(--cue-line)]">
           {WEEKDAYS.map((w, i) => (
-            <span
-              key={`${w}-${i}`}
-              className="text-center text-[11px] font-bold text-zinc-400 uppercase"
-            >
+            <span key={`${w}-${i}`} className="type-label py-1.5 text-center">
               {w}
             </span>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-0.5">
+        <div
+          className={cn(
+            "grid grid-cols-7",
+            "[&>*]:border-t [&>*]:border-l [&>*]:border-[var(--cue-line)]",
+            "[&>*:nth-child(7n + 1)]:border-l-0 [&>*:nth-child(-n + 7)]:border-t-0"
+          )}
+        >
           {weeks.flatMap((week, wi) =>
             week.map((day, di) => {
-              if (!day) return <span key={`${wi}-${di}`} className="min-h-13" />;
+              if (!day) return <span key={`${wi}-${di}`} className="min-h-14" />;
               const key = dateKey(day);
               const list = byDay.get(key) ?? [];
               const mine = personalByDay.get(key) ?? [];
               const isToday = isSameDay(day, today);
               const isSelected = isSameDay(day, selectedDay);
+              const marks = list.length + mine.length;
               return (
                 <button
                   key={key}
                   type="button"
-                  aria-label={fmtDate(day)}
+                  aria-label={`${fmtDate(day)} — ${
+                    marks === 0 ? "nothing scheduled" : `${marks} scheduled`
+                  }`}
                   aria-current={isToday ? "date" : undefined}
+                  aria-pressed={isSelected}
                   onClick={() => setSelectedDay(startOfDay(day))}
                   className={cn(
-                    "flex min-h-13 flex-col items-center justify-start gap-1 rounded-xl px-0.5 pt-1.5 transition-colors",
-                    isSelected
-                      ? "bg-band text-white"
-                      : isToday
-                        ? "bg-band/10 text-band-deep dark:bg-band/25 dark:text-emerald-200"
-                        : "hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+                    "flex min-h-14 flex-col items-center gap-1 px-0.5 pt-1.5 transition-colors sm:min-h-16",
+                    /* The day you are on is tinted leaf rather than grey, so the
+                       month and the agenda below are visibly the same choice. */
+                    isSelected ? "bg-[var(--cue-leaf-soft)]" : "hover:bg-[var(--cue-raised)]",
+                    /* Today keeps a leaf ring all month, whatever is selected. */
+                    isToday && "shadow-[inset_0_0_0_2px_var(--cue-leaf)]"
                   )}
                 >
-                  <span className={cn("text-sm font-semibold", isToday && !isSelected && "font-extrabold")}>
+                  <span
+                    className={cn(
+                      "type-figure text-lg",
+                      isToday ? "text-[var(--cue-leaf)]" : "text-[var(--cue-ink)]",
+                      isSelected && "font-bold"
+                    )}
+                  >
                     {day.getDate()}
                   </span>
+                  {/* Green: something the program runs. Gold: your own reminder. */}
                   <span className="flex h-1.5 items-center gap-0.5">
                     {list.slice(0, 3).map((e) => (
-                      <span
-                        key={e.id}
-                        className={cn(
-                          "h-1.5 w-1.5 rounded-full",
-                          isSelected ? "bg-white" : eventTypeChip(e.event_type)
-                        )}
-                      />
+                      <span key={e.id} className="h-1.5 w-1.5 bg-[var(--cue-green)]" />
                     ))}
-                    {mine.length > 0 && list.length === 0 ? (
-                      <span
-                        className={cn(
-                          "h-1.5 w-1.5 rounded-full ring-1",
-                          isSelected ? "bg-white/70 ring-white" : "bg-zinc-400 ring-zinc-400"
-                        )}
-                      />
+                    {mine.length > 0 ? (
+                      <span className="h-1.5 w-1.5 bg-[var(--cue-gold)]" />
                     ) : null}
                   </span>
+                  {marks > 3 ? (
+                    <span className="type-meta text-[10px] leading-none tabular">{marks}</span>
+                  ) : null}
                 </button>
               );
             })
           )}
         </div>
-      </Card>
+      </div>
 
       {app.isStaff ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-1 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
-          <span className="text-sm font-semibold">Show archived events</span>
+        <div className="flex items-center gap-2">
           <Toggle checked={showArchived} onChange={setShowArchived} label="Show archived events" />
+          <span className="text-sm font-semibold">Show archived events</span>
+          <span className="type-meta">— cancelled things you may still need the history for</span>
         </div>
       ) : null}
 
-      {/* --- agenda for the chosen day --- */}
-      <div className="space-y-2">
-        <p className="px-1 text-xs font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-          {relativeDay(selectedDay.toISOString())}
-        </p>
+      {/* --- agenda for the chosen day ---
+           The dateline carries the page: the day in the poster voice, the
+           month beside it, the count on the far side. It is what makes a
+           selected square in the grid resolve into an actual day. */}
+      <section className="space-y-3">
+        <header className="section-rule">
+          <div className="flex items-baseline gap-3">
+            <span className="type-figure text-4xl leading-none">{selectedDay.getDate()}</span>
+            <span className="min-w-0">
+              <span className="type-kicker block">
+                {isSameDay(selectedDay, today) ? "Today" : relativeDay(selectedDay.toISOString())}
+              </span>
+              <span className="type-heading block">
+                {selectedDay.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+              </span>
+            </span>
+          </div>
+          <span className="type-meta shrink-0 tabular">
+            {dayEvents.length + dayPersonal.length} scheduled
+          </span>
+        </header>
 
         {events === null ? (
           <Skeleton className="h-24 w-full" />
         ) : dayEvents.length === 0 && dayPersonal.length === 0 ? (
-          <Card>
+          <div className="cue-card rounded-[var(--radius-panel)]">
             <EmptyState
-              icon={<CalendarDays className="h-6 w-6" />}
+              icon={<CalendarDays className="h-4 w-4" />}
               title="Nothing on this day"
               body={
                 app.isStaff
-                  ? "Tap Add to put a rehearsal, game or meeting on the schedule."
-                  : "Enjoy the quiet — or check another day."
+                  ? "Add a rehearsal, performance or meeting to the schedule, or pick another day."
+                  : "Nothing scheduled for this program — or pick another day."
               }
             />
-          </Card>
+          </div>
         ) : (
-          <Card className="space-y-3">
-            {dayEvents.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                onClick={() => setDetail(e)}
-                className="flex w-full items-start gap-3 rounded-xl p-2 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-              >
-                <span className="mt-0.5 flex w-14 shrink-0 flex-col items-center">
-                  <span className="text-sm font-bold">
-                    {e.all_day ? "All day" : fmtTime(e.date)}
-                  </span>
-                  {!e.all_day && e.end_date ? (
-                    <span className="text-[11px] text-zinc-400">{fmtTime(e.end_date)}</span>
-                  ) : null}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-1.5">
-                    <Badge className={eventTypeChip(e.event_type)}>
-                      {eventTypeLabel(e.event_type)}
-                    </Badge>
-                    {e.archived ? <Badge className="bg-zinc-200 text-zinc-600">Archived</Badge> : null}
-                  </span>
-                  <span className="mt-1 block truncate font-semibold">{e.name}</span>
-                  {e.location ? (
-                    <span className="mt-0.5 flex items-center gap-1 truncate text-sm text-zinc-500 dark:text-zinc-400">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      {e.location}
+          <List>
+            {dayEvents.map((e) => {
+              return (
+                <Row
+                  key={e.id}
+                  className="gap-4"
+                  leading={
+                    <time className="w-20 shrink-0 text-right tabular">
+                      <span className="type-figure block text-lg leading-tight">
+                        {e.all_day ? "All day" : fmtTime(e.date)}
+                      </span>
+                      {!e.all_day && e.end_date ? (
+                        <span className="type-meta block text-[11px] leading-tight">
+                          to {fmtTime(e.end_date)}
+                        </span>
+                      ) : null}
+                    </time>
+                  }
+                  title={
+                    <span className="flex items-baseline gap-2">
+                      <span className="truncate">{e.name}</span>
+                      <Badge className={eventTypeChip(e.event_type)}>
+                        {eventTypeLabel(e.event_type)}
+                      </Badge>
+                      {e.archived ? (
+                        <Badge className="bg-[var(--cue-raised)] text-[var(--cue-muted)]">
+                          Cancelled
+                        </Badge>
+                      ) : null}
                     </span>
-                  ) : null}
-                </span>
-              </button>
-            ))}
+                  }
+                  subtitle={
+                    e.location ? (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                        {e.location}
+                      </span>
+                    ) : undefined
+                  }
+                  trailing={
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="cue-nudge h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+                    />
+                  }
+                  onClick={() => setDetail(e)}
+                />
+              );
+            })}
 
-            {dayPersonal.length > 0 ? (
-              <div className="space-y-1 border-t border-black/5 pt-2 dark:border-white/10">
-                <p className="text-[11px] font-bold tracking-wide text-zinc-400 uppercase">
-                  Your own reminders
-                </p>
-                {dayPersonal.map((p) => (
-                  <Row
-                    key={p.id}
-                    icon={<Clock className="h-5 w-5" />}
-                    title={p.name}
-                    subtitle={p.location || "Private to you"}
-                    trailing={
-                      <IconButton
-                        label={`Delete ${p.name}`}
-                        variant="ghost"
-                        icon={<Trash2 className="h-4 w-4" />}
-                        onClick={() => setConfirm({ kind: "personal", id: p.id, name: p.name })}
-                      />
-                    }
+            {dayPersonal.map((p) => (
+              <Row
+                key={p.id}
+                className="gap-4"
+                leading={
+                  <span className="type-meta flex w-20 shrink-0 items-center gap-1.5">
+                    <Clock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--cue-gold)]" />
+                    Yours
+                  </span>
+                }
+                title={p.name}
+                subtitle={p.location || "Private to you — never affects attendance"}
+                trailing={
+                  <IconButton
+                    label={`Delete ${p.name}`}
+                    variant="ghost"
+                    icon={<Trash2 className="h-4 w-4" />}
+                    onClick={() => setConfirm({ kind: "personal", id: p.id, name: p.name })}
                   />
-                ))}
-              </div>
-            ) : null}
-          </Card>
+                }
+              />
+            ))}
+          </List>
         )}
 
         {profileId ? (
-          <Card className="space-y-2">
-            <p className="text-sm font-semibold">Add your own reminder</p>
+          <Card className="space-y-3">
+            <p className="type-heading">Add your own reminder</p>
             <div className="flex items-end gap-2">
               <Field className="flex-1">
                 <Input
@@ -592,12 +638,13 @@ export function CalendarScreen() {
                 Add
               </Button>
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Only you can see it, and it never affects attendance.
+            <p className="type-meta">
+              It lands on {relativeDay(selectedDay.toISOString()).toLowerCase()}, only you can see
+              it, and it never affects attendance.
             </p>
           </Card>
         ) : null}
-      </div>
+      </section>
 
       {/* --- event detail --- */}
       <Sheet
@@ -608,41 +655,41 @@ export function CalendarScreen() {
       >
         {detail ? (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="flex items-center gap-2 font-semibold">
-                <Clock className="h-4 w-4 shrink-0 text-zinc-400" />
+            <div className="space-y-1.5">
+              <p className="flex items-center gap-2 font-semibold tabular">
+                <Clock aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
                 {relativeDay(detail.date)} ·{" "}
                 {detail.all_day ? "All day" : fmtTime(detail.date)}
                 {!detail.all_day && detail.end_date ? ` – ${fmtTime(detail.end_date)}` : ""}
               </p>
               {detail.location ? (
                 <p className="flex items-center gap-2 font-semibold">
-                  <MapPin className="h-4 w-4 shrink-0 text-zinc-400" />
+                  <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
                   {detail.location}
                 </p>
               ) : null}
               {detail.description ? (
-                <p className="text-sm whitespace-pre-wrap text-zinc-600 dark:text-zinc-300">
+                <p className="text-sm whitespace-pre-wrap text-[var(--cue-muted)]">
                   {detail.description}
                 </p>
               ) : null}
             </div>
 
-            <dl className="grid grid-cols-2 gap-2 rounded-xl bg-black/[0.03] p-3 text-sm dark:bg-white/[0.06]">
-              <div>
-                <dt className="text-xs font-bold tracking-wide text-zinc-500 uppercase">Check-in</dt>
-                <dd className="mt-0.5 font-medium">{CHECKIN_MODE_LABEL[detail.checkin_mode]}</dd>
+            <dl className="cue-card cue-list overflow-hidden rounded-[var(--radius-panel)] text-sm">
+              <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+                <dt className="type-label">Check-in</dt>
+                <dd className="font-medium">{CHECKIN_MODE_LABEL[detail.checkin_mode]}</dd>
               </div>
-              <div>
-                <dt className="text-xs font-bold tracking-wide text-zinc-500 uppercase">Attendance</dt>
-                <dd className="mt-0.5 font-medium">
+              <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+                <dt className="type-label">Attendance</dt>
+                <dd className="font-medium">
                   {ATTENDANCE_REQUIREMENT_LABEL[detail.attendance_requirement]}
                 </dd>
               </div>
               {detail.event_source === "google_calendar" ? (
-                <div className="col-span-2">
-                  <dt className="text-xs font-bold tracking-wide text-zinc-500 uppercase">Source</dt>
-                  <dd className="mt-0.5 font-medium">Synced from the school calendar</dd>
+                <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+                  <dt className="type-label">Source</dt>
+                  <dd className="font-medium">Synced from the school calendar</dd>
                 </div>
               ) : null}
             </dl>
@@ -711,7 +758,7 @@ export function CalendarScreen() {
                     Delete event
                   </Button>
                 ) : (
-                  <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="type-meta">
                     Archiving hides it from the program; only a director can delete it.
                   </p>
                 )}
@@ -778,7 +825,7 @@ export function CalendarScreen() {
               </Select>
             </Field>
 
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-black/[0.03] px-3 py-2 dark:bg-white/[0.06]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--cue-line)] pb-2">
               <span className="text-sm font-semibold">All day</span>
               <Toggle
                 checked={form.all_day}

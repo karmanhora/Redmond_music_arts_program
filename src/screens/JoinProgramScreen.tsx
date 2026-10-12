@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, ChevronRight, KeyRound, LogOut, Music, ShieldCheck, Users } from "lucide-react";
+import { Check, ChevronRight, LogOut, Music, ShieldCheck, Users } from "lucide-react";
 import {
   Alert,
   Button,
@@ -8,6 +8,8 @@ import {
   EmptyState,
   Field,
   Input,
+  List,
+  PageHeader,
   Row,
   SectionTitle,
   Skeleton,
@@ -17,7 +19,7 @@ import { joinProgram, listActivePrograms } from "../lib/rpc";
 import type { ProgramOption } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
-import { APP_NAME, ORG_NAME } from "../lib/constants";
+import { APP_NAME, ORG_NAME, ROLE_LABEL } from "../lib/constants";
 
 /**
  * Joining a program — the first one and every one after it.
@@ -117,7 +119,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
   }
 
   const form = (
-    <div className="space-y-4 p-4 pb-6">
+    <div className="cue-stagger mx-auto max-w-2xl space-y-5 px-4 py-5 pb-10 sm:px-6 sm:py-6">
       {error ? <Alert tone="error">{error}</Alert> : null}
       {auth.accountTypeSetupError ? (
         <Alert tone="error">
@@ -126,22 +128,17 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
         </Alert>
       ) : null}
 
-      <Card className="space-y-2">
-        <p className="flex items-center gap-2 font-semibold">
-          <KeyRound className="h-5 w-5 text-band dark:text-emerald-300" />
-          Join a program
-        </p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Your director gives you a join code. It puts you on that program&rsquo;s roster — its
-          rehearsals, its calendar and your own attendance.
-        </p>
-      </Card>
+      <PageHeader
+        kicker={[ROLE_LABEL.student, auth.email].filter(Boolean).join(" · ")}
+        title="Join a program"
+        note="Your director gives you a join code. It puts you on that program's roster — its rehearsals, its calendar and your own attendance."
+      />
 
       {/* Point teacher accounts at the way in that needs nobody's permission. */}
       {standalone && auth.accountType === "teacher" ? (
-        <Card className="flex items-start gap-2 border-l-4 border-l-[var(--cue-gold)]">
-          <Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <Card className="flex items-start gap-3">
+          <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
+          <p className="text-sm text-[var(--cue-muted)]">
             <span className="font-semibold text-[var(--cue-ink)]">Teaching here?</span>{" "}
             You don&rsquo;t need anybody&rsquo;s permission — start your own program and you&rsquo;re
             its director immediately, with the roster, attendance and live check-in tools ready to
@@ -156,9 +153,9 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
       {programs === null ? (
         <Skeleton className="h-40 w-full" />
       ) : programs.length === 0 ? (
-        <Card>
+        <div className="cue-card rounded-[var(--radius-panel)]">
           <EmptyState
-            icon={<Music className="h-6 w-6" />}
+            icon={<Music className="h-4 w-4" />}
             title="No programs yet"
             body={
               app.canCreateProgram
@@ -166,23 +163,26 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
                 : "No programs are available yet. Ask a teacher or director to get one started."
             }
           />
-        </Card>
+        </div>
       ) : (
         <>
-          <div className="space-y-1">
-            <SectionTitle className="pt-1">Which program?</SectionTitle>
-            <Card className="divide-y divide-black/5 p-1 dark:divide-white/10">
+          <div className="space-y-3">
+            <SectionTitle>Which program?</SectionTitle>
+            <List>
               {programs.map((p) => (
                 <Row
                   key={p.slug}
-                  icon={<Music className="h-5 w-5" />}
+                  icon={<Music className="h-4 w-4" />}
                   title={p.name}
                   subtitle={p.has_join_code ? "Needs a join code" : "No code needed"}
                   trailing={
                     selected === p.slug ? (
-                      <Check className="h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+                      <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--cue-green)]" />
                     ) : (
-                      <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="h-4 w-4 shrink-0 text-[var(--cue-subtle)]"
+                      />
                     )
                   }
                   onClick={() => {
@@ -191,7 +191,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
                   }}
                 />
               ))}
-            </Card>
+            </List>
           </div>
 
           {needsName ? (
@@ -236,25 +236,25 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
 
       {app.canCreateProgram ? (
         <Card className="space-y-3">
-          <div className="flex items-start gap-2">
-            <Music className="mt-0.5 h-5 w-5 shrink-0 text-band dark:text-emerald-300" />
+          <div className="flex items-start gap-3">
+            <Music aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
             <div className="min-w-0">
-              <p className="font-semibold">Running a program of your own?</p>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="type-heading">Running a program of your own?</p>
+              <p className="type-meta mt-1">
                 Name it and you&rsquo;re its director — the roster, attendance and live check-in
                 tools come with it, and it starts closed with a join code for you to hand out.
               </p>
             </div>
           </div>
-          <Button block variant="secondary" onClick={() => navigate("/new-program")}>
+          <Button variant="secondary" onClick={() => navigate("/new-program")}>
             Start a new program
           </Button>
         </Card>
       ) : null}
 
-      <Card className="flex items-start gap-2">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      <Card className="flex items-start gap-3">
+        <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
+        <p className="type-meta">
           The code is checked on the server, never in this browser. If a director removed you from a
           program, only a director can put you back.
         </p>
@@ -276,14 +276,12 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
   if (!standalone) return form;
 
   return (
-    <div className="safe-t flex min-h-full flex-col bg-surface dark:bg-[#0c0f0a]">
-      <div className="bg-band px-6 pt-8 pb-6 text-white">
-        <img src="/logo.svg" alt="" className="h-10 w-10" />
-        <p className="mt-3 text-[11px] font-bold tracking-widest text-white/70 uppercase">
-          {ORG_NAME}
-        </p>
-        <h1 className="mt-1 text-xl font-extrabold">{APP_NAME}</h1>
-        <p className="mt-1 text-sm text-white/80">
+    <div className="safe-t flex min-h-full flex-col bg-[var(--cue-page)]">
+      <div className="bg-[var(--cue-brand-panel)] px-6 pt-8 pb-6 text-[var(--cue-brand-ink)]">
+        <img src="/logo.svg" alt="" className="h-9 w-9" />
+        <p className="type-label mt-3 text-[var(--cue-gold-on-brand)]">{ORG_NAME}</p>
+        <p className="type-title mt-1.5">{APP_NAME}</p>
+        <p className="mt-1 max-w-md text-sm text-[var(--cue-brand-ink)]/80">
           You&rsquo;re signed in — join your program to see its calendar, its rehearsals and your own
           attendance.
         </p>
@@ -292,7 +290,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
       <div className="flex-1">{form}</div>
 
       {auth.email ? (
-        <p className="px-6 pb-6 text-center text-xs text-zinc-400">Signed in as {auth.email}</p>
+        <p className="type-meta px-6 pb-6 text-center">Signed in as {auth.email}</p>
       ) : null}
     </div>
   );

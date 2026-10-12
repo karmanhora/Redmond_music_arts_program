@@ -212,13 +212,13 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
   if (mode === "reset" && !auth.userId) {
     return (
       <AuthLayout mode={mode}>
-        <p className="font-display text-lg font-bold tracking-wide text-[var(--cue-green)] uppercase">
+        <p className="type-label text-[var(--cue-green)]">
           Link expired
         </p>
-        <h2 className="mt-1 font-display text-4xl leading-none font-bold uppercase">
+        <h2 className="type-title mt-2">
           {headline.title}
         </h2>
-        <p className="mt-2 text-sm text-[var(--cue-muted)]">
+        <p className="type-meta mt-2">
           That link has already been used, or it belongs to another browser. Ask for a fresh one and
           it will work.
         </p>
@@ -241,11 +241,11 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
   if (awaitingEmail) {
     return (
       <AuthLayout mode={mode}>
-        <MailCheck aria-hidden="true" className="h-8 w-8 text-[var(--cue-green)]" />
-        <h2 className="mt-2 font-display text-4xl leading-none font-bold uppercase">
+        <MailCheck aria-hidden="true" className="h-5 w-5 text-[var(--cue-green)]" />
+        <h2 className="type-title mt-2">
           Check your email
         </h2>
-        <p className="mt-2 text-sm text-[var(--cue-muted)]">
+        <p className="type-meta mt-2">
           We sent a confirmation link to{" "}
           <span className="font-semibold text-[var(--cue-ink)]">{email.trim()}</span>. Open it and
           you&rsquo;re in — then enter your program&rsquo;s join code.
@@ -272,11 +272,11 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
   if (sent) {
     return (
       <AuthLayout mode={mode}>
-        <MailCheck aria-hidden="true" className="h-8 w-8 text-[var(--cue-green)]" />
-        <h2 className="mt-2 font-display text-4xl leading-none font-bold uppercase">
+        <MailCheck aria-hidden="true" className="h-5 w-5 text-[var(--cue-green)]" />
+        <h2 className="type-title mt-2">
           Check your email
         </h2>
-        <p className="mt-2 text-sm text-[var(--cue-muted)]">
+        <p className="type-meta mt-2">
           If an account exists for{" "}
           <span className="font-semibold text-[var(--cue-ink)]">{email.trim()}</span>, a link to set
           a new password is on its way. It expires in an hour.
@@ -315,7 +315,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
       {/* Keyed to the audience: the copy re-reveals on a switch while the form
           below stays mounted with everything typed. */}
       <div key={showsAudience ? audience : mode} className="cue-stagger">
-        <p className="font-display text-lg font-bold tracking-wide text-[var(--cue-green)] uppercase">
+        <p className="type-label text-[var(--cue-green)]">
           {isSignIn
             ? "Welcome back"
             : mode === "sign-up"
@@ -324,10 +324,10 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
                 ? "Password help"
                 : "Recovery link"}
         </p>
-        <h2 className="mt-1 font-display text-4xl leading-none font-bold uppercase">
+        <h2 className="type-title mt-2">
           {isSignIn ? "Sign in" : headline.title}
         </h2>
-        <p className="mt-2 text-sm text-[var(--cue-muted)]">
+        <p className="type-meta mt-2">
           {isSignIn
             ? "Sign in to open your programs and attendance."
             : mode === "sign-up"
@@ -477,7 +477,7 @@ function AuthLayout({ mode, children }: { mode: AuthMode; children: ReactNode })
 
   return (
     <main className="safe-t flex min-h-full items-center justify-center overflow-y-auto bg-[var(--cue-page)] px-4 py-6 text-[var(--cue-ink)] sm:px-6 sm:py-10">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-border)] bg-[var(--cue-panel)] shadow-sm md:min-h-[560px] md:grid-cols-[0.8fr_1.2fr]">
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-line)] bg-[var(--cue-panel)] md:min-h-[540px] md:grid-cols-[0.75fr_1.25fr]">
         <aside className="flex flex-col justify-between bg-[var(--cue-brand-panel)] p-5 text-[var(--cue-brand-ink)] sm:p-8 md:p-10">
           <div>
             <Link
@@ -488,18 +488,14 @@ function AuthLayout({ mode, children }: { mode: AuthMode; children: ReactNode })
               <ArrowLeft aria-hidden="true" className="h-4 w-4" />
               Back to the program
             </Link>
-            <p className="mt-10 font-display text-lg font-bold tracking-wide text-amber-200 uppercase">
-              {APP_NAME}
-            </p>
-            <h1 className="mt-3 max-w-sm font-display text-5xl leading-[0.95] font-bold uppercase sm:text-6xl">
-              {copy.aside}
-            </h1>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--cue-brand-ink)]/80">
+            <p className="type-label mt-10 text-[var(--cue-gold-on-brand)]">{APP_NAME}</p>
+            <h1 className="type-title mt-3 max-w-sm text-[var(--cue-brand-ink)]">{copy.aside}</h1>
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-[var(--cue-brand-ink)]/80">
               {copy.asideSub}
             </p>
           </div>
-          <p className="mt-8 text-xs font-semibold tracking-wide text-[var(--cue-brand-ink)]/65">
-            REDMOND HIGH SCHOOL · MUSIC &amp; ARTS
+          <p className="type-label mt-8 text-[var(--cue-brand-ink)]/60">
+            Redmond High School · Music &amp; Arts
           </p>
         </aside>
 

@@ -17,10 +17,10 @@ export function RoleBadges({ roles, className }: { roles: Role[]; className?: st
           key={role}
           className={
             role === "director"
-              ? "bg-band text-white"
+              ? "bg-[var(--cue-action)] text-white"
               : role === "secretary"
-                ? "bg-band/20 text-band-deep dark:bg-band/40 dark:text-emerald-100"
-                : "bg-black/[0.06] text-zinc-700 dark:bg-white/[0.10] dark:text-zinc-200"
+                ? "bg-[var(--cue-green-soft)] text-[var(--cue-green)]"
+                : "bg-[var(--cue-raised)] text-[var(--cue-muted)]"
           }
         >
           {role === "director" ? <ShieldCheck aria-hidden="true" className="mr-1 h-3 w-3" /> : null}
@@ -59,14 +59,14 @@ export function CapabilityList({
   }
 
   if (byCategory.size === 0) {
-    return <p className={cn("text-sm text-zinc-500 dark:text-zinc-400", className)}>{emptyMessage}</p>;
+    return <p className={cn("type-meta", className)}>{emptyMessage}</p>;
   }
 
   return (
     <div className={cn("space-y-3", className)}>
       {PERMISSION_CATEGORIES.filter((category) => byCategory.has(category)).map((category) => (
         <div key={category}>
-          <p className="text-[11px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
+          <p className="type-label">
             {PERMISSION_CATEGORY_LABEL[category]}
           </p>
           <ul className="mt-1 flex flex-wrap gap-1.5">
@@ -76,8 +76,9 @@ export function CapabilityList({
                 <li key={code}>
                   <Badge
                     className={cn(
-                      "bg-band/12 text-band-deep dark:bg-band/25 dark:text-emerald-200",
-                      meta && !meta.delegable && "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
+                      "bg-[var(--cue-raised)] text-[var(--cue-ink)]",
+                      meta && !meta.delegable &&
+                        "bg-[var(--cue-late-bg)] text-[var(--cue-late)]"
                     )}
                   >
                     {meta && !meta.delegable ? <Lock aria-hidden="true" className="mr-1 h-3 w-3" /> : null}

@@ -36,28 +36,44 @@ export interface EventTypeOption {
   chip: string;
 }
 
-const T = (
-  value: string,
-  label: string,
-  chip: string
-): EventTypeOption => ({ value, label, chip });
+/**
+ * Five chip tones, and that is the whole vocabulary. A colour has to be
+ * explainable before it is used: what a chip is *doing* decides its tone.
+ *
+ *   ink    the event is what the program exists for (a concert, a performance)
+ *   green  routine, expected work (a rehearsal)
+ *   gold   something to prepare for (a game, a competition)
+ *   slate  administrative (meetings, auditions, trips)
+ *   plain  everything else
+ */
+const CHIP_INK = "bg-[var(--cue-ink)] text-[var(--cue-panel)]";
+const CHIP_GREEN = "bg-[var(--cue-present-bg)] text-[var(--cue-present)]";
+const CHIP_GOLD = "bg-[var(--cue-late-bg)] text-[var(--cue-late)]";
+const CHIP_SLATE = "bg-[var(--cue-excused-bg)] text-[var(--cue-excused)]";
+const CHIP_PLAIN = "bg-[var(--cue-raised)] text-[var(--cue-muted)]";
+
+const T = (value: string, label: string, chip: string): EventTypeOption => ({
+  value,
+  label,
+  chip,
+});
 
 export const EVENT_TYPES: EventTypeOption[] = [
-  T("rehearsal", "Rehearsal", "bg-band text-white"),
-  T("concert", "Concert", "bg-ink text-white dark:bg-zinc-100 dark:text-zinc-900"),
-  T("game", "Game", "bg-accent text-ink"),
-  T("competition", "Competition", "bg-red-600 text-white"),
-  T("performance", "Performance", "bg-purple-600 text-white"),
-  T("section meeting", "Section Meeting", "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"),
-  T("band meeting", "Band Meeting", "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"),
-  T("general meeting", "General Meeting", "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"),
-  T("parent meeting", "Parent Meeting", "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300"),
-  T("fundraiser", "Fundraiser", "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"),
-  T("event/activity", "Event / Activity", "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300"),
-  T("audition", "Audition", "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"),
-  T("workshop", "Workshop", "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300"),
-  T("trip", "Trip", "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"),
-  T("other", "Other", "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"),
+  T("rehearsal", "Rehearsal", CHIP_GREEN),
+  T("concert", "Concert", CHIP_INK),
+  T("game", "Game", CHIP_GOLD),
+  T("competition", "Competition", CHIP_GOLD),
+  T("performance", "Performance", CHIP_INK),
+  T("section meeting", "Section Meeting", CHIP_SLATE),
+  T("band meeting", "Band Meeting", CHIP_SLATE),
+  T("general meeting", "General Meeting", CHIP_SLATE),
+  T("parent meeting", "Parent Meeting", CHIP_SLATE),
+  T("fundraiser", "Fundraiser", CHIP_SLATE),
+  T("event/activity", "Event / Activity", CHIP_PLAIN),
+  T("audition", "Audition", CHIP_SLATE),
+  T("workshop", "Workshop", CHIP_PLAIN),
+  T("trip", "Trip", CHIP_SLATE),
+  T("other", "Other", CHIP_PLAIN),
 ];
 
 const BY_VALUE = new Map(EVENT_TYPES.map((t) => [t.value, t]));
@@ -71,7 +87,7 @@ export function eventTypeLabel(value: string | null | undefined): string {
 
 export function eventTypeChip(value: string | null | undefined): string {
   const key = (value ?? "").trim().toLowerCase();
-  return BY_VALUE.get(key)?.chip ?? "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+  return BY_VALUE.get(key)?.chip ?? CHIP_PLAIN;
 }
 
 export function titleCase(s: string): string {
@@ -102,11 +118,16 @@ export const ATTENDANCE_STATUS_LABEL: Record<AttendanceStatus, string> = {
   absent: "Absent",
 };
 
+/**
+ * One status, one colour, everywhere: present green, late amber, excused slate,
+ * absent red. These are the only four colours in the app that mean a state, so
+ * they are never used decoratively.
+ */
 export const ATTENDANCE_STATUS_CHIP: Record<AttendanceStatus, string> = {
-  present: "bg-band text-white",
-  late: "bg-accent text-ink",
-  excused: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300",
-  absent: "bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300",
+  present: "bg-[var(--cue-present-bg)] text-[var(--cue-present)]",
+  late: "bg-[var(--cue-late-bg)] text-[var(--cue-late)]",
+  excused: "bg-[var(--cue-excused-bg)] text-[var(--cue-excused)]",
+  absent: "bg-[var(--cue-absent-bg)] text-[var(--cue-absent)]",
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -137,11 +158,11 @@ export function defaultAttendanceRequirement(mode: CheckinMode): AttendanceRequi
 
 /** Default site palette — also the fallback when a program stores no tokens. */
 export const DEFAULT_THEME_TOKENS: Record<string, string> = {
-  primary: "#214d35",
-  primaryDeep: "#173b28",
-  accent: "#d5a33a",
-  surface: "#faf9f4",
-  ink: "#20241f",
+  primary: "#1e4a32",
+  primaryDeep: "#143324",
+  accent: "#c7912c",
+  surface: "#f6f5ef",
+  ink: "#1b201b",
 };
 
 export const CHECKIN_CODE_LENGTH = 8;

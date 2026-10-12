@@ -8,11 +8,11 @@ import { APP_NAME } from "../lib/constants";
  */
 export function ConfigMissingScreen({ missing }: { missing: string[] }) {
   return (
-    <div className="safe-t flex min-h-full flex-col items-center justify-center gap-5 bg-surface p-6 dark:bg-[#0c0f0a]">
+    <div className="safe-t flex min-h-full flex-col items-center justify-center gap-5 bg-[var(--cue-page)] p-6">
       <div className="text-center">
         <img src="/logo.svg" alt="" className="mx-auto h-14 w-14" />
         <h1 className="mt-3 text-xl font-bold">{APP_NAME}</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="type-meta mt-1">
           This build is missing its configuration.
         </p>
       </div>
@@ -28,9 +28,9 @@ export function ConfigMissingScreen({ missing }: { missing: string[] }) {
         </ul>
       </Alert>
 
-      <div className="w-full max-w-md rounded-2xl bg-white p-4 text-sm ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div className="cue-card w-full max-w-md rounded-[var(--radius-panel)] p-4 text-sm">
         <p className="font-semibold">How to fix it locally</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-4 text-zinc-600 dark:text-zinc-300">
+        <ol className="mt-2 list-decimal space-y-1 pl-4 text-[var(--cue-muted)]">
           <li>
             Copy <code className="font-mono">.env.example</code> to{" "}
             <code className="font-mono">.env.local</code>.

@@ -7,6 +7,8 @@ import {
   Button,
   Card,
   EmptyState,
+  Metric,
+  MetricStrip,
   ProgressRing,
   SectionTitle,
   Spinner,
@@ -16,7 +18,7 @@ import { fetchAttendance, fetchRoster, fetchSessionForEvent } from "../lib/queri
 import { startCheckinSession } from "../lib/rpc";
 import type { AttendanceRow, EventRow, RosterMember, RpcResult } from "../lib/types";
 import { usePrograms } from "../hooks/usePrograms";
-import { eventTypeLabel } from "../lib/constants";
+import { eventTypeChip, eventTypeLabel } from "../lib/constants";
 import { endOfDay, fmtTime, mmss, relativeDay, startOfDay } from "../lib/date";
 
 /** Sessions live for five minutes (see `start_checkin_session`). */
@@ -180,19 +182,18 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
     : null;
 
   return (
-    <div className="space-y-4">
-      {/* --- header --- */}
-      <Card className="flex items-start gap-3 border-l-4 border-l-[var(--cue-gold)]">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-band text-white">{eventTypeLabel(event.event_type)}</Badge>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+    <div className="space-y-5">
+      {/* --- what this screen is running --- */}
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-[var(--cue-line)] pb-3">
+        <div className="min-w-0">
+          <p className="type-label mb-1">Live check-in</p>
+          <h2 className="type-title truncate">{event.name}</h2>
+          <p className="type-meta mt-1 flex flex-wrap items-center gap-x-2 tabular">
+            <Badge className={eventTypeChip(event.event_type)}>
+              {eventTypeLabel(event.event_type)}
+            </Badge>
+            <span>
               {relativeDay(event.date)} · {event.all_day ? "All day" : fmtTime(event.date)}
-            </span>
-          </div>
-          <p className="mt-1 font-display text-3xl font-bold uppercase">
-            <span className="cue-line">
-              <span className="cue-line-inner truncate">{event.name}</span>
             </span>
           </p>
         </div>
@@ -204,7 +205,7 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
         >
           Stop
         </Button>
-      </Card>
+      </header>
 
       {error ? <Alert tone="warn">{error}</Alert> : null}
 
@@ -214,15 +215,15 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
           {" — "}mark it from the Attendance screen instead.
         </Alert>
       ) : !session || session.ok !== true || !checkinUrl ? (
-        <Card className="animate-in flex flex-col items-center gap-3 border-t-4 border-t-[var(--cue-green)] py-8 text-center">
-          <Timer className="h-8 w-8 text-[var(--cue-green)]" />
+        <Card className="space-y-4 p-5">
           <div>
-            <p className="font-display text-2xl font-bold uppercase">Ready when you are</p>
-            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-              The code is good for 5 minutes. Refresh it whenever you need to.
+            <p className="type-title">Ready when you are</p>
+            <p className="type-meta mt-1">
+              A code runs for five minutes and students scan it or type the eight characters. Start
+              a new one whenever you need to.
             </p>
           </div>
-          <Button size="lg" loading={busy} onClick={() => void start()}>
+          <Button size="lg" loading={busy} onClick={() => void start()} icon={<Timer className="h-4 w-4" />}>
             Start check-in
           </Button>
         </Card>
@@ -231,13 +232,10 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
           {/* --- the code itself --- */}
           {/* Keyed to the session: a refreshed code lands as a fresh arrival
               instead of silently swapping pixels. */}
-          <Card
-            key={session.token}
-            className="flex flex-col items-center gap-4 border-t-4 border-t-[var(--cue-green)] py-5 sm:py-6"
-          >
+          <Card key={session.token} className="flex flex-col items-center gap-5 py-5 sm:py-6">
             <div
               className={cn(
-                "rounded-[var(--radius-control)] bg-white p-3 ring-1 ring-black/15 transition-opacity",
+                "rounded-[var(--radius-control)] bg-white p-3 ring-1 ring-[var(--cue-line-strong)] transition-opacity",
                 expired && "opacity-25"
               )}
             >
@@ -245,13 +243,11 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
             </div>
 
             <div className="text-center">
-              <p className="text-xs font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400">
-                Or type this code
-              </p>
+              <p className="type-label">Or type this code</p>
               <p
                 className={cn(
-                  "mt-1 font-mono text-[40px] leading-none font-extrabold tracking-[0.3em] sm:text-6xl",
-                  expired && "text-zinc-400 line-through"
+                  "mt-1.5 font-mono text-[2.5rem] leading-none font-semibold tracking-[0.3em] sm:text-6xl",
+                  expired && "text-[var(--cue-subtle)] line-through"
                 )}
               >
                 {session.entry_code}
@@ -274,7 +270,7 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
                   <p className={cn("text-sm font-semibold", expiringSoon && "text-[var(--cue-late)]")}>
                     {expiringSoon ? "Refresh soon" : "Live for"} {mmss(session.expires_at!, nowMs)}
                   </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="type-meta">
                     {checkedIn.length} of {students.length} checked in
                   </p>
                   <Button
@@ -293,51 +289,78 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
           </Card>
 
           <div className="space-y-4">
-            <Card className="space-y-3 border-l-4 border-l-[var(--cue-green)]">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-3xl font-extrabold tabular-nums">
-                  <span key={checkedIn.length} className="cue-odometer">
-                    {checkedIn.length}
-                  </span>
-                  <span className="text-lg text-zinc-400"> / {students.length}</span>
-                </p>
-                <p className="font-display text-lg font-bold tracking-wide uppercase">checked in</p>
+            <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
+              <div className="flex items-center justify-between gap-3 px-4 pt-3">
+                <p className="type-label">Checked in</p>
+                <span
+                  key={waitingForFirstScan ? "waiting" : "live"}
+                  className="type-meta flex items-center gap-1.5"
+                >
+                  {waitingForFirstScan ? (
+                    <>
+                      <Spinner className="h-3.5 w-3.5" /> waiting for the first scan
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2
+                        aria-hidden="true"
+                        className="cue-live-breathe h-4 w-4 text-[var(--cue-present)]"
+                      />
+                      live
+                    </>
+                  )}
+                </span>
               </div>
-              <span
-                key={waitingForFirstScan ? "waiting" : "live"}
-                className="animate-in flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400"
-              >
-                {waitingForFirstScan ? (
-                  <>
-                    <Spinner className="h-3.5 w-3.5" /> waiting for the first scan
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="cue-live-breathe h-4 w-4 text-band dark:text-emerald-300" /> live
-                  </>
-                )}
-              </span>
+              <MetricStrip columns={2} className="mt-1">
+                <Metric
+                  label="Present"
+                  value={
+                    <span key={checkedIn.length} className="cue-odometer">
+                      {checkedIn.length}
+                    </span>
+                  }
+                  hint={`of ${students.length} on the roster`}
+                  tone="present"
+                />
+                <Metric
+                  label="Still missing"
+                  value={
+                    <span key={missingCount} className="cue-odometer">
+                      {missingCount}
+                    </span>
+                  }
+                  hint={`${pctCheckedIn}% checked in`}
+                  tone={missingCount > 0 ? "late" : "muted"}
+                />
+              </MetricStrip>
+              <div className="px-4 pt-1 pb-4">
+                <div
+                  role="progressbar"
+                  aria-valuenow={pctCheckedIn}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${checkedIn.length} of ${students.length} checked in`}
+                  className="h-1.5 overflow-hidden rounded-full bg-[var(--cue-raised)]"
+                >
+                  <div
+                    className="cue-meter-fill h-full w-full rounded-full bg-[var(--cue-present)]"
+                    style={{ transform: `scaleX(${pctCheckedIn / 100})` }}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-              <div
-                className="cue-meter-fill h-full w-full rounded-full bg-[var(--cue-green)]"
-                style={{ transform: `scaleX(${pctCheckedIn / 100})` }}
-              />
-            </div>
-            <p className="text-sm font-semibold tabular-nums text-[var(--cue-muted)]">
-              {checkedIn.length} of {students.length} musicians · {pctCheckedIn}%
-            </p>
-          </Card>
 
           {recent.length > 0 ? (
-            <Card className="animate-in space-y-2">
-              <SectionTitle>Just checked in</SectionTitle>
-              <ul className="space-y-1">
+            <Card className="p-0">
+              <SectionTitle className="px-4 pt-4 pb-2">Just checked in</SectionTitle>
+              <ul>
                 {recent.map((a) => (
-                  <li key={a.id} className="roster-arrive flex min-h-11 items-center justify-between gap-3 border-b border-[var(--cue-border)] py-2 text-sm last:border-0">
+                  <li
+                    key={a.id}
+                    className="roster-arrive flex min-h-12 items-center justify-between gap-3 border-t border-[var(--cue-line)] px-4 py-2 text-sm"
+                  >
                     <span className="truncate font-medium">{nameOf(a.student_id)}</span>
-                    <span className="shrink-0 text-[var(--cue-muted)]">
+                    <span className="type-meta shrink-0 tabular">
                       {a.checked_in_at ? fmtTime(a.checked_in_at) : ""}
                       {a.is_late ? " · late" : ""}
                     </span>
@@ -347,8 +370,8 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
             </Card>
           ) : null}
 
-          <Card className="space-y-3">
-            <SectionTitle
+          <Card className="p-0">
+            <SectionTitle className="px-4 pt-4 pb-2"
               action={
                 <span className="flex items-center gap-1.5 text-xs text-[var(--cue-muted)]">
                   <Users className="h-4 w-4" />
@@ -361,32 +384,22 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
               Still missing
             </SectionTitle>
             {missingBySection.length === 0 ? (
-              <p className="animate-in py-4 text-center text-sm font-semibold text-band dark:text-emerald-300">
-                Everyone&rsquo;s here. Nice.
+              <p className="animate-in px-4 py-5 text-sm font-semibold text-[var(--cue-present)]">
+                Everyone&rsquo;s here.
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="divide-y divide-[var(--cue-line)] border-t border-[var(--cue-line)]">
                 {missingBySection.map(([section, members]) => (
-                  <div
-                    key={section}
-                    className="rounded-[var(--radius-control)] border border-[var(--cue-border)] p-3"
-                  >
+                  <div key={section} className="px-4 py-3">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className="text-sm font-bold">{section}</p>
-                      <span className="text-xs font-bold text-[var(--cue-muted)]">
-                        {members.length}
-                      </span>
+                      <p className="text-sm font-semibold">{section}</p>
+                      <span className="type-meta tabular">{members.length}</span>
                     </div>
-                    <ul className="mt-2 grid gap-x-3 sm:grid-cols-2">
-                      {members.map((member) => (
-                        <li
-                          key={member.user_id}
-                          className="min-w-0 break-words border-t border-[var(--cue-border)]/70 py-1.5 text-sm"
-                        >
-                          {member.profile.display_name || member.profile.full_name}
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="type-meta mt-1 leading-relaxed">
+                      {members
+                        .map((m) => m.profile.display_name || m.profile.full_name)
+                        .join(" · ")}
+                    </p>
                   </div>
                 ))}
               </div>

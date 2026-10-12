@@ -29,7 +29,77 @@ exists, but nothing in the code assumes it is the only one.
 | `reference/RHS-BAND/` | Read-only clone of the old app, for conventions only |
 | `.tools/pgsql/bin` | Portable PostgreSQL 18 client used by the migration scripts (gitignored) |
 
-## 2. Run the app
+## 2. The design system
+
+The interface is built to four rules. They exist because the previous pass looked
+like a template: every screen was the same column of identical white cards with a
+condensed all-caps heading, gradient accents, and colour used as decoration.
+
+1. **A panel is not the unit of layout.** `Card` is for something that is
+genuinely one object; a group of rows, a roll, a table or a list uses `List`
+(one panel, hairline between neighbours) or a plain ruled section. Headings,
+alignment and a 1px line group things; nine stacked cards do not.
+2. **Type carries the hierarchy.** Four roles only, defined in `src/index.css`:
+`.type-title` (a screen's name, 23–26px), `.type-heading` (a section or a card's
+subject), `.type-label` (11px small caps, above a group or a figure), `.type-meta`
+(13px, timestamps and secondary lines). `type-figure` (Barlow Condensed, tabular)
+is reserved for numbers, and `type-wordmark` for the name. Nothing else is
+allowed to be 3xl or uppercase.
+
+   Two more roles exist for the poster voice, and they are deliberately rare —
+they stay loud only because they appear on roughly one thing per screen:
+`.type-poster` (Barlow Condensed 600, up to 3.25rem, with the `Poster` component's
+masked-line entrance and optional leaf rule) for **the name of the thing a screen
+is about** — an event, a program, a day — and `.type-kicker` for the leaf-green
+overline above it. An event's name is a poster; the rest of the screen is
+interface text. Nothing else may use `font-display`.
+3. **Colour means something.** Green is the product's own ink (primary actions,
+selection, present). Gold is the one attention colour (today, expiring things).
+The four attendance statuses — present / late / excused / absent — own their own
+tokens and are never used decoratively. Everything else is neutral: paper
+(`--cue-page`), panel, raised, line.
+4. **Motion explains, never decorates.** A sheet arriving, a pane swapping sides,
+a mark landing, a route change, a tab settling. Reduced motion is honoured both
+from the OS and from Account settings → Preferences.
+
+Where a screen's parts live:
+
+| Need | Use |
+| --- | --- |
+| The top of any screen | `PageHeader` — kicker (which program), title, note, actions |
+| The one thing a screen is *for* | `Stage` (deep green, `motif` for the staff lines) + `Poster` for its name — the dashboard's next event, the roll's event. **One per screen**: spending it twice spends it on nothing |
+| A quiet group label | `SectionTitle` (small caps + rule) |
+| A list of people, events, settings | `List` + `Row` (`leading` for an avatar, a date gutter or a checkbox) |
+| An editorial dateline | a day figure in `.type-figure` + `.type-kicker` weekday + month, in a `.section-rule` header (the Calendar's agenda) |
+| Figures | `Metric` / `MetricStrip` — never a card per number |
+| A bar or meter | a full-width track with a `cue-meter-fill` child moved by `transform: scaleX()` — never an animated `width`, so nothing reflows |
+| "This is live" | `TempoBars` (the five-bar loop), used only where something is genuinely counting |
+| A row that opens something | `Row onClick` (adds `.group`) with a `cue-nudge` trailing arrow, so the arrow leans only under the pointer |
+| Status | `Badge` with `ATTENDANCE_STATUS_CHIP` or `eventTypeChip`; key it by the status (`key={row.status}`) so a correction lands with `cue-status-pop` |
+| Anything destructive | `ConfirmSheet`, saying exactly what is deleted |
+
+Colour and radius tokens are the only knobs: a program's palette still comes
+from its `ensemble_theme_tokens` row (`src/lib/theme.ts`), and nothing in the app
+hardcodes a hex value outside `:root` / `.dark`.
+
+Contrast is a requirement, not a taste: every text/surface pair used for copy
+clears 4.5:1 in both themes. Three tokens exist *only* because a measurement
+failed, and they are the reason to measure rather than eyeball:
+
+- `--cue-gold-on-brand` — the paper accent (#c7912c) reaches only 3.6:1 as text
+  on the dark green stage, so gold-on-green has its own value (7.78:1 light,
+  8.55:1 dark).
+- `--cue-subtle` was `#7f877f`, which measures **3.39:1** on `--cue-page` — under
+  AA, and it carries real text (the masthead's organisation line, input
+  placeholders). It is now `#697268` (4.58:1 page, 4.99:1 panel).
+- The Calendar's selected day is tinted `--cue-leaf-soft`, not grey, because the
+  day number is leaf green: `#2f7a4b` on `--cue-raised` measures 4.47:1, a hair
+  under AA, while the same green on leaf-soft measures 4.53:1.
+
+When adding a colour pair, compute it — do not assume a token that looks fine is
+fine.
+
+## 3. Run the app
 
 Requires Node 22+ (built on v22.23.2, npm 12).
 
@@ -62,7 +132,7 @@ npm run build          # typecheck + production bundle
 npm run preview        # serve the built bundle
 ```
 
-## 3. Authentication (Supabase Auth is the only auth system)
+## 4. Authentication (Supabase Auth is the only auth system)
 
 Sign-in is Supabase Auth. The database and the identity provider are the same
 service, so there is no third-party script, no token bridge and no proxy — which
@@ -141,7 +211,7 @@ names without ever returning a code. Removing somebody is a director's decision:
 re-entering a code cannot undo it (`guard_membership_change` refuses, and
 `join_program` says so plainly).
 
-## 3a. Profiles, capabilities and pictures
+## 4a. Profiles, capabilities and pictures
 
 The signed-in surface has three account screens, all under the usual app shell:
 
@@ -185,7 +255,7 @@ per screen and refreshes before expiry). There is no anonymous URL: reading a
 member's picture is subject to exactly the same rule as reading their profile
 row (`public.can_read_avatar` → `can_view_profile`).
 
-## 4. Database
+## 5. Database
 
 Work on the **NEW** project (`sjiswrvhrnrxkrfhfjrp`). The old project and the old
 Vercel deployment are read-only, forever.
@@ -319,7 +389,7 @@ next apply:
   first — `capabilities_and_avatars.sql` (G3) does — otherwise it fails on the
   hosted project while passing locally, where no such guard exists.
 
-## 5. How the frontend is put together
+## 6. How the frontend is put together
 
 ```
 src/lib/queries.ts   the few table reads (RLS-scoped: profiles, events, attendance…)
@@ -352,8 +422,17 @@ Rules the code follows, and that changes should keep:
   name, the "Band Meeting" event type).
 - **Confirmations use `ConfirmSheet`**, never `window.confirm`.
 - Mobile first: 44px minimum tap targets, `Sheet` instead of a desktop modal.
+- **Screens are composed from §2.** A new screen opens with `PageHeader` and uses
+  `List`/`Row` for anything list-shaped; it does not introduce a new card style,
+  a new heading size or a new colour.
 
-## 6. Not done yet
+## 7. Not done yet
+
+- **The signed-in screens have not been clicked through by a person with a real
+  account.** The design pass was verified by typecheck, production build, the
+  rendered public/auth pages and a computed-state audit (fonts, tokens, contrast
+  in both themes); the roster, roll, analytics, roles and settings screens are
+  verified structurally, not exercised against a live session.
 
 - **Apply migration 021 to the live project before anyone signs in**, then set
   the dashboard's Site URL / Redirect URLs. The exact SQL, the settings and the

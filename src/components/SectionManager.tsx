@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Music, Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   Button,
   Card,
@@ -91,22 +91,15 @@ export function SectionManager() {
   return (
     <>
       <Card className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Music className="h-5 w-5 text-band dark:text-emerald-300" />
-          <p className="font-semibold">Instruments &amp; sections</p>
-        </div>
-
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Everyone in a section is grouped together on the roster and in attendance. Removing
-          a section keeps its members — they just show under &ldquo;No section&rdquo;.
+        <p className="type-meta">
+          Everyone in a section is grouped together on the roster and in attendance. Removing a
+          section keeps its members — they just show under &ldquo;No section&rdquo;.
         </p>
 
         {app.sections.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No sections yet. Add your first instrument below.
-          </p>
+          <p className="type-meta">No sections yet. Add your first instrument below.</p>
         ) : (
-          <div className="divide-y divide-black/5 dark:divide-white/10">
+          <div className="cue-list overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-line)]">
             {app.sections.map((section) => (
               <Row
                 key={section.id}
@@ -115,7 +108,8 @@ export function SectionManager() {
                   <span className="flex shrink-0 items-center gap-1">
                     <IconButton
                       label={`Rename ${section.name}`}
-                      variant="secondary"
+                      variant="ghost"
+                      className="h-9 w-9"
                       icon={<Pencil className="h-4 w-4" />}
                       onClick={() => {
                         setEditing(section);
@@ -124,7 +118,8 @@ export function SectionManager() {
                     />
                     <IconButton
                       label={`Remove ${section.name}`}
-                      variant="secondary"
+                      variant="ghost"
+                      className="h-9 w-9"
                       icon={<Trash2 className="h-4 w-4" />}
                       onClick={() => setRemoving(section)}
                     />
