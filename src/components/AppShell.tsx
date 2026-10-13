@@ -100,27 +100,47 @@ export function AppShell() {
     <div className="app-shell flex h-full flex-col bg-[var(--cue-page)]">
       {/* --- masthead: the umbrella, then the program you are actually in --- */}
       <header className="safe-t sticky top-0 z-30 shrink-0 border-b border-[var(--cue-line)] bg-[var(--cue-page)]">
-        <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-2 px-3 py-1 sm:px-5">
+        {/* `safe-t` owns the top padding, so this sets the other three edges. */}
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-2 px-3 pb-2 sm:px-5">
           <div className="min-w-0 flex-1">
-            <p className="type-wordmark truncate text-[0.6875rem] leading-tight text-[var(--cue-subtle)]">
-              {ORG_NAME}
-            </p>
             {inSeveral ? (
+              /* The switcher is the whole brand block, wordmark and all, rather
+                 than the program name alone. That is what keeps the target 44px
+                 tall on a phone without making the masthead taller: the block is
+                 two lines it already had, and `min-h-11` only fills out the box
+                 the row (`min-h-14`) was already spending on it. One line of
+                 text as the target measured 32px — CSS `min-h-8` — which is
+                 under the floor every other control in the app clears. */
               <button
                 type="button"
                 onClick={() => setSwitcherOpen(true)}
                 aria-label={`Switch program — currently ${programName}`}
-                className="motion-press -ml-1 flex min-h-8 max-w-full items-baseline gap-1.5 rounded-[var(--radius-control)] px-1 text-left hover:bg-[var(--cue-raised)]"
+                className="motion-press -ml-1.5 flex min-h-11 max-w-full min-w-0 flex-col items-start justify-center gap-0.5 rounded-[var(--radius-control)] px-1.5 py-1 text-left hover:bg-[var(--cue-raised)]"
               >
-                <span className="truncate text-[0.9375rem] font-semibold">{programName}</span>
-                <span className="type-meta hidden truncate sm:inline">{under}</span>
-                <ChevronsUpDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center text-[var(--cue-subtle)]" />
+                <span className="type-wordmark max-w-full truncate text-[0.6875rem] leading-tight text-[var(--cue-subtle)]">
+                  {ORG_NAME}
+                </span>
+                <span className="flex max-w-full min-w-0 items-baseline gap-1.5">
+                  <span className="truncate text-[0.9375rem] leading-tight font-semibold">
+                    {programName}
+                  </span>
+                  <span className="type-meta hidden truncate sm:inline">{under}</span>
+                  <ChevronsUpDown
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 shrink-0 self-center text-[var(--cue-subtle)]"
+                  />
+                </span>
               </button>
             ) : (
-              <p className="flex items-baseline gap-1.5 truncate leading-tight">
-                <span className="truncate text-[0.9375rem] font-semibold">{programName}</span>
-                <span className="type-meta truncate">{under}</span>
-              </p>
+              <>
+                <p className="type-wordmark truncate text-[0.6875rem] leading-tight text-[var(--cue-subtle)]">
+                  {ORG_NAME}
+                </p>
+                <p className="flex items-baseline gap-1.5 truncate leading-tight">
+                  <span className="truncate text-[0.9375rem] font-semibold">{programName}</span>
+                  <span className="type-meta truncate">{under}</span>
+                </p>
+              </>
             )}
           </div>
 
@@ -161,14 +181,15 @@ export function AppShell() {
             label="Notifications"
             onClick={() => setBellOpen(true)}
             variant="ghost"
-            className="h-9 w-9"
+            /* 44px, not 36: the same floor the avatar beside it documents. */
+            className="h-11 w-11"
             icon={<Bell className="h-5 w-5" />}
           />
           <IconButton
             label={dark ? "Use light mode" : "Use dark mode"}
             onClick={toggle}
             variant="ghost"
-            className="h-9 w-9"
+            className="h-11 w-11"
             icon={dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           />
           <button

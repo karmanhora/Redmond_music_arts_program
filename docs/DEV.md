@@ -289,6 +289,24 @@ anyone signs in**, because it is what resolves a Supabase Auth account to a
 `profiles` row — without it every request is `anon` and the app looks empty;
 022 is what lets a teacher start a program (`create_program()`).
 
+Migration **034** (`034_pin_function_search_path.sql`) was applied to the live
+project on **2026-10-12**. It is the whole of the security advisor's remaining
+`function_search_path_mutable` finding: `generate_join_code`,
+`normalize_section_name`, `permission_implications` and `avatar_folder_owner`
+resolved every unqualified name against the *caller's* `search_path`, so a role
+that can create objects could have chosen what an unqualified name inside them
+meant. All four now carry `set search_path = ''`, which is safe here because
+their bodies use `pg_catalog` built-ins only and `avatar_folder_owner` already
+qualifies its one non-built-in call as `storage.foldername`. Every function that
+*calls* one of the four already pins its own path to `public`, so no call site
+changes. The four behave identically: verified live by calling each one after
+applying (`generate_join_code(8)` → an 8-character code,
+`normalize_section_name('  Brass   Line ')` → `Brass Line`,
+`permission_implications('attendance.mark_section')` →
+`{attendance.mark_section,attendance.mark_present}`,
+`avatar_folder_owner('uid/avatar.png')` → `uid`), and by re-running the advisor,
+which no longer reports the lint.
+
 Migrations 029, 030, 031, 032 and 033 were applied to the live project on
 **2026-10-11**. The frontend that uses them still has to be deployed: the roster
 and profile queries select `avatar_path` and `bio`, the role screens call the 029

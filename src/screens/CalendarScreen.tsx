@@ -385,7 +385,9 @@ export function CalendarScreen() {
         } in view · pick a day to read its schedule`}
         actions={
           <>
-            <div className="flex items-center">
+            {/* 8px between the two arrows: at 0 they were one 88px target with a
+                seam down the middle. */}
+            <div className="flex items-center gap-2">
               <IconButton
                 label="Previous month"
                 icon={<ChevronLeft className="h-4 w-4" />}

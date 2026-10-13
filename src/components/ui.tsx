@@ -170,24 +170,59 @@ function hasPadding(className?: string): boolean {
 /* Buttons                                                                    */
 /* -------------------------------------------------------------------------- */
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "accent";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "accent" | "link";
 type Size = "sm" | "md" | "lg";
 
 /*
- * Depth on the controls: a plain primary button was the flattest thing left on
- * the page. It now carries a hairline of light along its top edge and rises a
- * pixel under the cursor, so pressing it feels like pressing something.
+ * One interaction spec per variant.
+ *
+ * Every variant answers the same four states the same way, because a control
+ * that lifts under the pointer is a control that claims it will take you
+ * somewhere, and an action in this app does not take you anywhere — it fires.
+ * The rules, in order:
+ *
+ *   hover          colour and surface only. Nothing moves. No variant lifts,
+ *                  slides or grows.
+ *   active/press   `motion-press` scales to 0.99 and the surface deepens. This
+ *                  is the only movement any button makes.
+ *   focus-visible  the shared 2px ring, offset 2px (`:focus-visible` in
+ *                  index.css). Never removed.
+ *   disabled       `disabled:opacity-45`, no hover surface, no press, and the
+ *                  pointer says so. `loading` is the same state with a
+ *                  spinner — it does not get its own animation.
+ *
+ * `data-press="none"` opts a variant out of the scale (used by `link`, which is
+ * a word, not a button).
  */
 const VARIANT_CLASS: Record<Variant, string> = {
   primary:
-    "bg-[var(--cue-action)] text-white shadow-[inset_0_1px_0_rgb(255_255_255/14%)] hover:-translate-y-px hover:bg-[var(--cue-action-hover)] disabled:bg-[var(--cue-action)]",
+    "bg-[var(--cue-action)] text-white shadow-[inset_0_1px_0_rgb(255_255_255/14%)] " +
+    "hover:bg-[var(--cue-action-hover)] active:bg-[var(--cue-action-hover)] " +
+    "disabled:hover:bg-[var(--cue-action)] disabled:active:bg-[var(--cue-action)]",
   accent:
-    "bg-[var(--cue-gold)] text-[var(--cue-gold-ink)] shadow-[inset_0_1px_0_rgb(255_255_255/30%)] hover:-translate-y-px hover:brightness-95 active:brightness-90",
+    "bg-[var(--cue-gold)] text-[var(--cue-gold-ink)] shadow-[inset_0_1px_0_rgb(255_255_255/30%)] " +
+    "hover:brightness-95 active:brightness-90 " +
+    "disabled:hover:brightness-100 disabled:active:brightness-100",
   secondary:
-    "border border-[var(--cue-line-strong)] bg-[var(--cue-panel)] text-[var(--cue-ink)] hover:-translate-y-px hover:border-[var(--cue-line-strong)] hover:bg-[var(--cue-raised)]",
-  ghost: "bg-transparent text-[var(--cue-ink)] hover:bg-[var(--cue-raised)]",
+    "border border-[var(--cue-line-strong)] bg-[var(--cue-panel)] text-[var(--cue-ink)] " +
+    "hover:bg-[var(--cue-raised)] active:bg-[var(--cue-raised)] " +
+    "disabled:hover:bg-[var(--cue-panel)] disabled:active:bg-[var(--cue-panel)]",
+  ghost:
+    "bg-transparent text-[var(--cue-ink)] " +
+    "hover:bg-[var(--cue-raised)] active:bg-[var(--cue-raised)] " +
+    "disabled:hover:bg-transparent disabled:active:bg-transparent",
   danger:
-    "bg-[var(--cue-absent)] text-white shadow-[inset_0_1px_0_rgb(255_255_255/14%)] hover:-translate-y-px hover:brightness-95 active:brightness-90",
+    "bg-[var(--cue-absent)] text-white shadow-[inset_0_1px_0_rgb(255_255_255/14%)] " +
+    "hover:brightness-95 active:brightness-90 " +
+    "disabled:hover:brightness-100 disabled:active:brightness-100",
+  /**
+   * A link that happens to be a button: an outbound destination where the
+   * affordance is the underline and the trailing arrow, not a surface. Its
+   * arrow leans toward the destination on hover and focus (`cue-nudge`).
+   */
+  link:
+    "bg-transparent text-[var(--cue-leaf)] underline decoration-[var(--cue-gold)] decoration-2 " +
+    "underline-offset-4 hover:text-[var(--cue-ink)] disabled:hover:text-[var(--cue-leaf)]",
 };
 
 const SIZE_CLASS: Record<Size, string> = {
@@ -218,22 +253,37 @@ export function Button({
   disabled,
   ...rest
 }: ButtonProps) {
+  const inert = Boolean(disabled || loading);
   return (
     <button
       {...rest}
-      disabled={disabled || loading}
+      disabled={inert}
+      data-loading={loading ? "" : undefined}
       className={cn(
-        "motion-press inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-control)] font-semibold",
-        "disabled:cursor-not-allowed disabled:opacity-45",
+        // `group` is what lets the trailing arrow nudge on hover and focus.
+        "group motion-press inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-control)] font-semibold",
+        // One disabled look for both states, and the press scale is dropped
+        // with the same rule that drops the hover surface, so a loading button
+        // is visibly inert rather than merely unresponsive.
+        "disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100",
         VARIANT_CLASS[variant],
         SIZE_CLASS[size],
         block && "w-full",
+        // A label that swaps to a spinner keeps the button's height and its
+        // width is allowed to shrink; `aria-busy` says what is happening for
+        // anybody who cannot see the spinner.
+        loading && "cursor-wait",
         className
       )}
+      aria-busy={loading ? true : undefined}
     >
       {loading ? <Spinner className="h-4 w-4" /> : icon}
       {children}
-      {iconAfter}
+      {/* The trailing arrow leans toward where it goes, but only while the
+          control is live — never on a busy or disabled button. */}
+      {iconAfter ? (
+        <span className={cn("inline-flex", !inert && "cue-nudge")}>{iconAfter}</span>
+      ) : null}
     </button>
   );
 }
@@ -257,6 +307,7 @@ export function IconButton({
       title={label}
       className={cn(
         "motion-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-control)]",
+        "disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100",
         VARIANT_CLASS[variant],
         className
       )}
@@ -555,8 +606,14 @@ export function MetricStrip({
 /* Form controls                                                              */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * `1rem` and not `0.9375rem`: iOS Safari zooms the whole page when a control
+ * smaller than 16px takes focus, which then leaves the field magnified with its
+ * label off-screen. 16px is the floor that keeps the layout still on a phone
+ * (docs/QA_REPORT.md QA-03).
+ */
 const CONTROL_CLASS =
-  "min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--cue-line-strong)] bg-[var(--cue-panel)] px-3 py-2.5 text-[0.9375rem] text-[var(--cue-ink)] " +
+  "min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--cue-line-strong)] bg-[var(--cue-panel)] px-3 py-2.5 text-base text-[var(--cue-ink)] " +
   "placeholder:text-[var(--cue-subtle)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--cue-focus)]";
 
 export function Field({
@@ -640,8 +697,16 @@ export function Toggle({
       >
         <span
           className={cn(
-            "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform duration-150",
-            checked ? "translate-x-[1.5rem]" : "translate-x-0.5"
+            // The knob is centred by `top-1/2` + `-translate-y-1/2` and offset
+            // horizontally by an explicit `left`: `left: auto` is not "zero",
+            // its used value is the knob's *static* position, which landed
+            // 21.4px into this 42px track and pushed the knob past the pill
+            // entirely — on top of the first letter of the label beside it.
+            // Both are computed from the box, so the knob stays centred if the
+            // pill or the knob is ever resized. Only the travel between the two
+            // stops is animated; the resting inset is layout.
+            "absolute top-1/2 left-0.5 h-4 w-4 -translate-y-1/2 rounded-full bg-white transition-transform duration-150",
+            checked ? "translate-x-[1.375rem]" : "translate-x-0"
           )}
         />
       </span>
@@ -668,8 +733,10 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       role="tablist"
+      // 8px between adjacent tabs: at 2px two neighbouring labels read as one
+      // control and a thumb lands between them (docs/QA_REPORT.md QA-06).
       className={cn(
-        "flex gap-0.5 overflow-x-auto border-b border-[var(--cue-line)]",
+        "flex gap-2 overflow-x-auto border-b border-[var(--cue-line)]",
         className
       )}
     >
@@ -1118,7 +1185,14 @@ export function Sheet({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">{children}</div>
         {footer ? (
-          <div className="safe-b flex gap-2 border-t border-[var(--cue-line)] px-4 py-3">
+          // Equal tracks rather than a flex row. `Button` is `shrink-0` — that is
+          // what keeps a button from being squashed in a tight row — so two
+          // `block` (`w-full`) buttons in a *flex* row cannot be shrunk, and the
+          // second one landed 470px outside the panel, off the side of the
+          // screen. `auto-fit` + `minmax(0,1fr)` gives one equal, shrinkable
+          // track per child, so a two- and a three-button footer both divide the
+          // width, and a single-button footer still fills it.
+          <div className="safe-b grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-2 border-t border-[var(--cue-line)] px-4 py-3">
             {footer}
           </div>
         ) : null}

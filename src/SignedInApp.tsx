@@ -4,7 +4,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { AppShell } from "./components/AppShell";
 import { Alert, Button } from "./components/ui";
-import { MusicLoader } from "./components/Splash";
+import { LoadingQuote, MusicLoader } from "./components/Splash";
 import { LegalScreen } from "./screens/LegalScreen";
 import { ProgramsProvider, usePrograms } from "./hooks/usePrograms";
 import { AvatarUrlProvider } from "./hooks/useAvatars";
@@ -56,9 +56,13 @@ function RouteSkeleton() {
     <main
       aria-busy="true"
       aria-label="Loading screen"
-      className="flex h-full min-h-64 items-center justify-center p-6 text-[var(--cue-green)]"
+      className="flex h-full min-h-64 flex-col items-center justify-center gap-5 p-6 text-[var(--cue-green)]"
     >
       <MusicLoader />
+      {/* A line to read while the chunk arrives. It mounts fresh on every
+          navigation, so each wait gets a different quote (src/lib/quotes.ts) —
+          picked once per mount, never while somebody is reading it. */}
+      <LoadingQuote tone="onPage" className="mt-0 text-center" />
     </main>
   );
 }

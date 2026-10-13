@@ -96,6 +96,61 @@ These are references for hierarchy and feedback, not assets or copied layouts.
 
 No gradients, glow effects, glass panels, emoji/stock illustrations, scattered
 music glyphs, filler welcome copy, or repeated generic feature tiles. The
-landing page may use one deliberate, low-contrast staff-and-notes motif, kept
-clear of the headline and supporting copy. The rehearsal identity comes from the
-names, schedule, live count, and condensed instrument-board typography.
+rehearsal identity comes from the names, schedule, live count, and condensed
+instrument-board typography.
+
+## Loading-screen exception: one musical quote
+
+The loading surfaces — the full-screen `Splash` in `src/components/Splash.tsx`
+and the route-level `RouteSkeleton` in `src/SignedInApp.tsx` — carry one short
+attributed musical line, picked at random per mount from `src/lib/quotes.ts`.
+It is a deliberate exception to the "no filler copy" rule above, and it stays
+inside these limits:
+
+- **One line, attributed, at most two lines long** on its 384px column. The
+  selection rules (verifiable attribution, no lyrics, no copyrighted excerpts)
+  are stated in `src/lib/quotes.ts`; the district's music staff are the people
+  to approve any addition to the list.
+- **Picked once per mount, never on a timer.** Text does not move under a
+  reader's eyes, and being random is decoration rather than information —
+  nothing in the product depends on which line appears.
+- **No motion of its own,** so it needs no reduced-motion branch; the loader
+  next to it is the only thing that moves.
+- **It holds AA contrast on both surfaces:** 8.88:1 for the sentence and
+  5.55–6.17:1 for the gold attribution on the green splash, 6.05–9.36:1 and
+  4.81–9.12:1 on the app's page, in light and dark (measured on the rendered
+  elements, floor 4.5:1).
+
+## Landing-page exception: the note field
+
+`src/screens/WelcomeScreen.tsx` alone may carry a full-viewport swarm of
+notation, drawn by `src/components/notes/`. It is a deliberate, single exception
+to the "no scattered music glyphs" rule above; no other screen draws one. It
+stays inside these limits:
+
+- **It is decoration, not information.** The canvas is `aria-hidden` with
+  `pointer-events: none`, and it carries no text, numbers or state. The page
+  reads completely — and works completely — without it.
+- **Notes are flat, crisp and slightly varied in opacity.** No gradient, no
+  glow, no blur, no shadow, and no glass.
+- **Colours come from the palette variables above** (`--cue-gold`,
+  `--cue-gold-on-brand`, `--cue-leaf`, `--cue-mint`, `--cue-stage-ink`), resolved
+  with `getComputedStyle` and re-read when the theme flips. Nothing is
+  hardcoded. Two of the five are near-white tints that would vanish on the cream
+  page, so `src/components/notes/palette.ts` mixes those toward `--cue-ink` until
+  each clears a visibility floor against `--cue-page`: a note may be faint, but
+  it must never be invisible in either theme.
+- **Readable pockets.** Elements tagged `data-notes-calm` mark the places a
+  reader is working. Inside them notes fall to roughly a fifth of their opacity,
+  so no heading, paragraph or control competes with motion. Unused slots stay
+  degenerate; up to six are supported.
+- **The green hero panel stays opaque.** It is the strongest calm zone there is:
+  the field never sits behind the headline or the hero buttons, which keeps those
+  at full AA contrast regardless of the animation. Notes are densest in the
+  masthead, the margins and the stretches between sections.
+- **Reduced motion is a still picture.** One static, sparse frame; no drifting,
+  no pointer response, no bursts.
+- **It is verified by pixels, not by eye.** `npx vgpu check` validates both
+  shaders, and a headless harness renders the real `notes.wgsl` on an adapter and
+  asserts on the readback: coverage, palette variety, vertex-shader motion, the
+  calm fade, the pointer push, the click burst and its expiry.

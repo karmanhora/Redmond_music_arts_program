@@ -25,6 +25,11 @@ dist/
 *.log
 .DS_Store
 
+# Playwright (the QA harness in e2e/): traces, screenshots and reports are
+# per-run artefacts, never source. The audit's own record lives in docs/qa-shots/.
+test-results/
+playwright-report/
+
 # Portable tooling (Postgres client binaries, machine-local)
 .tools/
 

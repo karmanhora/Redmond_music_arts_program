@@ -36,9 +36,158 @@
          does not need a dark/light pair the way an inked monogram would. -->
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <title>Redmond High School Attendance</title>
+    <style>
+      /*
+       * The fallback page's own styles. Inline and dependency-free on purpose:
+       * it has to render on a browser that never loaded a stylesheet from the
+       * bundle, so it may not rely on the app's CSS or its design tokens.
+       */
+      .boot-fallback {
+        box-sizing: border-box;
+        max-width: 34rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem calc(env(safe-area-inset-bottom, 0px) + 2.5rem);
+        font-family:
+          "IBM Plex Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 1rem;
+        line-height: 1.55;
+        color: #161a16;
+        background: #f7f5ee;
+      }
+      @media (prefers-color-scheme: dark) {
+        .boot-fallback {
+          color: #f2f1e8;
+          background: #0d110e;
+        }
+      }
+      .boot-fallback h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.375rem;
+        line-height: 1.2;
+      }
+      .boot-fallback p {
+        margin: 0 0 0.75rem;
+      }
+      .boot-fallback ul {
+        margin: 0.5rem 0 1rem;
+        padding-left: 1.25rem;
+      }
+      .boot-fallback li {
+        margin-bottom: 0.35rem;
+      }
+      .boot-fallback a {
+        color: #2f7a4b;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!--
+      The readable fallback, in three shapes, because there are three ways to
+      reach a school phone and get nothing:
+
+      1. `noscript`            — JavaScript is switched off.
+      2. `nomodule`            — JavaScript runs, but the browser is too old for
+                                 ES modules (any browser before ~2018), so the
+                                 module script above is silently ignored.
+      3. the boot check below  — the scripts ran and the app still never mounted
+                                 (a stale cache, a blocked chunk, a runtime
+                                 error before the first paint).
+
+      All three say what to do rather than leaving a blank page, and none of
+      them claim the visitor's browser is broken when it may be the network.
+    -->
+    <noscript>
+      <div class="boot-fallback">
+        <h1>Redmond High School Attendance needs JavaScript</h1>
+        <p>
+          This page is the attendance app for Redmond High School music and arts programs. It is a
+          web application, so it needs JavaScript switched on to sign you in and show your events.
+        </p>
+        <p>
+          If you cannot turn JavaScript on, ask your director or the RHS main office for a paper
+          attendance record — nothing here is the only copy of your attendance.
+        </p>
+      </div>
+    </noscript>
+
+    <script nomodule>
+      document.getElementById("root").innerHTML =
+        '<div class="boot-fallback">' +
+        "<h1>This browser is too old for the attendance app</h1>" +
+        "<p>The app needs a browser that supports ES modules — Chrome, Edge and Firefox 60+, Safari 10.1+, " +
+        "or ChromeOS Chrome from any supported Chromebook. Yours cannot load it.</p>" +
+        "<p>Update your browser, then reload this page. On a school Chromebook, ask your teacher to run " +
+        "&ldquo;Check for updates&rdquo; in Settings.</p>" +
+        "<p>If you need your attendance today, ask your director or the RHS main office — your record is " +
+        "safe, this is only the screen that shows it.</p>" +
+        "<p><a href='/privacy'>Privacy Policy</a> &middot; <a href='/terms'>Terms of Use</a></p>" +
+        "</div>";
+    </script>
+
+    <script>
+      /*
+       * Boot check. The app is mounted by `/src/main.tsx`; if that never
+       * happens the visitor is looking at an empty page with no explanation.
+       * Ten seconds is generous for a cold 3G load and short enough that nobody
+       * stares at nothing. `window.__rhsBooted` is set by an inline hook on the
+       * error handlers rather than by the app, so it also covers a module that
+       * fails to parse.
+       */
+      (() => {
+        let mounted = false;
+        const note = () => {
+          mounted = true;
+        };
+        // The app sets this as soon as React has rendered anything into #root.
+        Object.defineProperty(window, "__rhsBooted", { set: note, configurable: true });
+
+        const show = (heading, body) => {
+          const root = document.getElementById("root");
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML = "";
+          const panel = document.createElement("div");
+          panel.className = "boot-fallback";
+          const h = document.createElement("h1");
+          h.textContent = heading;
+          panel.appendChild(h);
+          for (const line of body) {
+            const p = document.createElement("p");
+            p.textContent = line;
+            panel.appendChild(p);
+          }
+          const links = document.createElement("p");
+          links.innerHTML =
+            "<a href='/privacy'>Privacy Policy</a> &middot; <a href='/terms'>Terms of Use</a>";
+          panel.appendChild(links);
+          root.appendChild(panel);
+        };
+
+        const timeout = window.setTimeout(() => {
+          if (mounted) return;
+          const root = document.getElementById("root");
+          if (root && root.childElementCount > 0) return;
+          show("The attendance app could not start", [
+            "Something went wrong before the app could load — most often a lost connection or a stale cached copy of the page.",
+            "Reload the page. If it still does not open, check your connection and try again on Wi-Fi.",
+            "If it keeps failing, tell your director or the RHS main office, and mention this page.",
+          ]);
+        }, 10000);
+
+        // A startup error is worth showing immediately rather than after 10s.
+        window.addEventListener("error", (event) => {
+          if (mounted) return;
+          if (event.target && event.target !== window && event.target.tagName === "SCRIPT") {
+            window.clearTimeout(timeout);
+            show("The attendance app could not start", [
+              "Part of the app failed to download. This is usually a dropped connection.",
+              "Reload the page, and try again on Wi-Fi.",
+            ]);
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

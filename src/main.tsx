@@ -25,8 +25,20 @@ if (!container) throw new Error("Missing #root element");
 
 const root = createRoot(container);
 
+/**
+ * Tell `index.html`'s boot check that something rendered. The check exists so a
+ * visitor whose app never starts gets a readable page instead of a blank one
+ * (see the fallback block at the foot of `index.html`); this is the signal that
+ * switches it off, and it fires for the config screen too — that is a rendered
+ * page with a real explanation on it, not a failure.
+ */
+function markBooted(): void {
+  (window as unknown as Record<string, unknown>).__rhsBooted = true;
+}
+
 if (missing.length > 0) {
   root.render(<ConfigMissingScreen missing={missing} />);
+  markBooted();
 } else {
   root.render(
     <StrictMode>
@@ -35,4 +47,5 @@ if (missing.length > 0) {
       </BrowserRouter>
     </StrictMode>
   );
+  markBooted();
 }

@@ -469,11 +469,22 @@ a[href] {
   scrollbar-width: thin;
 }
 
-.safe-b {
-  padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
-}
+/*
+ * Safe-area padding.
+ *
+ * Both carry their own base, and both are unlayered on purpose: an unlayered
+ * rule beats every Tailwind utility regardless of order, so while these only
+ * set `env(...)` they silently *replaced* the padding a header had set for
+ * itself. `py-3` on the public masthead became `padding-top: 0` on every device
+ * without a notch, and the logo and the Sign in button sat 4–6px from the top
+ * of the viewport (docs/QA_REPORT.md QA-04). An element using these must not
+ * also set padding on the same edge.
+ */
 .safe-t {
-  padding-top: env(safe-area-inset-top);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+}
+.safe-b {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
 .app-content {
@@ -496,6 +507,23 @@ a[href] {
 /* A group of rows that share one panel: the list, not the card, is the unit. */
 .cue-list > * + * {
   border-top: 1px solid var(--cue-line);
+}
+
+/*
+ * The public landing page's note swarm (src/components/notes/).
+ *
+ * One fixed, transparent canvas behind every surface on that page; the engines
+ * that draw it are lazy chunks and are described in docs/MOTION.md. It is an
+ * intentional, landing-page-only exception to the "no scattered music glyphs"
+ * rule in docs/DESIGN_SYSTEM.md — nowhere else in the product draws one.
+ *
+ * The canvas is excluded from print: a paper copy should cost ink for words,
+ * not for a swarm.
+ */
+@media print {
+  canvas[data-notes-field] {
+    display: none;
+  }
 }
 
 .hairline-t {

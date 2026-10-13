@@ -1,0 +1,403 @@
+import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { installMocks } from "./support/mocks.mjs";
+import {
+  ANIMATION_PROBE,
+  CALM_CONTRAST_PROBE,
+  CONTAINMENT_PROBE,
+  OVERFLOW_PROBE,
+  SWITCH_PROBE,
+  TARGET_PROBE,
+} from "./support/probes.mjs";
+
+/**
+ * The checks that must never regress.
+ *
+ * Each one guards a defect the audit found and fixed; docs/QA_REPORT.md names
+ * the issue id each test covers. Run with `npx playwright test`.
+ */
+
+const WIDTHS = [320, 360, 390, 768, 1440];
+const NOTES_READY = (engine?: string) =>
+  `() => {
+     var el = document.querySelector("[data-notes-field]");
+     return !!el && el.getAttribute("data-engine") !== null${
+       engine ? ` && el.getAttribute("data-engine") === "${engine}"` : ""
+     };
+   }`;
+
+type Overflow = {
+  documentScrollWidth: number;
+  viewport: number;
+  overflowBy: number;
+  offenders: { selector: string; right: number; width: number }[];
+};
+
+async function measureOverflow(page: Page): Promise<Overflow> {
+  return (await page.evaluate(OVERFLOW_PROBE)) as Overflow;
+}
+
+/* ------------------------------------------------------------------ tests -- */
+
+test.describe("public pages", () => {
+  for (const width of WIDTHS) {
+    test(`landing page has no horizontal overflow at ${width}px`, async ({ page }) => {
+      await installMocks(page);
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/");
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      const result = await measureOverflow(page);
+      expect(result.offenders, JSON.stringify(result.offenders, null, 2)).toEqual([]);
+      expect(result.overflowBy).toBeLessThanOrEqual(0);
+    });
+  }
+
+  for (const width of [320, 360, 390]) {
+    test(`auth and legal pages have no horizontal overflow at ${width}px`, async ({ page }) => {
+      await installMocks(page);
+      await page.setViewportSize({ width, height: 780 });
+      for (const path of ["/sign-in", "/sign-up", "/forgot-password", "/privacy", "/terms"]) {
+        await page.goto(path);
+        await expect(page.locator("main, h1").first()).toBeVisible();
+        const result = await measureOverflow(page);
+        expect(result.offenders, `${path}: ${JSON.stringify(result.offenders, null, 2)}`).toEqual([]);
+        expect(result.overflowBy, path).toBeLessThanOrEqual(0);
+      }
+    });
+  }
+
+  test("masthead does not touch the top edge of the viewport", async ({ page }) => {
+    await installMocks(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    // The logo and the Sign in control are the two things the defect touched.
+    for (const selector of ['header img[src$="logo.svg"]', 'header a[href="/sign-in"]']) {
+      const box = await page.locator(selector).first().boundingBox();
+      expect(box, `${selector} is not rendered`).not.toBeNull();
+      expect(box!.y, `${selector} starts at y=${box!.y}`).toBeGreaterThanOrEqual(8);
+    }
+  });
+
+  test("every visible control meets the 44px tap target and 8px gap rule", async ({ page }) => {
+    await installMocks(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const { small, crowded } = (await page.evaluate(TARGET_PROBE)) as {
+      small: { selector: string; w: number; h: number }[];
+      crowded: { a: string; b: string; gap: number }[];
+    };
+    expect(small, `undersized controls: ${JSON.stringify(small, null, 2)}`).toEqual([]);
+    expect(crowded, `crowded controls: ${JSON.stringify(crowded, null, 2)}`).toEqual([]);
+  });
+});
+
+test.describe("signed-in screens", () => {
+  // Each of these walks eleven routes, and every route waits for the shell to
+  // resolve a session, a program and then a route chunk. That is minutes of
+  // honest waiting, not a hang.
+  test.setTimeout(300_000);
+
+  // Every screen is rendered from fixtures (e2e/support/mocks.mjs) — no request
+  // in this block reaches Supabase.
+  const ROUTES = [
+    "/",
+    "/calendar",
+    "/attendance",
+    "/roster",
+    "/checkin",
+    "/me",
+    "/analytics",
+    "/roles",
+    "/settings",
+    "/join",
+    "/new-program",
+  ];
+
+  for (const width of [320, 360, 390, 768, 1440]) {
+    test(`no screen overflows horizontally at ${width}px`, async ({ page }) => {
+      await installMocks(page, true);
+      await page.setViewportSize({ width, height: 844 });
+      for (const route of ROUTES) {
+        await page.goto(route);
+        // The shell resolves a session, a program and then a route chunk.
+        await page.waitForTimeout(2200);
+        const result = await measureOverflow(page);
+        expect(result.offenders, `${route}: ${JSON.stringify(result.offenders, null, 2)}`).toEqual(
+          []
+        );
+        expect(result.overflowBy, route).toBeLessThanOrEqual(0);
+      }
+    });
+  }
+
+  // The control floor is checked on three shapes of viewport, not one width:
+  // a phone in landscape is 390px of *height* (the sheet, the masthead and the
+  // bottom bar all change), and a tablet is where the two-column rows appear.
+  // The rest of the device matrix (touch, DPR, 320px, 2560px) lives in
+  // .tools/qa/measure.mjs --devices, which measures rather than asserts.
+  const TARGET_VIEWPORTS = [
+    { name: "phone portrait", width: 390, height: 844 },
+    { name: "phone landscape", width: 844, height: 390 },
+    { name: "tablet portrait", width: 768, height: 1024 },
+  ];
+
+  for (const viewport of TARGET_VIEWPORTS) {
+    test(`every visible control meets the 44px tap target and 8px gap rule — ${viewport.name}`, async ({
+      page,
+    }) => {
+      await installMocks(page, true);
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      for (const route of ROUTES) {
+        await page.goto(route);
+        await page.waitForTimeout(2200);
+        const { small, crowded } = (await page.evaluate(TARGET_PROBE)) as {
+          small: { selector: string; w: number; h: number }[];
+          crowded: { a: string; b: string; gap: number }[];
+        };
+        expect(small, `${route} undersized: ${JSON.stringify(small, null, 2)}`).toEqual([]);
+        expect(crowded, `${route} crowded: ${JSON.stringify(crowded, null, 2)}`).toEqual([]);
+      }
+    });
+  }
+
+  test("reduced motion is honoured on a signed-in screen too", async ({ page }) => {
+    await installMocks(page, true);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    await page.waitForTimeout(2200);
+    const offenders = (await page.evaluate(ANIMATION_PROBE)) as unknown[];
+    expect(offenders, JSON.stringify(offenders, null, 2)).toEqual([]);
+  });
+
+  test("a sheet closes on Escape and restores focus", async ({ page }) => {
+    await installMocks(page, true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.waitForTimeout(2200);
+    const trigger = page.getByRole("button", { name: /notifications/i });
+    await trigger.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    // Focus containment returns the caret to the control that opened it.
+    await expect(trigger).toBeFocused();
+  });
+
+  test("the keyboard reaches every bottom-tab destination", async ({ page }) => {
+    await installMocks(page, true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.waitForTimeout(2200);
+    const nav = page.getByRole("navigation", { name: "Main navigation" }).last();
+    const links = await nav.getByRole("link").all();
+    expect(links.length).toBeGreaterThanOrEqual(3);
+    for (const link of links) {
+      await link.focus();
+      await expect(link).toBeFocused();
+    }
+  });
+});
+
+test.describe("flying-notes overlay", () => {
+  test("never covers the hero headline", async ({ page }) => {
+    await installMocks(page);
+    // Reduced motion on purpose: it freezes the headline's masked-line reveal,
+    // so the only thing that can differ between the two screenshots is the
+    // note field itself.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto("/?notes=off");
+    const heading = page.getByRole("heading", { level: 1 });
+    await expect(heading).toBeVisible();
+    const clip = await heading.boundingBox();
+    expect(clip).not.toBeNull();
+    const without = await page.screenshot({ clip: clip! });
+
+    await page.goto("/");
+    await expect(heading).toBeVisible();
+    await page.waitForFunction(NOTES_READY(), undefined, { timeout: 20_000 });
+    const withNotes = await page.screenshot({ clip: clip! });
+    // Identical bytes inside the headline box means not one note pixel reached
+    // it — a stricter test than any threshold. The canvas animates, so if a
+    // single note were visible here the two would differ.
+    expect(Buffer.compare(withNotes, without), "notes changed pixels inside the headline").toBe(0);
+  });
+
+  test("stays dim enough behind calm-zone text to hold AA", async ({ page }) => {
+    await installMocks(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/?notes=canvas");
+    await page.waitForFunction(NOTES_READY("canvas"), undefined, { timeout: 20_000 });
+    await page.waitForTimeout(1500);
+    const result = (await page.evaluate(CALM_CONTRAST_PROBE)) as {
+      error?: string;
+      worst?: { pocket: string; alpha: number; contrast: number }[];
+    };
+    expect(result.error).toBeUndefined();
+    expect(result.worst!.length).toBeGreaterThan(0);
+    for (const pocket of result.worst!) {
+      expect(
+        pocket.contrast,
+        `${pocket.pocket} drops body text to ${pocket.contrast}:1 — under AA`
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  test("is unreachable by pointer and by the accessibility tree", async ({ page }) => {
+    await installMocks(page);
+    await page.goto("/");
+    const canvas = page.locator("[data-notes-field]");
+    await expect(canvas).toHaveAttribute("aria-hidden", "true");
+    await expect(canvas).toHaveCSS("pointer-events", "none");
+  });
+
+  test("renders one still frame and no bursts under reduced motion", async ({ page }) => {
+    await installMocks(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/?notes=canvas");
+    await page.waitForFunction(NOTES_READY("canvas"), undefined, { timeout: 20_000 });
+    await page.waitForTimeout(400);
+    const canvas = page.locator("[data-notes-field]");
+    const first = await canvas.screenshot();
+    await page.waitForTimeout(1200);
+    const second = await canvas.screenshot();
+    expect(Buffer.compare(first, second), "the reduced-motion frame is still animating").toBe(0);
+  });
+});
+
+/*
+ * The class of defect the page-level probes cannot see.
+ *
+ * QA-11 and QA-12 were both "the panel is right and the thing inside it is
+ * not": a switch knob painted on the label beside it, and a sheet footer button
+ * painted 470px outside the sheet. Neither is page overflow — the body is
+ * `overflow: hidden` while a sheet is open — and neither is a size or a spacing
+ * problem. Everything below therefore measures the surface **open**, on every
+ * engine the suite runs on.
+ */
+test.describe("open surfaces", () => {
+  const VIEWPORTS = [
+    { name: "phone portrait", width: 390, height: 844 },
+    { name: "phone landscape", width: 844, height: 390 },
+    { name: "tablet portrait", width: 768, height: 1024 },
+    { name: "desktop", width: 1440, height: 900 },
+  ];
+
+  const SURFACES = [
+    {
+      name: "notifications",
+      route: "/",
+      open: (page: Page) => page.getByRole("button", { name: /notifications/i }).first().click(),
+    },
+    {
+      name: "program switcher",
+      route: "/",
+      open: (page: Page) => page.locator('[aria-label^="Switch program"]').first().click(),
+    },
+    {
+      name: "add event",
+      route: "/calendar",
+      open: (page: Page) => page.getByRole("button", { name: /add event/i }).first().click(),
+    },
+  ];
+
+  for (const surface of SURFACES) {
+    for (const viewport of VIEWPORTS) {
+      test(`${surface.name} keeps every child inside itself — ${viewport.name}`, async ({ page }) => {
+        await installMocks(page, true);
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.goto(surface.route);
+        await page.waitForTimeout(2200);
+        await surface.open(page);
+
+        const dialog = page.getByRole("dialog");
+        await expect(dialog).toBeVisible();
+        const result = (await page.evaluate(CONTAINMENT_PROBE)) as {
+          found: boolean;
+          panel?: { width: number };
+          escapes: { selector: string; over: Record<string, number> }[];
+        };
+        expect(result.found, "the surface opened but no dialog was measured").toBe(true);
+        expect(result.panel!.width, "the panel measured as zero-width").toBeGreaterThan(0);
+        expect(
+          result.escapes,
+          JSON.stringify(result.escapes, null, 2)
+        ).toEqual([]);
+
+        // Escape still closes it, at every size and on every engine.
+        await page.keyboard.press("Escape");
+        await expect(dialog).toBeHidden();
+      });
+    }
+  }
+});
+
+test.describe("control internals", () => {
+  test("the switch's knob is inside its own track in both states", async ({ page }) => {
+    await installMocks(page, true);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/calendar");
+    await page.waitForTimeout(2200);
+
+    const first = (await page.evaluate(SWITCH_PROBE)) as {
+      found: boolean;
+      checked: boolean;
+      knobInsideTrack: boolean;
+      overlappingLabels: unknown[];
+      track: { width: number };
+    };
+    expect(first.found, "the calendar has no switch for staff").toBe(true);
+    expect(first.checked).toBe(false);
+    expect(first.knobInsideTrack, JSON.stringify(first)).toBe(true);
+    expect(first.overlappingLabels, JSON.stringify(first)).toEqual([]);
+
+    // The other state is the one that travels the full width of the track.
+    await page.getByRole("switch").click();
+    await page.waitForTimeout(400);
+    const second = (await page.evaluate(SWITCH_PROBE)) as {
+      checked: boolean;
+      knobInsideTrack: boolean;
+      overlappingLabels: unknown[];
+    };
+    expect(second.checked).toBe(true);
+    expect(second.knobInsideTrack, JSON.stringify(second)).toBe(true);
+    expect(second.overlappingLabels, JSON.stringify(second)).toEqual([]);
+    await page.getByRole("switch").click();
+  });
+});
+
+test.describe("reduced motion", () => {
+  test("removes movement without removing a single control", async ({ page }) => {
+    await installMocks(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    const offenders = (await page.evaluate(ANIMATION_PROBE)) as {
+      selector: string;
+      animation: string;
+      duration: string;
+    }[];
+    expect(offenders, JSON.stringify(offenders, null, 2)).toEqual([]);
+    // And the page is still fully usable.
+    await expect(page.getByRole("link", { name: /sign in/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /privacy policy/i })).toBeVisible();
+  });
+
+  test("honours the in-app preference as well as the operating system", async ({ page }) => {
+    await installMocks(page);
+    await page.goto("/");
+    // The OS preference is off, so nothing is reduced until the app says so.
+    const before = (await page.evaluate(ANIMATION_PROBE)) as unknown[];
+    expect(before.length).toBeGreaterThan(0);
+    await page.evaluate(() => {
+      document.documentElement.classList.add("reduce-motion");
+    });
+    const after = (await page.evaluate(ANIMATION_PROBE)) as unknown[];
+    expect(after, JSON.stringify(after, null, 2)).toEqual([]);
+  });
+});

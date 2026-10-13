@@ -421,23 +421,28 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
       <div className="mt-5 space-y-3 text-center text-sm">
         {mode === "sign-in" ? (
           <>
-            <Link to="/forgot-password" className="font-semibold text-[var(--cue-green)] underline">
+            {/* Every one of these is a real destination on a phone, so each is
+                a 44px target rather than the 18px line box it used to be. */}
+            <Link
+              to="/forgot-password"
+              className="flex min-h-11 items-center justify-center font-semibold text-[var(--cue-green)] underline"
+            >
               Forgot your password?
             </Link>
-            <Link to="/sign-up" className="block text-[var(--cue-muted)]">
+            <Link to="/sign-up" className="flex min-h-11 items-center justify-center text-[var(--cue-muted)]">
               New here? <span className="font-semibold underline">Create an account</span>
             </Link>
           </>
         ) : null}
 
         {mode === "sign-up" ? (
-          <Link to="/sign-in" className="block text-[var(--cue-muted)]">
+          <Link to="/sign-in" className="flex min-h-11 items-center justify-center text-[var(--cue-muted)]">
             Already have an account? <span className="font-semibold underline">Sign in</span>
           </Link>
         ) : null}
 
         {mode === "forgot" || mode === "reset" ? (
-          <Link to="/sign-in" className="block text-[var(--cue-muted)]">
+          <Link to="/sign-in" className="flex min-h-11 items-center justify-center text-[var(--cue-muted)]">
             <span className="font-semibold underline">Back to sign in</span>
           </Link>
         ) : null}
@@ -477,7 +482,7 @@ function AuthLayout({ mode, children }: { mode: AuthMode; children: ReactNode })
 
   return (
     <main className="safe-t flex min-h-full items-center justify-center overflow-y-auto bg-[var(--cue-page)] px-4 py-6 text-[var(--cue-ink)] sm:px-6 sm:py-10">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-line)] bg-[var(--cue-panel)] md:min-h-[540px] md:grid-cols-[0.75fr_1.25fr]">
+      <div className="grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--cue-line)] bg-[var(--cue-panel)] md:min-h-[540px] md:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
         <aside className="flex flex-col justify-between bg-[var(--cue-brand-panel)] p-5 text-[var(--cue-brand-ink)] sm:p-8 md:p-10">
           <div>
             <Link

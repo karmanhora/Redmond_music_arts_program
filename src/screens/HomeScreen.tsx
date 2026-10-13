@@ -229,7 +229,13 @@ export function HomeScreen() {
           <Skeleton className="h-56 w-full" />
         ) : nextEvent ? (
           <Stage motif className="px-5 py-6 sm:px-7 sm:py-8">
-            <div className="grid gap-8 lg:grid-cols-[1.45fr_1fr] lg:items-end">
+            {/* `minmax(0, …)` and an explicit single column: a bare `fr` track is
+                `minmax(auto, …)`, so its floor is the content's min-content, and a
+                single `truncate`/`nowrap` descendant then takes the column past
+                the panel it sits in. The audit measured no document scroll at any
+                width, so this is hardening against a class of bug rather than a
+                reproduced break — see docs/QA_REPORT.md (QA-08). */}
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-end">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                   <span className="type-kicker text-[var(--cue-gold-on-brand)]">
@@ -371,15 +377,18 @@ export function HomeScreen() {
         )}
 
         {/* --- two uneven columns: what's coming, and who you are here --- */}
-        <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:gap-10">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-10">
           <div className="space-y-8">
             {alsoUpcoming.length > 0 ? (
               <section aria-labelledby="coming-up">
                 <SectionTitle
                   className="mb-3"
                   action={
+                    /* A word, but a destination: it carries the 44px target of
+                       a control rather than the 20px line box of a sentence link
+                       (docs/QA_REPORT.md QA-03). */
                     <button
-                      className="text-[0.8125rem] font-semibold text-[var(--cue-leaf)] underline decoration-2 underline-offset-4"
+                      className="inline-flex min-h-11 items-center text-[0.8125rem] font-semibold text-[var(--cue-leaf)] underline decoration-2 underline-offset-4"
                       onClick={() => navigate("/calendar", { viewTransition: true })}
                     >
                       Full calendar

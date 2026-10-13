@@ -105,11 +105,15 @@ export function SectionManager() {
                 key={section.id}
                 title={section.name}
                 trailing={
-                  <span className="flex shrink-0 items-center gap-1">
+                  /* 8px between rename and remove: at 4px the destructive one sat
+                     inside the other control's thumb arc. Both are 44px square
+                     (`h-11 w-11`, the IconButton default) — at 36px they were
+                     the smallest targets on the Roster screen. */
+                  <span className="flex shrink-0 items-center gap-2">
                     <IconButton
                       label={`Rename ${section.name}`}
                       variant="ghost"
-                      className="h-9 w-9"
+                      className="h-11 w-11"
                       icon={<Pencil className="h-4 w-4" />}
                       onClick={() => {
                         setEditing(section);
@@ -119,7 +123,7 @@ export function SectionManager() {
                     <IconButton
                       label={`Remove ${section.name}`}
                       variant="ghost"
-                      className="h-9 w-9"
+                      className="h-11 w-11"
                       icon={<Trash2 className="h-4 w-4" />}
                       onClick={() => setRemoving(section)}
                     />

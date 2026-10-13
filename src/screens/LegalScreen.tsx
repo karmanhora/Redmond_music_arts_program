@@ -259,7 +259,7 @@ export function LegalScreen({ page }: { page: LegalPage }) {
           <Link
             viewTransition
             to={other.to}
-            className="font-semibold text-[var(--cue-action)] underline decoration-[var(--cue-gold)] decoration-2 underline-offset-4"
+            className="inline-flex min-h-11 items-center font-semibold text-[var(--cue-action)] underline decoration-[var(--cue-gold)] decoration-2 underline-offset-4"
           >
             Read the {other.label}
           </Link>

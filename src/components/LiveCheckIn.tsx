@@ -383,8 +383,12 @@ export function LiveCheckIn({ event, onExit }: { event: EventRow; onExit: () => 
             >
               Still missing
             </SectionTitle>
+            {/* The empty-roster label carries `roster-arrive`, the documented
+                "settles in" entrance. It used to carry `animate-in`, which no
+                rule in the stylesheet matches — so it never moved at all.
+                docs/QA_REPORT.md QA-05. */}
             {missingBySection.length === 0 ? (
-              <p className="animate-in px-4 py-5 text-sm font-semibold text-[var(--cue-present)]">
+              <p className="roster-arrive px-4 py-5 text-sm font-semibold text-[var(--cue-present)]">
                 Everyone&rsquo;s here.
               </p>
             ) : (
