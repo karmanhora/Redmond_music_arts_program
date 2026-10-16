@@ -334,7 +334,9 @@ export function calmAt(rects: readonly Rect[], x: number, y: number): number {
 }
 
 export function sampleAmbient(note: NoteInstance, state: FrameState): Sample {
-  const speed = (0.24 + note.depth * 0.9) * (1 + Math.abs(state.scroll) * 0.5);
+  // Speed is independent of scroll: a scroll-scaled rate multiplies time, so it
+  // jumps each note's position whenever the page moves (the "rush").
+  const speed = 0.24 + note.depth * 0.9;
   let x = fract(note.baseX + note.velX * state.time * speed);
   let y = fract(note.baseY + note.velY * state.time * speed);
   x += y * state.scroll * 0.2;

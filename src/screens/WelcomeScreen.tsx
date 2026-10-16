@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Moon, Sun } from "lucide-react";
 import { IconButton, Poster, StaffMotif } from "../components/ui";
@@ -89,8 +88,6 @@ function Go() {
 
 export function WelcomeScreen() {
   const { dark, toggle } = useDark();
-  /** The hero. The note swarm pauses when it scrolls out of view. */
-  const hero = useRef<HTMLElement | null>(null);
 
   return (
     /*
@@ -100,7 +97,7 @@ export function WelcomeScreen() {
      * margins and between the sections.
      */
     <div className="relative min-h-full text-[var(--cue-ink)]">
-      <NotesField hero={hero} dark={dark} />
+      <NotesField dark={dark} />
 
       {/* --- masthead: the school and the way in, and nothing else --- */}
       {/* `safe-t` owns the top padding (12px plus the device inset), so this
@@ -151,7 +148,6 @@ export function WelcomeScreen() {
             than it was. The calm zones exist to quiet the places you read; a
             place you cannot see needs no quieting. */}
         <section
-          ref={hero}
           className="relative isolate overflow-hidden border-y-2 border-[var(--cue-gold-on-brand)] bg-[var(--cue-brand-panel)] text-[var(--cue-brand-ink)]"
         >
           {/* The program's motif — five staff lines with notation drifting along

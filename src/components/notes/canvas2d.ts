@@ -275,7 +275,7 @@ export function createCanvasEngine(context: EngineContext): NotesEngine {
       slot.start = elapsed;
       slot.active = 1;
       if (!running) {
-        // The loop is paused (hidden tab, hero off-screen); draw the seed frame
+        // The loop is paused (hidden tab); draw the seed frame
         // so the burst is not silently swallowed.
         last = performance.now();
         render();

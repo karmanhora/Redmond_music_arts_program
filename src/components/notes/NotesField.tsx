@@ -13,14 +13,13 @@
  * before a single note exists, and they stay that way if the import fails.
  *
  * Lifecycle rules it enforces on behalf of both engines:
- *   - pause while the tab is hidden or the hero has scrolled away;
+ *   - pause while the tab is hidden (it keeps running as the page scrolls);
  *   - re-read the palette when the theme flips (the engine is rebuilt);
  *   - render one still frame — and never a burst — under reduced motion;
  *   - hand over to the Canvas2D engine if the GPU engine fails or is lost;
  *   - release every listener, observer, timer and GPU resource on unmount.
  */
 import { useEffect, useRef } from "react";
-import type { RefObject } from "react";
 
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 import type { EngineContext, NotesEngine, Rect } from "./field";
@@ -41,12 +40,7 @@ const RESETTLE_MS = 700;
 /** Ink in both themes, used for the instant before the real colour is read. */
 const PLACEHOLDER_INK = { r: 22, g: 26, b: 22 };
 
-export function NotesField({
-  hero,
-  dark,
-}: {
-  /** The hero section. The loop pauses when it leaves the viewport. */
-  hero: RefObject<HTMLElement | null>;
+export function NotesField({ dark }: {
   /** A theme flip rebuilds the engine so the palette is re-read. */
   dark: boolean;
 }) {
@@ -68,8 +62,6 @@ export function NotesField({
     let engine: NotesEngine | null = null;
     let idleCleanup: () => void = () => {};
     let raf = 0;
-    let heroVisible = true;
-    let observer: IntersectionObserver | null = null;
 
     const context: EngineContext = {
       canvas,
@@ -116,7 +108,7 @@ export function NotesField({
     /** Start or stop to match tab visibility and the hero's position. */
     function sync(): void {
       if (!engine) return;
-      const wanted = document.visibilityState !== "hidden" && heroVisible;
+      const wanted = document.visibilityState !== "hidden";
       if (wanted) engine.start();
       else engine.stop();
     }
@@ -220,15 +212,6 @@ export function NotesField({
     window.addEventListener("resize", onResize);
     document.fonts?.addEventListener?.("loadingdone", resettle);
 
-    if (hero.current) {
-      observer = new IntersectionObserver((entries) => {
-        const entry = entries[0];
-        heroVisible = entry ? entry.isIntersecting : true;
-        sync();
-      });
-      observer.observe(hero.current);
-    }
-
     // After first paint: the hero text is already on screen and interactive.
     if (typeof window.requestIdleCallback === "function") {
       const handle = window.requestIdleCallback(() => void boot(), { timeout: 1500 });
@@ -242,7 +225,6 @@ export function NotesField({
       disposed = true;
       idleCleanup();
       if (raf) window.cancelAnimationFrame(raf);
-      observer?.disconnect();
       layoutObserver?.disconnect();
       for (const timer of settleTimers) window.clearTimeout(timer);
       settleTimers = [];
@@ -258,7 +240,7 @@ export function NotesField({
       engine = null;
       delete canvas.dataset.engine;
     };
-  }, [dark, reduced, hero]);
+  }, [dark, reduced]);
 
   return (
     <canvas

@@ -185,7 +185,8 @@ fn vs_main(
     alpha = in.c.w * (1.0 - life) * burst.w;
   } else {
     // Parallax: nearer (deeper) notes are bigger and travel faster.
-    let speed = (0.24 + in.b.w * 0.9) * (1.0 + abs(globals.scroll) * 0.5);
+    // Independent of scroll: a scroll-scaled rate would jump positions as the page moves.
+    let speed = 0.24 + in.b.w * 0.9;
     var p = fract(in.a.xy + in.a.zw * globals.time * speed);
     // Scrolling shears the stream so the page feels continuous.
     p.x += p.y * globals.scroll * 0.2;

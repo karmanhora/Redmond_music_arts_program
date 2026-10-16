@@ -42,7 +42,7 @@ Counted in `dist/assets/index-*.css` after a production build:
 | ES modules | every script | `nomodule` fallback page (see below) |
 | `ResizeObserver` | `NotesField` | The note field never refits its calm pockets; it still draws and still stops on teardown. Guarded with `typeof`. |
 | `requestIdleCallback` | `NotesField` | `setTimeout(…, 250)` — the note field starts 250 ms later. |
-| `IntersectionObserver` | `NotesField` | The loop runs while the tab is visible rather than pausing off-screen. |
+| `IntersectionObserver` | `NotesField` | The loop runs while the tab is visible, including when the hero is scrolled away. |
 | `navigator.gpu` | `createEngine.ts` | Whole note field falls back to the Canvas2D engine; if that is unavailable too, the landing page renders with no note field at all (`?notes=off` is the same shape). |
 | `navigator.clipboard` | Roster join code | The copy button reports failure through the toast; the code is still selectable text. |
 | `navigator.vibrate` | `lib/motion.ts` | No-op. Haptics are never the only signal. |

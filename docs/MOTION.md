@@ -91,8 +91,8 @@ preferences, like every other CSS animation.
   gently, larger and faster the nearer its depth layer. Five-line staff ribbons
   undulate behind it. The cursor or finger pushes nearby notes away with a soft
   radius; a click or tap releases a small burst that fades inside 1.4s; scroll
-  shears the flow a little so the page feels continuous. It pauses while the tab
-  is hidden or the hero is off-screen, and it steps its own particle count down
+  shears the flow a little so the page feels continuous. It pauses only while the tab
+  is hidden, so it keeps moving all the way down the page, and it steps its own particle count down
   when the average frame time stays above 20ms for two seconds.
 
   It is the exception that proves the rule about delight: it never carries
