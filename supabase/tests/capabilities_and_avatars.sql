@@ -567,6 +567,7 @@ begin
      where id = 'cccccccc-0000-4000-8000-000000000004';
     raise exception 'FAIL: F3 a student deactivated themselves';
   exception
+    when insufficient_privilege then null; -- refused: no UPDATE grant on deactivated (20261016225631)
     when raise_exception then
       if sqlerrm like 'FAIL:%' then raise; end if;
   end;

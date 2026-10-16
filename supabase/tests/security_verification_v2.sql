@@ -314,11 +314,17 @@ begin
   perform public.t_assert(v->>'ok' = 'false' and v->>'message' = 'Only staff may override attendance.',
     'B7b student must not write another student''s attendance via RPC');
 
-  -- B8: student cannot UPDATE attendance directly (RLS: no policy → 0 rows).
-  update public.attendance_records set attended = false
-   where event_id = 'eeeeeeee-0000-4000-8000-000000000002'
-     and student_id = 'ffffffff-0000-4000-8000-000000000005';
-  get diagnostics n = row_count;
+  -- B8: student cannot UPDATE attendance directly. Refused either by the missing
+  -- UPDATE grant (20261016225631) or, were the grant ever restored, by RLS with
+  -- no policy — both leave zero rows changed.
+  begin
+    update public.attendance_records set attended = false
+     where event_id = 'eeeeeeee-0000-4000-8000-000000000002'
+       and student_id = 'ffffffff-0000-4000-8000-000000000005';
+    get diagnostics n = row_count;
+  exception
+    when insufficient_privilege then n := 0;
+  end;
   perform public.t_assert(n = 0, 'B8 student direct UPDATE must affect 0 rows');
 
   -- B9: student cannot INSERT attendance directly (RLS: no policy → error).
@@ -974,7 +980,10 @@ begin
     if n > 0 then
       raise exception 'FAIL: SEC-v2-D0';
     end if;
+
   exception
+    when insufficient_privilege then
+      null; -- refused outright: `deactivated` has no UPDATE column grant (20261016225631)
     when others then
       if position('You cannot change your own access' in sqlerrm) = 0 then
         raise;

@@ -10,14 +10,13 @@ end
 $$;
 
 insert into public.profiles (
-  id, full_name, display_name, avatar_url, auth_user_id, clerk_id
+  id, full_name, display_name, avatar_url, auth_user_id
 ) values (
   '02500000-0000-4000-8000-000000000001',
   'Deletion Test User',
   'Test User',
   'https://example.invalid/avatar.png',
-  '02500000-0000-4000-8000-000000000001',
-  'clerk_test_deletion_user'
+  '02500000-0000-4000-8000-000000000001'
 );
 
 insert into public.ensembles (id, slug, name)
@@ -73,7 +72,6 @@ begin
        and display_name = 'Deleted account'
        and avatar_url = ''
        and auth_user_id is null
-       and clerk_id is null
        and deactivated
   ) then
     raise exception 'FAIL: DA-2 profile was not de-identified';
