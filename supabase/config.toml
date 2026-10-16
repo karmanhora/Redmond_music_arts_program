@@ -103,7 +103,7 @@ content_path = "./supabase/templates/reauthentication.html"
 [auth.email.notification.password_changed]
 enabled = true
 subject = "Your password was changed"
-content_path = "./supabase/templates/password_changed_notification.html"
+content_path = "./templates/password_changed_notification.html"
 
 # ----------------------------------------------------------------------------
 # Custom SMTP — commented out, and worth configuring before real use.
