@@ -430,8 +430,12 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
             >
               Forgot your password?
             </Link>
-            <Link to="/sign-up" className="flex min-h-11 items-center justify-center text-[var(--cue-muted)]">
-              New here? <span className="font-semibold underline">Create an account</span>
+            <Link
+              to="/sign-up"
+              className="flex min-h-11 flex-col items-center justify-center text-[var(--cue-muted)]"
+            >
+              New here?
+              <span className="font-semibold underline">Create an account</span>
             </Link>
           </>
         ) : null}
