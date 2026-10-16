@@ -6,12 +6,22 @@ import type {
   ProgramOption,
   RpcResult,
   SectionStatRow,
+  TeacherAccessStatus,
   TrendRow,
 } from "./types";
 
 export interface RpcResponse {
   result: RpcResult | null;
   error: PostgrestError | null;
+}
+
+export interface GoogleCalendarImportResult {
+  ok: boolean;
+  inserted?: number;
+  updated?: number;
+  archived?: number;
+  warning?: string | null;
+  message?: string;
 }
 
 export async function getSignupAccountType(): Promise<{
@@ -91,6 +101,27 @@ export const joinProgram = (slug: string, code: string, displayName?: string) =>
     p_code: code,
     p_display_name: displayName?.trim() || null,
   });
+
+export async function importGoogleCalendar(
+  programId: string,
+  calendarUrl: string
+): Promise<{ result: GoogleCalendarImportResult | null; error: string | null }> {
+  const { data, error } = await supabase.functions.invoke<GoogleCalendarImportResult>(
+    "import-google-calendar",
+    { body: { ensemble_id: programId, calendar_url: calendarUrl.trim() } }
+  );
+  if (!error) return { result: data, error: null };
+
+  if (error.context instanceof Response) {
+    try {
+      const body = (await error.context.clone().json()) as { error?: string };
+      if (body.error) return { result: null, error: body.error };
+    } catch {
+      // Keep the Functions client's message when the response is not JSON.
+    }
+  }
+  return { result: null, error: error.message };
+}
 
 /**
  * Start a program and become its director. Teacher accounts can do this without
@@ -270,6 +301,45 @@ export const overrideAttendance = (
     p_staff_note: staffNote ?? "",
   });
 };
+
+// --- Teacher access (any signed-in account, for itself) ----------------------
+
+/**
+ * The caller's own teacher-credential state (migration 035). Used to render
+ * "pending until verification" and to decide whether to offer the
+ * start-a-program form or the invitation-code form — it never grants anything:
+ * `create_program()` asks the database again.
+ */
+export async function getTeacherAccessStatus(): Promise<TeacherAccessStatus> {
+  const { data, error } = await supabase.rpc("teacher_access_status");
+  const result = (data ?? null) as RpcResult | null;
+
+  // Fail closed: an unreadable status is "not verified", never a guess.
+  if (error) return { verified: false, pending: false, admin: false, error: error.message };
+  if (!result?.ok) {
+    return {
+      verified: false,
+      pending: false,
+      admin: false,
+      error: result?.message ?? "Could not check teacher access.",
+    };
+  }
+  return {
+    verified: result.verified === true,
+    pending: result.pending === true,
+    admin: result.admin === true,
+    error: null,
+  };
+}
+
+/**
+ * Redeem a teacher invitation code. The code is normalized, hashed, checked for
+ * expiry and email binding and consumed atomically on the server (migration
+ * 035) — this call is a request, never a decision, and the plaintext is never
+ * stored or logged anywhere.
+ */
+export const redeemTeacherInvitation = (code: string) =>
+  callRpc("redeem_teacher_invitation", { p_code: code.trim() });
 
 // --- My own numbers (any member) -------------------------------------------
 

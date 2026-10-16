@@ -27,6 +27,9 @@ required and this policy will be updated.
   check-in time, and any note a staff member adds.
 - **Invitations:** when a staff member invites someone, their name and email are
   stored until the invitation is accepted or expires.
+- **Calendar:** if staff connect a public Google Calendar feed, its iCal URL and
+  imported event titles, dates, times, locations, and descriptions are stored
+  for that program's schedule.
 - **Technical:** limited records used to prevent abuse (for example, failed
   check-in counts), and standard server logs kept by our hosting providers.
 
@@ -36,8 +39,11 @@ identifiers.
 ## 4. How we use it
 Only to run attendance for your program: to show rosters, record check-ins, give
 staff attendance summaries, and send service emails (such as sign-in
-confirmation). We do not use it for advertising or for any purpose unrelated to
-the program.
+confirmation). Staff-connected calendar events are used to populate the
+program schedule and set their default attendance type. The App reads only a
+public calendar feed; it does not access a user's private Google Calendar or
+Google account. We do not use information for advertising or for any purpose
+unrelated to the program.
 
 ## 5. Who can see it
 - **Students:** their own attendance, and their program's events.
@@ -45,7 +51,12 @@ the program.
   program, as their role allows.
 - **Other programs:** cannot see your program's data. Access is enforced by the
   database itself, not by the screen you happen to be on.
-- **Service providers:** Supabase (database, authentication, email) and Vercel
+- **Calendar source:** program members can see imported events; only staff with
+  event-management permission can connect or replace the feed URL. A public
+  Google feed can be read by anyone who has its URL, so staff should connect
+  only a calendar approved for public sharing.
+- **Service providers:** Supabase (database, authentication, email, and the
+  calendar import function), Google (the public calendar feed), and Vercel
   (hosting) process the data on our behalf. See
   [`THIRD_PARTY_PROVIDERS.md`](THIRD_PARTY_PROVIDERS.md).
 - **The school:** may be given access to its own program's records on request.

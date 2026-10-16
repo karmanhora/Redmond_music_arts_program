@@ -133,6 +133,7 @@ export function AccountSettingsScreen() {
 function ProfileTab() {
   const app = usePrograms();
   const auth = useAuth();
+  const navigate = useNavigate();
   if (!app.profile) return null;
 
   return (
@@ -168,6 +169,44 @@ function ProfileTab() {
             <p className="type-meta mt-3 border-t border-[var(--cue-line)] pt-3">
               On this roster since {fmtDate(new Date(app.membership.joined_at))}.
             </p>
+          ) : null}
+        </Card>
+      </section>
+
+      <section>
+        <SectionTitle className="mb-3">Teacher access</SectionTitle>
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="type-heading">
+                {app.verifiedTeacher ? "Verified teacher" : "Not verified yet"}
+              </p>
+              <p className="type-meta mt-1">
+                {app.verifiedTeacher
+                  ? "Your invitation code has been redeemed, so you can start a program of your own. Teacher access is set by the server and cannot be changed from this screen."
+                  : "Starting a program of your own needs an invitation code issued by the school. Until it is verified this account keeps its ordinary permissions."}
+              </p>
+            </div>
+            <Badge
+              className={
+                app.verifiedTeacher
+                  ? "bg-[var(--cue-present-bg)] text-[var(--cue-present)]"
+                  : "bg-[var(--cue-late-bg)] text-[var(--cue-late)]"
+              }
+            >
+              {app.verifiedTeacher ? "Verified" : "Pending"}
+            </Badge>
+          </div>
+          {!app.verifiedTeacher ? (
+            <Button
+              block
+              variant="secondary"
+              className="mt-3"
+              icon={<KeyRound className="h-4 w-4" />}
+              onClick={() => navigate("/teacher")}
+            >
+              Enter my invitation code
+            </Button>
           ) : null}
         </Card>
       </section>

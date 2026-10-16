@@ -190,6 +190,21 @@ export interface PersonalEventRow {
 
 export type NotificationType = "new_event" | "checkin_open" | "chat_message";
 
+/**
+ * The caller's own teacher-credential state (migration 035), as the screens read
+ * it. `verified` is the server's answer to `has_teacher_access()`; `pending`
+ * means they said they were a teacher at sign-up and have not redeemed a code
+ * yet. Nothing here carries a code or a digest — there is no API that returns
+ * one.
+ */
+export interface TeacherAccessStatus {
+  verified: boolean;
+  pending: boolean;
+  admin: boolean;
+  /** Set only when the status could not be read; `verified` is then false. */
+  error: string | null;
+}
+
 export interface NotificationRow {
   id: string;
   user_id: string;
@@ -274,6 +289,23 @@ export interface RpcResult {
   reachable?: number;
   /** `digest_reachability()`: every active member and why they are (not) reached. */
   people?: DigestReachabilityRow[];
+
+  /**
+   * `teacher_access_status()`: whether this account holds a redeemed teacher
+   * invitation (migration 035). There is deliberately no other "is a teacher"
+   * flag on the account — the redeemed invitation row is the whole credential.
+   */
+  verified?: boolean;
+  /** `teacher_access_status()`: declared a teacher at sign-up, not yet verified. */
+  pending?: boolean;
+  /** `teacher_access_status()`: a system administrator, who needs no code. */
+  admin?: boolean;
+  /** `teacher_access_status()`: the caller's own declared sign-up type. */
+  account_type?: string | null;
+  /** `teacher_access_status()`: when their invitation was redeemed. */
+  redeemed_at?: string | null;
+  /** `redeem_teacher_invitation()`: set when too many attempts have failed. */
+  rate_limited?: boolean;
 }
 
 /**

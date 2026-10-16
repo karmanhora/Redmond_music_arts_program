@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { Alert, Button, Card, Field, Input, PageHeader, useToast } from "../components/ui";
 import { InstrumentPicker } from "../components/InstrumentPicker";
+import { TeacherVerification } from "../components/TeacherVerification";
 import { createProgram } from "../lib/rpc";
 import { usePrograms } from "../hooks/usePrograms";
 import { useAuth } from "../hooks/useAuth";
@@ -27,6 +28,12 @@ import { APP_NAME, ORG_NAME } from "../lib/constants";
  * There is deliberately nothing here to pick *which* program — the RPC can only
  * ever create a new one, which is what keeps "start a program" from becoming a
  * way to promote yourself into an existing roster.
+ *
+ * Since migration 035 the server also requires a **redeemed invitation** before
+ * it will create anything, so a declared-but-unverified teacher who lands here
+ * is shown the invitation form instead of this one. That is the same gate the
+ * database applies — `app.mayStartProgram` is the server's answer, not a guess —
+ * and an existing director keeps the door 023 opened for them.
  */
 export function NewProgramScreen({ standalone = false }: { standalone?: boolean }) {
   const app = usePrograms();
@@ -82,61 +89,78 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
     navigate("/roster");
   }
 
+  /*
+   * Not verified, and not already a director somewhere: the server would refuse
+   * this form, so it is not shown. The invitation form replaces it in place, and
+   * verifying here reveals the real form without a navigation.
+   */
+  const needsVerification = !app.mayStartProgram;
+
   const form = (
     <div className="cue-stagger mx-auto max-w-2xl space-y-5 px-4 py-5 pb-10 sm:px-6 sm:py-6">
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       <PageHeader
         kicker="New program"
-        title="Start your own program"
-        note="Name it, list its instruments, and you're its director. Nobody has to approve you, and the roster, attendance and live check-in tools are ready as soon as it exists."
+        title={needsVerification ? "Teacher access first" : "Start your own program"}
+        note={
+          needsVerification
+            ? "Starting a program needs verified teacher access. Enter the invitation code your school issued you, and this form opens right up."
+            : "Name it, list its instruments, and you're its director. The roster, attendance and live check-in tools are ready as soon as it exists."
+        }
       />
 
-      <Field label="Program name" hint="What everybody will call it — you can be specific.">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Jazz Ensemble"
-          maxLength={80}
-          autoComplete="off"
-        />
-      </Field>
+      {needsVerification ? (
+        <TeacherVerification showIntroCards={false} />
+      ) : (
+        <>
+          <Field label="Program name" hint="What everybody will call it — you can be specific.">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Jazz Ensemble"
+              maxLength={80}
+              autoComplete="off"
+            />
+          </Field>
 
-      <Field
-        label="Short name"
-        hint="Optional — shown where space is tight, like the app bar. Blank uses the full name."
-      >
-        <Input
-          value={shortName}
-          onChange={(e) => setShortName(e.target.value)}
-          placeholder="Jazz"
-          maxLength={40}
-          autoComplete="off"
-        />
-      </Field>
+          <Field
+            label="Short name"
+            hint="Optional — shown where space is tight, like the app bar. Blank uses the full name."
+          >
+            <Input
+              value={shortName}
+              onChange={(e) => setShortName(e.target.value)}
+              placeholder="Jazz"
+              maxLength={40}
+              autoComplete="off"
+            />
+          </Field>
 
-      <Field
-        label="Instruments"
-        hint="What's in this program. Each one becomes a section your students can be put into."
-      >
-        <InstrumentPicker value={instruments} onChange={setInstruments} disabled={busy} />
-      </Field>
+          <Field
+            label="Instruments"
+            hint="What's in this program. Each one becomes a section your students can be put into."
+          >
+            <InstrumentPicker value={instruments} onChange={setInstruments} disabled={busy} />
+          </Field>
 
-      {needsName ? (
-        <Field label="Your name" hint="Your students see this on the roster.">
-          <Input
-            value={yourName}
-            onChange={(e) => setYourName(e.target.value)}
-            placeholder="Alex Rivera"
-            maxLength={80}
-            autoComplete="name"
-          />
-        </Field>
-      ) : null}
+          {needsName ? (
+            <Field label="Your name" hint="Your students see this on the roster.">
+              <Input
+                value={yourName}
+                onChange={(e) => setYourName(e.target.value)}
+                placeholder="Alex Rivera"
+                maxLength={80}
+                autoComplete="name"
+              />
+            </Field>
+          ) : null}
 
-      <Button block size="lg" loading={busy} disabled={!canSubmit} onClick={() => void submit()}>
-        Create my program
-      </Button>
+          <Button block size="lg" loading={busy} disabled={!canSubmit} onClick={() => void submit()}>
+            Create my program
+          </Button>
+        </>
+      )}
 
       {!standalone ? (
         <Button block variant="ghost" onClick={() => navigate(-1)}>
@@ -144,13 +168,15 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
         </Button>
       ) : null}
 
-      <Card className="flex items-start gap-3">
-        <KeyRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
-        <p className="text-sm text-[var(--cue-muted)]">
-          It starts closed. Your program gets its own join code, and only the people you give that
-          code to can join it — you can replace the code whenever you like on the Roster screen.
-        </p>
-      </Card>
+      {needsVerification ? null : (
+        <Card className="flex items-start gap-3">
+          <KeyRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
+          <p className="text-sm text-[var(--cue-muted)]">
+            It starts closed. Your program gets its own join code, and only the people you give that
+            code to can join it — you can replace the code whenever you like on the Roster screen.
+          </p>
+        </Card>
+      )}
 
       <Card className="flex items-start gap-3">
         <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
@@ -171,7 +197,8 @@ export function NewProgramScreen({ standalone = false }: { standalone?: boolean 
         <p className="type-label mt-3 text-[var(--cue-gold-on-brand)]">{ORG_NAME}</p>
         <p className="type-title mt-1.5">{APP_NAME}</p>
         <p className="mt-1 max-w-md text-sm text-[var(--cue-brand-ink)]/80">
-          You&rsquo;re signed in — name a program and you&rsquo;re its director straight away.
+          You&rsquo;re signed in. Verified teachers name a program and become its director straight
+          away — if you haven&rsquo;t entered your invitation code yet, you can do it here.
         </p>
       </div>
 

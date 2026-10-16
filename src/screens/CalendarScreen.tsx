@@ -37,6 +37,7 @@ import {
   createPersonalEvent,
   deleteEvent,
   deletePersonalEvent,
+  fetchGoogleCalendarSource,
   fetchEvents,
   fetchPersonalEvents,
   insertEvent,
@@ -44,6 +45,7 @@ import {
   updateEvent,
 } from "../lib/queries";
 import type { EventDraft } from "../lib/queries";
+import { importGoogleCalendar } from "../lib/rpc";
 import type {
   AttendanceRequirement,
   CheckinMode,
@@ -183,6 +185,7 @@ export function CalendarScreen() {
   const { toast } = useToast();
   const programId = app.program?.id ?? null;
   const profileId = app.profile?.id ?? null;
+  const canManageEvents = app.can("attendance.manage_events");
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const [cursor, setCursor] = useState<Date>(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -202,6 +205,30 @@ export function CalendarScreen() {
   >(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reminder, setReminder] = useState("");
+  const [calendarSource, setCalendarSource] = useState<{
+    id: string;
+    name: string;
+    ics_url: string;
+    last_synced_at: string | null;
+  } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [calendarUrl, setCalendarUrl] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    if (!programId || !canManageEvents) {
+      setCalendarSource(null);
+      return;
+    }
+    let active = true;
+    void fetchGoogleCalendarSource(programId).then((source) => {
+      if (active) setCalendarSource(source);
+    });
+    return () => {
+      active = false;
+    };
+  }, [programId, canManageEvents]);
 
   /** The grid shows a few days either side so a month never looks empty.
    * (Deliberately not named `window`: that would shadow the global one.) */
@@ -364,6 +391,28 @@ export function CalendarScreen() {
     await load();
   }
 
+  async function importCalendar() {
+    if (!programId || !calendarUrl.trim()) {
+      setImportError("Enter the calendar's public iCal URL.");
+      return;
+    }
+    setImporting(true);
+    setImportError(null);
+    const { result, error: importFailure } = await importGoogleCalendar(programId, calendarUrl);
+    setImporting(false);
+    if (importFailure || !result?.ok) {
+      setImportError(importFailure || result?.message || "Could not import this calendar.");
+      return;
+    }
+    setImportOpen(false);
+    toast.success(
+      `Calendar imported: ${result.inserted ?? 0} added, ${result.updated ?? 0} updated.`
+    );
+    if (result.warning) toast.error(result.warning);
+    setCalendarSource(await fetchGoogleCalendarSource(programId));
+    await load();
+  }
+
   if (!programId) {
     return (
       <div className="mx-auto max-w-6xl space-y-3 px-4 py-5 sm:px-6">
@@ -426,6 +475,29 @@ export function CalendarScreen() {
           </>
         }
       />
+
+      {canManageEvents ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cue-line)] pb-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Google Calendar</p>
+            <p className="type-meta">
+              {calendarSource ? `Connected: ${calendarSource.name}` : "No calendar connected"}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<CalendarDays className="h-4 w-4" />}
+            onClick={() => {
+              setCalendarUrl(calendarSource?.ics_url ?? "");
+              setImportError(null);
+              setImportOpen(true);
+            }}
+          >
+            Import Google Calendar
+          </Button>
+        </div>
+      ) : null}
 
       {/* --- the grid: a month as a ruled table, not a tray of tiles --- */}
       <div className="cue-card overflow-hidden rounded-[var(--radius-panel)]">
@@ -768,6 +840,46 @@ export function CalendarScreen() {
             ) : null}
           </div>
         ) : null}
+      </Sheet>
+
+      <Sheet
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Import Google Calendar"
+        description="Bring this program's events into the calendar."
+        size="tall"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              block
+              onClick={() => setImportOpen(false)}
+              disabled={importing}
+            >
+              Cancel
+            </Button>
+            <Button block loading={importing} onClick={() => void importCalendar()}>
+              Import calendar
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {importError ? <Alert tone="error">{importError}</Alert> : null}
+          <Field
+            label="Public iCal URL"
+            hint="Use the public address in iCal format from Google Calendar settings. Imported events can be edited in this calendar."
+          >
+            <Input
+              type="url"
+              value={calendarUrl}
+              onChange={(event) => setCalendarUrl(event.target.value)}
+              placeholder="https://calendar.google.com/calendar/ical/.../public/basic.ics"
+              autoComplete="url"
+              aria-label="Google Calendar public iCal URL"
+            />
+          </Field>
+        </div>
       </Sheet>
 
       {/* --- add / edit form (staff) --- */}

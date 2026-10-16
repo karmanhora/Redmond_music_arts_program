@@ -46,6 +46,10 @@ if [[ ! -x "$PG_BIN/psql" ]]; then
   exit 1
 fi
 export PATH="$PG_BIN:$PATH"
+# psql otherwise takes its client encoding from the OS locale, and a locale that
+# is not UTF-8 makes it reject the UTF-8 bytes in some migrations ("has no
+# equivalent in encoding …"). The files are UTF-8; say so.
+export PGCLIENTENCODING=UTF8
 export PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=postgres
 
 if [[ ! -f "$PG_DATA/PG_VERSION" ]]; then

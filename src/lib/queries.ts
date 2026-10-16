@@ -77,6 +77,23 @@ export async function fetchSections(programId: string): Promise<SectionRow[]> {
   return (data ?? []) as SectionRow[];
 }
 
+export async function fetchGoogleCalendarSource(programId: string): Promise<{
+  id: string;
+  name: string;
+  ics_url: string;
+  last_synced_at: string | null;
+} | null> {
+  const { data } = await supabase
+    .from("calendar_sources")
+    .select("id,name,ics_url,last_synced_at")
+    .eq("ensemble_id", programId)
+    .eq("provider", "google_ics")
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
 /** Semantic design tokens for the program; `{}` when none are stored yet. */
 export async function fetchThemeTokens(programId: string): Promise<Record<string, string>> {
   const { data } = await supabase

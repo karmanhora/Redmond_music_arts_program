@@ -112,7 +112,23 @@ test.describe("signed-in screens", () => {
     "/settings",
     "/join",
     "/new-program",
+    "/teacher",
   ];
+
+  test("calendar managers can open the Google Calendar import sheet", async ({ page }) => {
+    await installMocks(page, true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/calendar");
+
+    const importButton = page.getByRole("button", { name: "Import Google Calendar" });
+    await expect(importButton).toBeVisible({ timeout: 20_000 });
+    await importButton.click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel("Google Calendar public iCal URL")).toBeVisible();
+    await expect(dialog.getByText(/imported events can be edited/i)).toBeVisible();
+  });
 
   for (const width of [320, 360, 390, 768, 1440]) {
     test(`no screen overflows horizontally at ${width}px`, async ({ page }) => {
@@ -160,6 +176,65 @@ test.describe("signed-in screens", () => {
       }
     });
   }
+
+  /*
+   * Teacher verification (migration 035). The fixture persona declared teacher
+   * at sign-up and has redeemed nothing, so this is the pending state — the one
+   * the brief requires be unmistakable.
+   */
+  test("the teacher screen says access is pending and can reveal its code field", async ({ page }) => {
+    await installMocks(page, true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/teacher");
+    await page.waitForTimeout(2200);
+
+    await expect(page.getByText(/teacher access is pending/i)).toBeVisible();
+    await expect(page.getByText(/keeps its ordinary permissions/i)).toBeVisible();
+    await expect(
+      page.getByText(/checked on the server/i).first(),
+      "the screen does not say where the code is checked"
+    ).toBeVisible();
+
+    // A real, labelled field — not a placeholder standing in for one. `exact`
+    // because the reveal button's own name ("Show the invitation code") would
+    // otherwise match the same substring.
+    const field = page.getByLabel("Invitation code", { exact: true });
+    await expect(field).toBeVisible();
+    await expect(field).toHaveAttribute("aria-describedby", "teacher-invitation-hint");
+    await expect(field).toHaveAttribute("type", "password");
+
+    // The show/hide toggle flips the *input type*, not just an icon.
+    const toggle = page.getByRole("button", { name: /show the invitation code/i });
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await toggle.click();
+    await expect(field).toHaveAttribute("type", "text");
+    await expect(page.getByRole("button", { name: /hide the invitation code/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+
+    // Nothing on this screen prints the code itself.
+    const text = (await page.locator("body").innerText()).toLowerCase();
+    expect(text).not.toContain("i-love-music");
+    expect(text).not.toContain("code_hash");
+  });
+
+  test("an already signed-in account can enter its code later from settings", async ({ page }) => {
+    await installMocks(page, true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/settings");
+    await page.waitForTimeout(2200);
+
+    // The unverified state is stated here too, with the way back to the form.
+    await expect(page.getByRole("heading", { name: /teacher access/i })).toBeVisible();
+    const button = page.getByRole("button", { name: /enter my invitation code/i });
+    await expect(button).toBeVisible();
+
+    await button.click();
+    await expect(page.getByLabel("Invitation code", { exact: true })).toBeVisible();
+    await expect(page.getByText(/teacher access is pending/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/teacher$/);
+  });
 
   test("reduced motion is honoured on a signed-in screen too", async ({ page }) => {
     await installMocks(page, true);

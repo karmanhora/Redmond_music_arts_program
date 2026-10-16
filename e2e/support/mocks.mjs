@@ -209,6 +209,7 @@ const permissions = [
   "roles.view",
   "roles.assign",
   "roles.revoke",
+  "attendance.manage_events",
   "events.manage",
   "program.manage_settings",
   "profile.manage_users",
@@ -265,6 +266,15 @@ const TABLES = {
 
 const RPC_RESULTS = {
   get_signup_account_type: "teacher",
+  /**
+   * The teacher credential (migration 035). The fixture persona *declared*
+   * teacher at sign-up and has not redeemed an invitation, which is the state
+   * the pending copy and the invitation form exist for. It is also carried by a
+   * program as its director, so `mayStartProgram` stays true and the
+   * start-a-program form still renders — the two are independent, exactly as the
+   * server treats them.
+   */
+  teacher_access_status: { ok: true, verified: false, pending: true, admin: false },
   my_permissions: { ok: true, permissions },
   get_my_attendance_pct: 92,
   get_my_attendance_trend: [

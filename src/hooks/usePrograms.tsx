@@ -8,7 +8,7 @@ import {
   fetchSections,
   fetchThemeTokens,
 } from "../lib/queries";
-import { getMyPermissions } from "../lib/rpc";
+import { getMyPermissions, getTeacherAccessStatus } from "../lib/rpc";
 import { permissionsForRoles } from "../lib/permissions";
 import type { PermissionCode } from "../lib/permissions";
 import type { EmbeddedMembership } from "../lib/queries";
@@ -51,6 +51,30 @@ export interface ProgramsState {
   isStaffAnywhere: boolean;
   /** A teacher account or an existing director may start another program. */
   canCreateProgram: boolean;
+  /**
+   * Director of a program somewhere. Reported by the server's roster, and the
+   * one legacy allowance `create_program()` still makes for an account that was
+   * never issued an invitation (migration 023, kept by 035).
+   */
+  isDirectorAnywhere: boolean;
+  /**
+   * Holds a *redeemed* teacher invitation (migration 035) — the credential
+   * `create_program()` now asks for. This is the server's answer, not a local
+   * flag: it is false until `teacher_access_status()` says otherwise.
+   */
+  verifiedTeacher: boolean;
+  /**
+   * Whether the server will actually let this account start a program: a
+   * verified teacher, or an existing director. `NewProgramScreen` reads this to
+   * choose between the form and the invitation-code form, so it mirrors
+   * `create_program()`'s gate rather than approximating it.
+   */
+  mayStartProgram: boolean;
+  /**
+   * Re-read just the teacher credential, after a code is redeemed. Light on
+   * purpose — unlike `refresh()` it does not tear the session down to a splash.
+   */
+  refreshTeacherAccess: () => Promise<boolean>;
   /** Highest role held in the current program, for the chip beside the name. */
   primaryRole: Role;
   /**
@@ -79,7 +103,13 @@ export interface ProgramsState {
 
 const EMPTY: Omit<
   ProgramsState,
-  "refresh" | "setProgram" | "can" | "reloadSections" | "status" | "error"
+  | "refresh"
+  | "setProgram"
+  | "can"
+  | "reloadSections"
+  | "refreshTeacherAccess"
+  | "status"
+  | "error"
 > = {
   profile: null,
   memberships: [],
@@ -93,6 +123,9 @@ const EMPTY: Omit<
   isStaff: false,
   isStaffAnywhere: false,
   canCreateProgram: false,
+  isDirectorAnywhere: false,
+  verifiedTeacher: false,
+  mayStartProgram: false,
   primaryRole: "student",
   permissions: [],
 };
@@ -134,7 +167,7 @@ function isStaffRole(roles: Role[]): boolean {
 export function ProgramsProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const [state, setState] = useState<
-    Omit<ProgramsState, "refresh" | "setProgram" | "can" | "reloadSections">
+    Omit<ProgramsState, "refresh" | "setProgram" | "can" | "reloadSections" | "refreshTeacherAccess">
   >({
     ...EMPTY,
     status: "loading",
@@ -147,7 +180,12 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
 
   /** Load one program's sections and colours, then make it the current one. */
   const loadProgram = useCallback(
-    async (profile: Profile, memberships: EmbeddedMembership[], wanted: string | null) => {
+    async (
+      profile: Profile,
+      memberships: EmbeddedMembership[],
+      wanted: string | null,
+      verifiedTeacher: boolean
+    ) => {
       const membership =
         memberships.find((m) => m.ensemble.id === wanted) ?? memberships[0] ?? null;
 
@@ -156,7 +194,11 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
         setState({
           ...EMPTY,
           profile,
-          canCreateProgram: accountType === "teacher",
+          canCreateProgram: accountType === "teacher" || verifiedTeacher,
+          verifiedTeacher,
+          // No roster, so no directorship anywhere — a verified teacher is the
+          // only thing that can open the start-a-program door here.
+          mayStartProgram: verifiedTeacher,
           status: "no-roster",
           error: null,
         });
@@ -174,6 +216,11 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
       remember(profile.id, membership.ensemble.id);
 
       const roles = membership.roles ?? ["student"];
+      // Directorship anywhere, from the roster itself — the one allowance the
+      // server still makes for an account with no invitation (035 keeps 023's).
+      const isDirectorAnywhere = memberships.some(
+        (m) => m.active && (m.roles ?? []).includes("director")
+      );
       setState({
         status: "ready",
         error: null,
@@ -188,10 +235,12 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
         isSectionLeader: roles.includes("section_leader"),
         isStaff: isStaffRole(roles),
         isStaffAnywhere: memberships.some((m) => isStaffRole(m.roles ?? [])),
-        canCreateProgram:
-          accountType === "teacher" ||
-          (accountType === null &&
-            memberships.some((m) => m.active && m.roles?.includes("director"))),
+        canCreateProgram: accountType === "teacher" || isDirectorAnywhere || verifiedTeacher,
+        isDirectorAnywhere,
+        verifiedTeacher,
+        // The client-side mirror of `create_program()`'s gate — not a boundary,
+        // just what decides whether we show the form or ask for the code.
+        mayStartProgram: verifiedTeacher || isDirectorAnywhere,
         primaryRole: primaryRoleOf(roles),
         // Painted from the roles we already hold, so the right controls exist on
         // the first frame; replaced below by the server's authoritative list.
@@ -225,12 +274,22 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, status: "loading", error: null }));
 
     try {
-      const profile = await fetchProfileByAuthId(authUserId);
+      // The credential is per-account, so it is read beside the profile rather
+      // than per program. A failure reads as "not verified" (fail closed) and
+      // leaves the server to refuse anything that needs it.
+      const [profile, teacher] = await Promise.all([
+        fetchProfileByAuthId(authUserId),
+        getTeacherAccessStatus(),
+      ]);
+      const verifiedTeacher = teacher.verified;
+
       if (!profile) {
         // Signed in, but never joined a program → no profile row yet.
         setState({
           ...EMPTY,
-          canCreateProgram: accountType === "teacher",
+          canCreateProgram: accountType === "teacher" || verifiedTeacher,
+          verifiedTeacher,
+          mayStartProgram: verifiedTeacher,
           status: "no-roster",
           error: null,
         });
@@ -238,7 +297,12 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
       }
 
       const memberships = (await fetchMyMemberships(profile.id)).filter((m) => m.active);
-      await loadProgram(profile, memberships, preferEnsembleId ?? readRemembered(profile.id));
+      await loadProgram(
+        profile,
+        memberships,
+        preferEnsembleId ?? readRemembered(profile.id),
+        verifiedTeacher
+      );
     } catch (e) {
       setState({
         ...EMPTY,
@@ -268,7 +332,8 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
       const { profile, memberships, program } = state;
       if (!profile || ensembleId === program?.id) return;
       remember(profile.id, ensembleId);
-      void loadProgram(profile, memberships, ensembleId).catch((e: unknown) => {
+      void loadProgram(profile, memberships, ensembleId, state.verifiedTeacher).catch(
+        (e: unknown) => {
         setState((prev) => ({
           ...prev,
           status: "error",
@@ -278,6 +343,26 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
     },
     [state, loadProgram]
   );
+
+  /**
+   * Re-read the teacher credential on its own, after a code was redeemed. It
+   * deliberately does not run the whole `refresh()`: redeeming happens from a
+   * screen somebody is looking at, and `refresh()` replaces it with a splash.
+   * Returns the new answer so the caller can confirm before it moves on.
+   */
+  const refreshTeacherAccess = useCallback(async () => {
+    const status = await getTeacherAccessStatus();
+    setState((prev) => ({
+      ...prev,
+      verifiedTeacher: status.verified,
+      // Verifying opens the start-a-program door, so the coarse entry gate has
+      // to move with it — otherwise `/new-program` would still bounce somebody
+      // back to the join screen until a full reload.
+      canCreateProgram: prev.canCreateProgram || status.verified,
+      mayStartProgram: status.verified || prev.isDirectorAnywhere,
+    }));
+    return status.verified;
+  }, []);
 
   const can = useCallback(
     (code: PermissionCode) => state.permissions.includes(code),
@@ -297,8 +382,8 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
   }, [state.program]);
 
   const value = useMemo<ProgramsState>(
-    () => ({ ...state, can, reloadSections, setProgram, refresh }),
-    [state, can, reloadSections, setProgram, refresh]
+    () => ({ ...state, can, reloadSections, setProgram, refresh, refreshTeacherAccess }),
+    [state, can, reloadSections, setProgram, refresh, refreshTeacherAccess]
   );
 
   return <ProgramsContext.Provider value={value}>{children}</ProgramsContext.Provider>;

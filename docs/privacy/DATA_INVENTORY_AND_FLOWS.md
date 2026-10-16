@@ -41,15 +41,20 @@ Supabase Auth email (built-in SMTP, or SendGrid/etc. if configured)
    ▼
 Student/staff inbox
 
-Staff browser ──► Google Calendar (public ICS URL, read-only)   [event sync]
+Staff browser ──► Supabase Edge Function ──► Google Calendar (public ICS URL, read-only)
+                         │
+                         └──► Postgres (`calendar_sources.ics_url` + imported `events`)
 User browser  ──► calendar.google.com (an "add to calendar" link) [opt-in, per event]
 ```
 
 - **No data is sent to analytics, advertising, or social networks.**
 - The **Google OAuth** flow, if used, gives Supabase Auth the user's basic
   profile/email only (no Calendar API scopes).
-- The **ICS sync** reads a public Google Calendar feed; it does not access any
-  student's private calendar.
+- Staff import a **public Google Calendar iCal URL**. A staff-authorized Edge
+  Function reads that public feed and stores the URL and parsed events for the
+  program; it does not access a user's private calendar or Google account.
+- A public calendar feed can be read by anyone who has its URL. Staff should
+  only connect a calendar approved for public sharing.
 - **Vercel** serves static files; runtime logs can contain request metadata, not
   student records (see [`THIRD_PARTY_PROVIDERS.md`](THIRD_PARTY_PROVIDERS.md)).
 

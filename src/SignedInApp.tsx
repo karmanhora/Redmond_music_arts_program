@@ -45,6 +45,11 @@ const AccountSettingsScreen = lazy(() =>
 const RolesScreen = lazy(() =>
   import("./screens/RolesScreen").then((module) => ({ default: module.RolesScreen }))
 );
+const TeacherVerifyScreen = lazy(() =>
+  import("./screens/TeacherVerifyScreen").then((module) => ({
+    default: module.TeacherVerifyScreen,
+  }))
+);
 
 function RouteSkeleton() {
   return (
@@ -139,6 +144,9 @@ function ProgramRoutes() {
             </RoleGate>
           }
         />
+        {/* Teacher registration, reachable with no roster at all: it is the one
+            thing an invited teacher can do before they belong anywhere. */}
+        <Route path="/teacher" element={<TeacherVerifyScreen standalone />} />
         <Route path="*" element={<JoinProgramScreen standalone />} />
         <Route path="/privacy" element={<LegalScreen page="privacy" />} />
         <Route path="/terms" element={<LegalScreen page="terms" />} />
@@ -158,6 +166,7 @@ function ProgramRoutes() {
         <Route path="/checkin" element={<CheckInScreen />} />
         <Route path="/me" element={<ProfileScreen />} />
         <Route path="/join" element={<JoinProgramScreen />} />
+        <Route path="/teacher" element={<TeacherVerifyScreen />} />
         <Route
           path="/new-program"
           element={

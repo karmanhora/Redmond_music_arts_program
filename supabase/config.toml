@@ -58,6 +58,9 @@ verify_jwt = true
 [functions.invite-student]
 verify_jwt = true
 
+[functions.import-google-calendar]
+verify_jwt = true
+
 # Scheduled, server-to-server only: Supabase Cron (pg_cron + pg_net) calls it
 # with no Authorization header at all, so JWT verification has to be off. The
 # function is not open as a result — it refuses every caller unless they present

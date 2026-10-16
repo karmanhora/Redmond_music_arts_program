@@ -122,6 +122,11 @@ begin
   values (v_persona, 'teacher')
   on conflict (auth_user_id) do nothing;
 
+  -- Since 035 the credential is a redeemed invitation, not the declared type.
+  insert into public.teacher_invitations (code_hash, label, redeemed_by_auth, redeemed_at)
+  values ('sr-invite-new-teacher', 'SR teacher', v_persona, now())
+  on conflict (code_hash) do nothing;
+
   perform set_config('request.jwt.claims', jsonb_build_object('sub', v_persona, 'role', 'authenticated')::text, true);
   set role authenticated;
 

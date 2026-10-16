@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, ChevronRight, LogOut, Music, ShieldCheck, Users } from "lucide-react";
+import { Check, ChevronRight, KeyRound, LogOut, Music, ShieldCheck, Users } from "lucide-react";
 import {
   Alert,
   Button,
@@ -134,16 +134,16 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
         note="Your director gives you a join code. It puts you on that program's roster — its rehearsals, its calendar and your own attendance."
       />
 
-      {/* Point teacher accounts at the way in that needs nobody's permission. */}
-      {standalone && auth.accountType === "teacher" ? (
+      {/* Point teachers at the teacher door — which, since migration 035, needs
+          the school's invitation code rather than a self-declared account type. */}
+      {standalone && auth.accountType === "teacher" && !app.mayStartProgram ? (
         <Card className="flex items-start gap-3">
           <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
           <p className="text-sm text-[var(--cue-muted)]">
             <span className="font-semibold text-[var(--cue-ink)]">Teaching here?</span>{" "}
-            You don&rsquo;t need anybody&rsquo;s permission — start your own program and you&rsquo;re
-            its director immediately, with the roster, attendance and live check-in tools ready to
-            use. Use the code below only if you&rsquo;re joining a program somebody else already
-            runs, which puts you on it as a student.
+            Teacher access is verified with an invitation code from the school. Until yours is
+            verified this account stays an ordinary one — use the code below only if you&rsquo;re
+            joining a program somebody else already runs, which puts you on it as a student.
           </p>
         </Card>
       ) : null}
@@ -234,7 +234,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
         </>
       )}
 
-      {app.canCreateProgram ? (
+      {app.mayStartProgram ? (
         <Card className="space-y-3">
           <div className="flex items-start gap-3">
             <Music aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
@@ -250,7 +250,26 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
             Start a new program
           </Button>
         </Card>
-      ) : null}
+      ) : (
+        /* The teacher/director registration entry point, on the screen somebody
+           with no roster actually lands on. */
+        <Card className="space-y-3">
+          <div className="flex items-start gap-3">
+            <KeyRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-gold)]" />
+            <div className="min-w-0">
+              <p className="type-heading">Teaching here?</p>
+              <p className="type-meta mt-1">
+                Starting a program of your own needs an invitation code from the school. Enter it and
+                your teacher access is verified — until then this account keeps its ordinary
+                permissions.
+              </p>
+            </div>
+          </div>
+          <Button variant="secondary" icon={<KeyRound className="h-4 w-4" />} onClick={() => navigate("/teacher")}>
+            Teacher / director registration
+          </Button>
+        </Card>
+      )}
 
       <Card className="flex items-start gap-3">
         <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />

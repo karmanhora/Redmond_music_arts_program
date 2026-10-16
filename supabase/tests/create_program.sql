@@ -3,10 +3,15 @@
 -- ============================================================================
 -- requires-table: public.ensembles
 --
--- Covers `create_program()` (migration 022): a teacher signs up, names a
--- program, and is its director — nobody has to add them to anything. That is
--- only safe if the call cannot be aimed at a program that already exists, so
--- most of what follows is about what the new director does NOT get.
+-- Covers `create_program()` (migrations 022, 031 and 035): a **verified**
+-- teacher — one who has redeemed an invitation (035) — names a program and is
+-- its director, with nobody having to add them to anything. That is only safe
+-- if the call cannot be aimed at a program that already exists, so most of what
+-- follows is about what the new director does NOT get.
+--
+-- Since 035 the sign-up checkbox is no longer a credential: the fixture personas
+-- below hold a *redeemed invitation* ("verified teacher"), and CP-11 proves that
+-- declaring yourself a teacher without one is not enough.
 --
 --   CP-1   a caller with no account id is refused, and creates nothing
 --   CP-2   a blank or one-character name is refused, and creates nothing
@@ -23,6 +28,8 @@
 --          could point it at another program
 --   CP-9   a paused account is refused
 --   CP-10  a student account is refused and creates nothing
+--   CP-11  declaring yourself a teacher is not a credential (035): without a
+--          redeemed invitation the call is refused and creates nothing
 --
 -- Runs in one transaction and ROLLS BACK. Personas authenticate exactly the way
 -- PostgREST sees a Supabase Auth token (migration 021). On success it prints:
@@ -106,8 +113,21 @@ insert into public.signup_account_types (auth_user_id, account_type) values
   ('cp-starter', 'teacher'),
   ('cp-longname', 'teacher'),
   ('cp-rate', 'teacher'),
-  ('cp-paused', 'teacher')
+  ('cp-paused', 'teacher'),
+  -- Declared a teacher, but never redeemed anything: CP-11's persona.
+  ('cp-declared-only', 'teacher')
 on conflict (auth_user_id) do update set account_type = excluded.account_type;
+
+-- Since 035 the credential is a *redeemed invitation*, not the declared type.
+-- These personas are verified teachers; `cp-declared-only` deliberately is not.
+insert into public.teacher_invitations (code_hash, label, redeemed_by_auth, redeemed_at)
+values
+  ('cp-invite-namer',   'CP namer',    'cp-namer',    now()),
+  ('cp-invite-starter', 'CP starter',  'cp-starter',  now()),
+  ('cp-invite-long',    'CP longname', 'cp-longname', now()),
+  ('cp-invite-rate',    'CP rate',     'cp-rate',     now()),
+  ('cp-invite-paused',  'CP paused',   'cp-paused',   now())
+on conflict (code_hash) do nothing;
 
 -- ---------------------------------------------------------------------------
 -- 2. CP-1 — a caller with no account id
@@ -598,6 +618,51 @@ begin
     'CP-10c a refused student call created a program or profile');
 
   delete from public.signup_account_types where auth_user_id = 'cp-student-account';
+end $$;
+select set_config('request.jwt.claims', '{}', true);
+
+-- ---------------------------------------------------------------------------
+-- 11. CP-11 — the sign-up checkbox is not a credential (migration 035)
+-- ---------------------------------------------------------------------------
+-- The whole point of 035: "I'm a teacher" at sign-up is a statement of intent,
+-- not proof. Until a code is redeemed the account is an ordinary one, so this
+-- call must be refused — and must leave nothing behind — exactly like the
+-- student case above.
+do $$
+declare
+  v jsonb;
+  v_programs_before int;
+begin
+  perform public.t_assert(
+    (select account_type from public.signup_account_types
+      where auth_user_id = 'cp-declared-only') = 'teacher',
+    'CP-11 the fixture persona is not recorded as a declared teacher');
+  perform public.t_assert(
+    not exists (
+      select 1 from public.teacher_invitations
+       where lower(redeemed_by_auth) = 'cp-declared-only'
+         and redeemed_at is not null
+    ),
+    'CP-11b the fixture persona holds a redeemed invitation after all');
+
+  select count(*) into v_programs_before from public.ensembles;
+
+  perform set_config('request.jwt.claims', '{"sub":"cp-declared-only","role":"authenticated"}', true);
+  set role authenticated;
+
+  v := public.create_program('CP Declared Only', null, 'CP Declared');
+  reset role;
+
+  perform public.t_assert(v ->> 'ok' = 'false',
+    'CP-11c a declared-but-unverified teacher started a program');
+  perform public.t_assert(coalesce(v ->> 'message', '') ilike '%invitation code%',
+    'CP-11d the refusal did not point at the invitation code: ' || coalesce(v ->> 'message', '?'));
+  perform public.t_assert(
+    (select count(*) from public.ensembles) = v_programs_before
+      and not exists (
+        select 1 from public.profiles where auth_user_id = 'cp-declared-only'
+      ),
+    'CP-11e the refused call created a program or a profile');
 end $$;
 select set_config('request.jwt.claims', '{}', true);
 

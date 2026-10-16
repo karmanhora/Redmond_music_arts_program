@@ -18,14 +18,14 @@ exists, but nothing in the code assumes it is the only one.
 | Path | What it is |
 | --- | --- |
 | `src/` | The web app: Vite + React 19 + TypeScript + Tailwind v4 |
-| `supabase/migrations/007`–`031` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account/program lifecycle, staff-managed email invitations, the capability layer (029), profile pictures (030), and program instruments + complete removal (031) |
-| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, account deletion, program archive, email invites, capabilities & avatars, program sections & removal) run inside transactions |
+| `supabase/migrations/007`–`035` | The multi-program schema, policies, RPCs, calendar sync, join flow, Supabase Auth identity, teacher-gated `create_program`, account/program lifecycle, staff-managed email invitations, the capability layer (029), profile pictures (030), program instruments + complete removal (031), the scheduled digest (032–033), pinned function search paths (034), and teacher/director verification by invitation code (035) |
+| `supabase/tests/` | SQL suites (backfill, isolation, security, join, create program, signup account type, teacher invitations, account deletion, program archive, email invites, capabilities & avatars, program sections & removal, digest reachability) run inside transactions |
 | `supabase/templates/` | Branded Supabase auth emails and the password-change security notification — see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
 | `public/` | The app's brand assets: one `logo.svg` and the icons rendered from it — see [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
 | `scripts/migrate/` | The clone pipeline: dump OLD → restore → migrate → verify |
 | `scripts/brand/` | Renders the PNG icons from `public/logo.svg` with a headless browser |
-| `scripts/dev/` | `verify_migrations_locally.sh` — applies every migration and runs every suite against a throwaway local database |
-| `docs/` | This file, the platform plan, [`AUTH_MIGRATION.md`](AUTH_MIGRATION.md), [`EMAIL_SETUP.md`](EMAIL_SETUP.md), [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
+| `scripts/dev/` | `verify_migrations_locally.sh` — applies every migration and runs every suite against a throwaway local database; `check_teacher_invite_race.sh` — two real connections racing for one invitation code; `check_event_digest.mjs` — the digest sender with the network stubbed |
+| `docs/` | This file, the platform plan, [`AUTH_MIGRATION.md`](AUTH_MIGRATION.md), [`TEACHER_VERIFICATION.md`](TEACHER_VERIFICATION.md), [`EMAIL_SETUP.md`](EMAIL_SETUP.md), [`BRAND_ASSETS.md`](BRAND_ASSETS.md) |
 | `reference/RHS-BAND/` | Read-only clone of the old app, for conventions only |
 | `.tools/pgsql/bin` | Portable PostgreSQL 18 client used by the migration scripts (gitignored) |
 
@@ -168,12 +168,28 @@ The OAuth redirect URI shown by Supabase must also be registered with the Google
 OAuth client. The app redirects back to the site origin after authentication,
 or directly to `/checkin` when continuing a QR check-in.
 
-Starting a program does not need anybody's approval: a teacher account names one
-and `create_program()` (migration 023) makes them its director. Student accounts
-can only join through a director's code. Directors are the only ones who can then
-add anybody else, through their program's join code. Account type is set only at
-signup; Google sign-in does not send a new type, and the server refuses to
-classify an older untyped account during login (migration 024).
+**Starting a program needs a verified teacher.** Migration 035 replaced the
+self-declared checkbox as the credential with a redeemed **invitation code**: the
+school issues a hashed, single-use, optionally email-bound code, and
+`redeem_teacher_invitation()` is the only thing that can exchange it for access.
+`create_program()` now asks `has_teacher_access()` rather than trusting the signup
+type, so a declared-but-unverified account is refused — and an existing director
+keeps the allowance 023 gave them, so nobody already running a program is locked
+out. The whole story, including the one manual step of binding the first code to
+its teacher, is in [`TEACHER_VERIFICATION.md`](TEACHER_VERIFICATION.md).
+
+The signup audience is still recorded (023–024) and still decides nothing on its
+own: account type is set only at signup, Google sign-in does not send a new type,
+and the server refuses to classify an older untyped account during login. Student
+accounts can only join through a director's code. Directors are the only ones who
+can then add anybody else, through their program's join code.
+
+The teacher credential has three surfaces in the app: the `/teacher` screen
+(`TeacherVerifyScreen`, also reachable standalone when somebody is signed in with
+no roster at all), the start-a-program screen — which shows the invitation form
+instead of its form until the account is verified — and an entry point in Account
+settings and the account sheet, for the teacher who signed in before they had
+their code.
 
 Migration 021 replaced `profiles.clerk_id` with `profiles.auth_user_id` and
 repointed `public.current_profile_id()` at it. That one helper is what every RLS
@@ -372,6 +388,7 @@ account was their only director.
 
 ```bash
 bash scripts/dev/verify_migrations_locally.sh
+bash scripts/dev/check_teacher_invite_race.sh     # after the above
 ```
 
 [`scripts/dev/verify_migrations_locally.sh`](../scripts/dev/verify_migrations_locally.sh)
@@ -497,6 +514,12 @@ Rules the code follows, and that changes should keep:
   `profiles.deactivated`), but no longer has a button. Account deletion (the
   `/settings` flow, migration 025) is separate: it de-identifies the profile and
   *keeps* attendance.
+- **Apply migration 035 before deploying the frontend that uses it** — and hand
+  the initial invitation code to its teacher in the same window. With 035 applied
+  and the old frontend live, teacher accounts cannot start a program until a code
+  is redeemed; existing directors are unaffected. The apply step, the binding of
+  the first code and the day-to-day operations are all in
+  [`TEACHER_VERIFICATION.md`](TEACHER_VERIFICATION.md).
 - **029 and 030 are applied** (live project, 2026-10-11). What remains for them
   is the deploy: the role-management screens, the biography and the uploaded
   picture all read the columns and functions those two migrations create.

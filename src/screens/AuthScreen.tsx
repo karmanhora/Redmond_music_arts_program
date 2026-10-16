@@ -26,9 +26,9 @@ const AUDIENCE_COPY: Record<
   teacher: {
     kickerUp: "New teacher account",
     signUpSub:
-      "Use your school email if you have one — you’ll name your own program next.",
+      "Use your school email — a teacher invitation code is checked against the address on your account.",
     signUpNote:
-      "Next you’ll name your program and become its director — no approval needed. The roster, attendance, and live check-in tools are yours as soon as it exists.",
+      "Next, enter the invitation code your school issued you. Until it is verified you keep ordinary student access; once it is verified you can start a program of your own and you’re its director — the roster, attendance and live check-in tools come with it.",
   },
 };
 
@@ -42,7 +42,8 @@ const MODE_COPY: Record<AuthMode, { title: string; aside: string; asideSub: stri
   "sign-up": {
     title: "Create your account",
     aside: "Join your program.",
-    asideSub: "Create your account, then enter the join code your director shared.",
+    asideSub:
+      "Create your account, then enter the join code your director shared — or, as a teacher, the invitation code your school issued.",
   },
   forgot: {
     title: "Reset your password",

@@ -9,7 +9,7 @@
 | **Supabase** | Database, Auth, Edge Functions, transactional email | all student/staff data described in the inventory; email for auth | SOC 2 Type 2, ISO 27001 per vendor; AES-256 at rest / TLS in transit (vendor claim); data lives in the project's chosen AWS region; **backups are plan-dependent** (Free has none) |
 | **Vercel** | Static hosting + edge/CDN | request metadata; **no student records by design** (static SPA) | SOC 2 Type 2 / ISO 27001 per vendor; runtime logs can contain request paths/params — keep PII out of URLs where possible; Hobby log retention is short |
 | **Email/SMTP provider** (Supabase built-in, or SendGrid/etc.) | Auth & invitation email | recipient email | built-in sender is rate-limited and not for production; **currently unconfigured** |
-| **Google** | Optional sign-in (OAuth) | basic profile + email, if the user chooses Google sign-in | no Calendar API scopes; the calendar feature uses a **public ICS feed**, not the user's Google account |
+| **Google** | Optional sign-in (OAuth) and public calendar feed | basic profile + email for sign-in; events in a staff-connected public iCal feed | no Calendar API scopes; a staff-authorized Edge Function reads the public feed, not a user's private Google calendar |
 | **GitHub** | Source code hosting | **none** (code only; no student data) | ensure no secrets are committed |
 
 ## Subprocessors
