@@ -250,7 +250,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
             Start a new program
           </Button>
         </Card>
-      ) : (
+      ) : auth.accountType === "teacher" ? (
         /* The teacher/director registration entry point, on the screen somebody
            with no roster actually lands on. */
         <Card className="space-y-3">
@@ -269,7 +269,7 @@ export function JoinProgramScreen({ standalone = false }: { standalone?: boolean
             Teacher / director registration
           </Button>
         </Card>
-      )}
+      ) : null}
 
       <Card className="flex items-start gap-3">
         <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cue-subtle)]" />
