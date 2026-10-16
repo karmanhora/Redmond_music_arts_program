@@ -12,7 +12,7 @@
 -- "you may teach here".
 --
 -- This migration adds a real, revocable credential:
---
+-- 
 --   teacher_invitations       one row per issued code. Only its SHA-256 digest
 --                             is stored — never the code itself.
 --   teacher_invite_attempts   failed redemption attempts, for rate limiting.
