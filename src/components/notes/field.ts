@@ -227,7 +227,7 @@ export function createAmbient(
       glyph: pickGlyph(random),
       color: pickColorIndex(random),
       phase: random(),
-      opacity: 0.42 + random() * 0.5,
+      opacity: 0.6 + random() * 0.4,
     });
   }
   return notes;
@@ -370,7 +370,7 @@ export function sampleAmbient(note: NoteInstance, state: FrameState): Sample {
     y,
     angle: note.rotation + note.spin * state.time,
     half: baseHalf * mix(1, CALM_SCALE, calm),
-    alpha: note.opacity * (0.34 + note.depth * 0.66) * edge * mix(1, CALM_ALPHA, calm),
+    alpha: note.opacity * (0.5 + note.depth * 0.5) * edge * mix(1, CALM_ALPHA, calm),
     glyph: note.glyph,
     color: note.color,
   };

@@ -215,7 +215,7 @@ fn vs_main(
     // a pocket used to be drawn at full strength, which is exactly the one that
     // ends up lying across a heading. Mirrors `calmForGlyph` in field.ts.
     let calm = calmAt(unit, half / max(0.001, globals.aspect), half);
-    alpha = in.c.w * (0.34 + in.b.w * 0.66) * edge * mix(1.0, CALM_ALPHA, calm);
+    alpha = in.c.w * (0.5 + in.b.w * 0.5) * edge * mix(1.0, CALM_ALPHA, calm);
     half *= mix(1.0, CALM_SCALE, calm);
   }
 
