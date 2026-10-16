@@ -305,7 +305,7 @@ anyone signs in**, because it is what resolves a Supabase Auth account to a
 `profiles` row — without it every request is `anon` and the app looks empty;
 022 is what lets a teacher start a program (`create_program()`).
 
-Migration **034** (`034_pin_function_search_path.sql`) was applied to the live
+Migration **034** (`20261013041215_pin_function_search_path.sql`) was applied to the live
 project on **2026-10-12**. It is the whole of the security advisor's remaining
 `function_search_path_mutable` finding: `generate_join_code`,
 `normalize_section_name`, `permission_implications` and `avatar_folder_owner`
