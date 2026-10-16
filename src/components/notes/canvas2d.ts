@@ -80,6 +80,11 @@ export function createCanvasEngine(context: EngineContext): NotesEngine {
   let cursor = 0;
   let width = 1;
   let height = 1;
+  // What the current placement was made for. A placement is only redone when the
+  // width or the note count changes, or when the pockets first become known.
+  let placedWidth = 0;
+  let placedCount = 0;
+  let placedAgainstCalm = false;
   let aspect = 1;
   let pointerX = 0;
   let pointerY = 0;
@@ -113,7 +118,10 @@ export function createCanvasEngine(context: EngineContext): NotesEngine {
   }
 
   function rebuild(): void {
-    notes = createAmbient(preferredCount(width, height, reduced, quality), mulberry32(FIELD_SEED), calm);
+    placedCount = preferredCount(width, height, reduced, quality);
+    placedWidth = width;
+    placedAgainstCalm = calm.length > 0;
+    notes = createAmbient(placedCount, mulberry32(FIELD_SEED), calm);
   }
 
   function drawStaves(): void {
@@ -241,7 +249,11 @@ export function createCanvasEngine(context: EngineContext): NotesEngine {
     stop: halt,
     resize(): void {
       measure();
-      rebuild();
+      // Mobile browsers fire `resize` as the address bar collapses mid-scroll. A
+      // height-only change must not reshuffle the field under the reader.
+      if (width !== placedWidth || preferredCount(width, height, reduced, quality) !== placedCount) {
+        rebuild();
+      }
       if (reduced) render();
     },
     setPointer(x: number | null, y: number | null): void {
@@ -261,7 +273,10 @@ export function createCanvasEngine(context: EngineContext): NotesEngine {
     setCalm(rects: readonly Rect[]): void {
       calm.length = 0;
       for (const rect of rects) calm.push(rect);
-      rebuild();
+      // Pockets move with the page on every scroll frame. The shader already dims
+      // them per frame, so only the first placement needs to avoid them; re-placing
+      // here would snap every note to a new position as the page scrolls.
+      if (!placedAgainstCalm && calm.length > 0) rebuild();
       if (reduced) render();
     },
     burst(x: number, y: number): void {

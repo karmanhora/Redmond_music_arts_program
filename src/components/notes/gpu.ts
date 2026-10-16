@@ -127,6 +127,9 @@ export async function createGpuEngine(context: EngineContext): Promise<NotesEngi
   let quality = 1;
   const budget = new FrameBudget();
   let ambient = 0;
+  // What the current placement was made for; see canvas2d.ts for the rules.
+  let placedWidth = -1;
+  let placedAgainstCalm = false;
   let aspect = Math.max(1, window.innerWidth) / Math.max(1, window.innerHeight);
   let pointerX = 0;
   let pointerY = 0;
@@ -254,10 +257,10 @@ export async function createGpuEngine(context: EngineContext): Promise<NotesEngi
   }
 
   function rebuild(): void {
-    ambient = Math.min(
-      MAX_AMBIENT,
-      preferredCount(canvasSurface.size[0], canvasSurface.size[1], reduced, quality)
-    );
+    const [width, height] = canvasSurface.size;
+    ambient = Math.min(MAX_AMBIENT, preferredCount(width, height, reduced, quality));
+    placedWidth = width;
+    placedAgainstCalm = calm.length > 0;
     notes = createAmbient(ambient, mulberry32(FIELD_SEED), calm);
     pack();
   }
@@ -306,7 +309,11 @@ export async function createGpuEngine(context: EngineContext): Promise<NotesEngi
 
   const unsubscribeResize = canvasSurface.onResize((event) => {
     aspect = Math.max(1, event.width) / Math.max(1, event.height);
-    rebuild();
+    // Mobile browsers fire `resize` as the address bar collapses mid-scroll. A
+    // height-only change must not reshuffle the field under the reader.
+    const count = Math.min(MAX_AMBIENT, preferredCount(event.width, event.height, reduced, quality));
+    if (event.width !== placedWidth || count !== ambient) rebuild();
+    else pack();
   });
   const unsubscribeError = gpu.onError(() => fallBack("runtime-error"));
   void gpu.lost.then(() => fallBack("device-lost"));
@@ -340,7 +347,9 @@ export async function createGpuEngine(context: EngineContext): Promise<NotesEngi
     setCalm(rects: readonly Rect[]): void {
       calm.length = 0;
       for (const rect of rects) calm.push(rect);
-      rebuild();
+      // Pockets move with the page on every scroll frame. The shader already dims
+      // them per frame, so only the first placement needs to avoid them.
+      if (!placedAgainstCalm && calm.length > 0) rebuild();
     },
     burst(x: number, y: number): void {
       // Reduced motion shows a single still frame, so a burst would be a lie.
