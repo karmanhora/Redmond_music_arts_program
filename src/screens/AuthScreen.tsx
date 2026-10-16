@@ -441,8 +441,12 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
         ) : null}
 
         {mode === "sign-up" ? (
-          <Link to="/sign-in" className="flex min-h-11 items-center justify-center text-[var(--cue-muted)]">
-            Already have an account? <span className="font-semibold underline">Sign in</span>
+          <Link
+            to="/sign-in"
+            className="flex min-h-11 flex-col items-center justify-center text-[var(--cue-muted)]"
+          >
+            Already have an account?
+            <span className="font-semibold underline">Sign in</span>
           </Link>
         ) : null}
 
