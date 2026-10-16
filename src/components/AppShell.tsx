@@ -333,10 +333,10 @@ function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void })
             trailing={<ChevronRight aria-hidden="true" className="h-4 w-4 text-[var(--cue-subtle)]" />}
             onClick={() => go("/settings")}
           />
-          {/* The way back to the invitation form for somebody who signed in
-              before they had their code. It disappears once they hold the
-              credential — a student never needs it, and never sees a dead end. */}
-          {!app.mayStartProgram ? (
+          {/* The way back to the invitation form for a teacher who signed in
+              before they had their code. Students never see it: the invitation
+              code is a teacher credential, not something a student can use. */}
+          {auth.accountType === "teacher" && !app.mayStartProgram ? (
             <Row
               icon={<KeyRound className="h-4 w-4" />}
               title="Teacher access"

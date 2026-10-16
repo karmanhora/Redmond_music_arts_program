@@ -173,6 +173,7 @@ function ProfileTab() {
         </Card>
       </section>
 
+      {auth.accountType === "teacher" ? (
       <section>
         <SectionTitle className="mb-3">Teacher access</SectionTitle>
         <Card>
@@ -210,6 +211,7 @@ function ProfileTab() {
           ) : null}
         </Card>
       </section>
+      ) : null}
 
       <section>
         <SectionTitle className="mb-3">What this account may do</SectionTitle>
