@@ -323,8 +323,21 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
+/**
+ * How far a pocket's edge fades, in normalised screen units. A hard edge made
+ * every note flip alpha and size the instant a pocket slid over it, which read
+ * as flicker while the page scrolled. Mirrors `CALM_FEATHER` in notes.wgsl.
+ */
+export const CALM_FEATHER = 0.03;
+
+/** 1 well inside the rect, falling smoothly to 0 across CALM_FEATHER at its edge. */
 function insideRect(rect: Rect, x: number, y: number): number {
-  return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h ? 1 : 0;
+  return (
+    smoothstep(0, CALM_FEATHER, x - rect.x) *
+    smoothstep(0, CALM_FEATHER, rect.x + rect.w - x) *
+    smoothstep(0, CALM_FEATHER, y - rect.y) *
+    smoothstep(0, CALM_FEATHER, rect.y + rect.h - y)
+  );
 }
 
 export function calmAt(rects: readonly Rect[], x: number, y: number): number {
@@ -339,7 +352,9 @@ export function sampleAmbient(note: NoteInstance, state: FrameState): Sample {
   const speed = 0.24 + note.depth * 0.9;
   let x = fract(note.baseX + note.velX * state.time * speed);
   let y = fract(note.baseY + note.velY * state.time * speed);
-  x += y * state.scroll * 0.2;
+  // Wrapped back into the field: a sheared note that leaves one side re-enters
+  // on the other, so scrolling never leaves a dead band along the edge.
+  x = fract(x + y * state.scroll * 0.2);
 
   // Both ripple terms read the pre-ripple position, exactly as the shader's
   // single `p +=` with a vector right-hand side does.

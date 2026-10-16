@@ -115,12 +115,16 @@ fn toClip(world: vec2f) -> vec2f {
 }
 
 /// 1 when the point (normalised screen space, y down) falls inside `rect`.
+// Feather width for pocket edges; mirrors CALM_FEATHER in field.ts.
+const CALM_FEATHER: f32 = 0.03;
+
+/// 1 well inside `rect`, falling smoothly to 0 across CALM_FEATHER at its edge.
 fn insideRect(rect: vec4f, p: vec2f) -> f32 {
   return
-    step(rect.x, p.x) *
-    step(p.x, rect.x + rect.z) *
-    step(rect.y, p.y) *
-    step(p.y, rect.y + rect.w);
+    smoothstep(0.0, CALM_FEATHER, p.x - rect.x) *
+    smoothstep(0.0, CALM_FEATHER, rect.x + rect.z - p.x) *
+    smoothstep(0.0, CALM_FEATHER, p.y - rect.y) *
+    smoothstep(0.0, CALM_FEATHER, rect.y + rect.w - p.y);
 }
 
 /// The strongest pocket hit over a glyph's box: centre and four corners, in
@@ -189,7 +193,8 @@ fn vs_main(
     let speed = 0.24 + in.b.w * 0.9;
     var p = fract(in.a.xy + in.a.zw * globals.time * speed);
     // Scrolling shears the stream so the page feels continuous.
-    p.x += p.y * globals.scroll * 0.2;
+    // Wrapped back into the field, so a sheared note re-enters on the far side.
+    p.x = fract(p.x + p.y * globals.scroll * 0.2);
     // A sine-based flow field: coherent sweep with slow counter-ripples.
     let phase = in.c.z * TAU;
     p += vec2f(

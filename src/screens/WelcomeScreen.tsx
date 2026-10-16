@@ -44,7 +44,6 @@ const BTN =
   "transition-[background-color,color,box-shadow,transform] duration-[var(--motion-base)] ease-[var(--ease-standard)]";
 const BTN_PRIMARY = `${BTN} min-h-11 bg-[var(--cue-ink)] px-3.5 text-[var(--cue-panel)] hover:opacity-90 sm:px-4`;
 const BTN_ON_GREEN = `${BTN} min-h-12 bg-white px-5 text-[var(--cue-action-hover)] hover:bg-[#f1f0e9]`;
-const BTN_OUTLINE = `${BTN} min-h-11 border border-[var(--cue-line-strong)] px-4 hover:bg-[var(--cue-raised)]`;
 const BTN_OUTLINE_ON_GREEN = `${BTN} min-h-12 border border-white/35 px-5 text-[var(--cue-brand-ink)] hover:bg-white/10`;
 
 const capabilities = [
@@ -66,18 +65,12 @@ const programs = [
   {
     name: "Band",
     detail: "RHS Mustang Bands",
-    summary:
-      "Attendance and event tools for RHS band members and directors — rehearsals, performances and games.",
     instagram: "https://www.instagram.com/rhsmustangbands/",
-    attendance: true,
   },
   {
     name: "Orchestra",
     detail: "RHS Strings",
-    summary:
-      "Follow the RHS orchestra community and stay up to date with performances. Attendance tracking is coming.",
     instagram: "https://www.instagram.com/rhs.strings/",
-    attendance: false,
   },
 ];
 
@@ -245,46 +238,54 @@ export function WelcomeScreen() {
             </p>
           </header>
 
-          {/* Not two identical cards: band runs on the app, orchestra has a page to
-              follow, and the layout says so — a tinted, ruled panel on the left,
-              bare paper with a rule on the right. */}
-          <div className="cue-stagger mt-10 grid grid-cols-1 gap-10 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-0">
+          {/* Every program gets the same panel, so the cards read as one set. Only
+              the content differs: band has an attendance app, orchestra a page. */}
+          <div className="cue-stagger mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {programs.map((program) => (
               <article
                 key={program.name}
-                className={
-                  program.attendance
-                    ? "flex flex-col rounded-[var(--radius-panel)] border border-[var(--cue-line)] bg-[var(--cue-leaf-soft)] p-6 sm:p-7"
-                    : "flex flex-col md:border-l md:border-[var(--cue-line)] md:pl-10"
-                }
+                className="flex min-w-0 flex-col rounded-[var(--radius-panel)] border border-[var(--cue-line)] bg-[var(--cue-leaf-soft)] p-6 sm:p-7"
               >
-                <p className="type-kicker">{program.attendance ? "Attendance app" : "Program page"}</p>
-                <h3 className="type-poster-sm mt-3">{program.name}</h3>
+                <h3 className="type-poster-sm">{program.name}</h3>
                 <p className="mt-1 text-sm font-semibold text-[var(--cue-muted)]">{program.detail}</p>
-                <p className="mt-4 max-w-md text-sm leading-relaxed text-[var(--cue-muted)]">
-                  {program.summary}
-                </p>
 
-                <div className="mt-7 flex flex-wrap gap-2">
-                  {program.attendance ? (
-                    <Link viewTransition to="/sign-in" className={BTN_PRIMARY}>
-                      Band sign in
-                      <Go />
-                    </Link>
-                  ) : null}
+                <div className="mt-auto flex flex-wrap items-center gap-2 pt-7">
+                  <Link viewTransition to="/sign-in" className={BTN_PRIMARY}>
+                    {program.name} sign in
+                    <Go />
+                  </Link>
                   <a
                     href={program.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
+                    title="Follow on Instagram"
                     aria-label={`Follow ${program.detail} on Instagram (opens in a new tab)`}
-                    className={BTN_OUTLINE}
+                    className="instagram-chip"
                   >
-                    Follow on Instagram
-                    <Go />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                      focusable="false"
+                      viewBox="0 0 448 512"
+                      fill="#ff00ff"
+                    >
+                      <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z" />
+                    </svg>
                   </a>
                 </div>
               </article>
             ))}
+
+            <article
+              aria-label="Coming soon: more music and arts programs"
+              className="flex min-w-0 flex-col rounded-[var(--radius-panel)] border border-dashed border-[var(--cue-line-strong)] p-6 sm:p-7"
+            >
+              <p className="type-kicker">Coming soon</p>
+              <h3 className="type-poster-sm mt-3">More programs</h3>
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-[var(--cue-muted)]">
+                More music and arts programs will be listed here as they join.
+              </p>
+            </article>
           </div>
         </section>
       </main>
