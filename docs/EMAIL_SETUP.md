@@ -68,13 +68,36 @@ They are separate environments; an email template is not inherited.
 
 ## 3. SMTP, and the one thing that will bite you
 
-The project currently sends through Supabase's built-in sender. It is for
-testing: it is rate-limited to a handful of messages per hour, and it is not
-built for deliverability.
+The project currently sends through Supabase's built-in sender, and that is not
+just a rate limit. Since September 2024 the default sender **only delivers to
+addresses that belong to the project's own Supabase organization** — the people
+on the Supabase team, not the school's domain
+([Supabase changelog](https://github.com/orgs/supabase/discussions/29370)).
+Every student address is refused at the transport, so it does not matter how
+quiet the hour is or how many attempts are made.
+
+What that looks like from a phone: **Create account** answers
+`Error sending confirmation email` (`500`, `unexpected_failure`), and the
+sign-up is rolled back, so `auth.users` has no row for the address afterwards
+(checked on the live project, 2026-10-16: three users, none from the school
+domain). The app maps that message to plain language in
+`src/hooks/useAuth.tsx` — before that it was shown verbatim, which reads like the
+student's mistake.
+
+It also breaks **Forgot your password?**, because the recovery email goes through
+the same transport.
+
+**The one route that needs no email:** *Continue with Google*. The school
+addresses are Google Workspace accounts, the Google provider is enabled, and
+OAuth accounts arrive already confirmed — a student can get in that way today
+while SMTP is being sorted. That is a workaround, not the fix: email/password
+sign-up and password reset stay broken for everyone until a real transport is
+configured.
 
 That matters more here than in most apps, because **a new account cannot sign in
-until it confirms its address**. A class signing up together will exhaust the
-limit, the confirmations will not arrive, and the app will look broken.
+until it confirms its address**. Once custom SMTP is in place, a class signing up
+together can still exhaust the per-hour rate limit, and the confirmations will
+not arrive.
 
 Fix it in Authentication → Emails → SMTP Settings (or the commented
 `[auth.email.smtp]` block in `supabase/config.toml`): host, port, user, password
