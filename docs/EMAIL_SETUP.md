@@ -223,8 +223,9 @@ the day it is switched on it is a second vendor, not a free rider on Brevo.
   anything.
 - **The schedule** — a Supabase Cron job, like the calendar sync. The exact
   statement is in `scripts/migrate/04_functions_config.md` §2. `pg_cron` and
-  `pg_net` are not installed on the live project yet, so the job cannot be
-  created until they are enabled (Dashboard → Database → Extensions).
+  `pg_net` **are** enabled on the live project (checked 2026-10-17), but
+  `cron.job` is empty — no digest run is scheduled. Create the job only after
+  the secrets above exist, or it will fire and 401 against itself.
 - **Current state (2026-10-11)** — migration 032 is applied and the
   `event-digest` function is deployed (`verify_jwt = false`, authorised by
   `x-event-digest-secret`). Without that secret set the deployed function

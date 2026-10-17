@@ -2,8 +2,10 @@
 
 Scope: this repository (`main`), the hosted Supabase project `sjiswrvhrnrxkrfhfjrp`
 ("Redmond Performing Arts and Music Attendance Web-App"), read-only, and the
-local verification harness. **The hardening migration was applied to production on the owner's instruction (see Priority 3 below).** The fix below
-is in the repo and has not been applied to the hosted database.
+local verification harness. **The hardening migration was applied to production on
+the owner's instruction (see Priority 3 below); `security_hardening_grants` is in
+the hosted project's applied migrations, checked 2026-10-17.** Nothing in this
+report is still waiting to be applied.
 
 Read-only production checks used: `list_migrations`, `get_advisors` (security),
 catalog queries against `pg_policies`, `pg_proc`, `pg_trigger`,

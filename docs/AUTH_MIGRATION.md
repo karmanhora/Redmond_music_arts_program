@@ -1,9 +1,11 @@
 # Supabase Auth migration (Clerk retired)
 
-**Status:** code complete; **migration 021 and the dashboard settings below still
-have to be applied to the live project**, and the one manual step in §4 applies
-only if you have real people with attendance history. Until 021 is applied,
-nobody can sign in — see §3.
+**Status:** done and live. Migration 021 is in the hosted project's applied
+migrations and the schema matches it (checked 2026-10-17 on
+`sjiswrvhrnrxkrfhfjrp`: `profiles.auth_user_id` present, `clerk_id` dropped, and
+every RPC the app calls resolving). The one manual step in §4 applies only if you
+have real people with attendance history. §3 stays as the record of what was
+applied and why.
 
 This is the record of what changed, why the database did not have to be
 restructured for it, exactly what an operator has to run, and how to go back.
@@ -56,9 +58,9 @@ the unique index usable, keeps `profiles` independent of `auth.users` (an accoun
 may be deleted while the person's attendance history stays), and lets the SQL test
 suites carry fixture ids that are not uuids.
 
-`profiles.clerk_id` is **kept** (nullable) and no longer read by anything. It is
-the only record of which Clerk account a row was meant for, so it stays until you
-are satisfied the cutover is done; a later migration can drop it.
+`profiles.clerk_id` was kept (nullable, read by nothing) until the 2026-10-16
+hardening migration dropped it, after a backup — all nine rows were NULL, so no
+account link was lost. `auth_user_id` is the only identity column now.
 
 ## 3. Apply the migration
 
@@ -285,8 +287,9 @@ consistent. To go back to Clerk:
 
 2. Redeploy a frontend build that still has Clerk (the commit before this
    migration), and restore the Clerk Vercel variables and the `/_clerk` rewrite.
-3. `profiles.clerk_id` is untouched and every `auth_user_id` stays where it is, so
-   nobody's data is lost either way.
+3. `profiles.clerk_id` no longer exists (dropped 2026-10-16, all rows NULL), so a
+   rollback to Clerk would have to re-add the column and repopulate it first. Every
+   `auth_user_id` stays where it is, so no data is lost either way.
 
 ## 9. Verification performed
 
