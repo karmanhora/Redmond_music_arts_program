@@ -102,9 +102,10 @@ function readable(message: string): string {
       /email rate limit exceeded|over_email_send_rate_limit/i,
       "Too many emails just now — wait a minute and try again.",
     ],
-    // Delivery failed, not validation: GoTrue's transport (the built-in sender,
-    // which only reaches addresses inside the project's Supabase organization,
-    // or a misconfigured custom SMTP) answered a generic 500. "Error sending
+    // Delivery failed, not validation: GoTrue's transport answered a generic
+    // 500 — the built-in sender (which only reaches addresses inside the
+    // project's Supabase organization), or the SMTP relay refusing us for a
+    // reason of its own, such as exhausted SendGrid credits. "Error sending
     // confirmation email" tells a student nothing and reads like their mistake,
     // so name the side it is on and give the one route that needs no email.
     [

@@ -68,41 +68,62 @@ They are separate environments; an email template is not inherited.
 
 ## 3. SMTP, and the one thing that will bite you
 
-The project currently sends through Supabase's built-in sender, and that is not
-just a rate limit. Since September 2024 the default sender **only delivers to
-addresses that belong to the project's own Supabase organization** — the people
-on the Supabase team, not the school's domain
-([Supabase changelog](https://github.com/orgs/supabase/discussions/29370)).
-Every student address is refused at the transport, so it does not matter how
-quiet the hour is or how many attempts are made.
+This project sends through **SendGrid's SMTP relay**, not Supabase's built-in
+sender: host `smtp.sendgrid.net`, port `465`, user `apikey`, and an API key as the
+password, set in **Authentication → Emails → SMTP Settings**. That is dashboard
+state only — the `[auth.email.smtp]` block in `supabase/config.toml` is still
+commented out, so a `supabase config push` would silently replace it. Know that
+before running one.
 
-What that looks like from a phone: **Create account** answers
-`Error sending confirmation email` (`500`, `unexpected_failure`), and the
-sign-up is rolled back, so `auth.users` has no row for the address afterwards
-(checked on the live project, 2026-10-16: three users, none from the school
-domain). The app maps that message to plain language in
-`src/hooks/useAuth.tsx` — before that it was shown verbatim, which reads like the
-student's mistake.
+What a student sees when any part of that transport fails is the same sentence
+on the phone: **Create account** answers `Error sending confirmation email`, and
+**Forgot your password?** fails the same way, because both go through the same
+relay. The app maps it to plain language in `src/hooks/useAuth.tsx` (before that
+it was shown verbatim, which reads like the student's mistake), but the sentence
+cannot tell you *why*. The auth log can, and it always carries the transport's
+own answer under `error`.
 
-It also breaks **Forgot your password?**, because the recovery email goes through
-the same transport.
+**The failure of 2026-10-16 → 17 was SendGrid running out of credits.** Every
+attempt — sign-up and the recovery request made to check the fix — logged:
+
+```
+path: /signup   status: 500   error_code: unexpected_failure
+error: 451 "Authentication failed: Maximum credits exceeded"
+```
+
+`451` is SendGrid refusing the message because the account has no email credits
+left: the free allowance was spent (or the trial ended). The credentials
+authenticated fine, so nothing in this repository, in the templates or in the
+redirect URLs was involved — and there was no code fix. Recover in SendGrid →
+Settings → Account Details / Plan & Billing: look at the remaining credits and
+wait for the reset or upgrade the plan, then send one sign-up and confirm the
+same log line becomes a `200` with no `error`. Reading that log first is the
+difference between a quota failure, a wrong password and an unverified From
+address — to the student they are one sentence.
+
+**If SMTP is ever cleared**, Supabase's built-in sender takes over and it is not
+a spare tyre: since September 2024 it **only delivers to addresses that belong to
+the project's own Supabase organization** — the Supabase team, not the school
+domain ([changelog](https://github.com/orgs/supabase/discussions/29370)). Every
+student address would then be refused, no matter how quiet the hour is.
 
 **The one route that needs no email:** *Continue with Google*. The school
 addresses are Google Workspace accounts, the Google provider is enabled, and
-OAuth accounts arrive already confirmed — a student can get in that way today
-while SMTP is being sorted. That is a workaround, not the fix: email/password
-sign-up and password reset stay broken for everyone until a real transport is
-configured.
+OAuth accounts arrive already confirmed — a student can get in that way while a
+transport problem is being sorted. That is a workaround, not the fix:
+email/password sign-up and password reset stay broken for everyone until mail
+actually leaves.
 
 That matters more here than in most apps, because **a new account cannot sign in
-until it confirms its address**. Once custom SMTP is in place, a class signing up
-together can still exhaust the per-hour rate limit, and the confirmations will
-not arrive.
+until it confirms its address**. Even with a working transport, a class signing
+up together can exhaust a per-hour rate limit, and the confirmations will not
+arrive.
 
-Fix it in Authentication → Emails → SMTP Settings (or the commented
-`[auth.email.smtp]` block in `supabase/config.toml`): host, port, user, password
-and a from-address on a domain you control. Then verify the DNS records the
-provider asks for — without them, mail is sent but lands in spam.
+To configure a transport — the first time, or to replace one — use
+Authentication → Emails → SMTP Settings (or the commented `[auth.email.smtp]`
+block in `supabase/config.toml`): host, port, user, password and a from-address
+on a domain you control. Then verify the DNS records the provider asks for —
+without them, mail is sent but lands in spam.
 
 For SendGrid, the SMTP **From** address must also be a verified Sender Identity
 (or belong to an authenticated domain). If an invitation fails with “Error
@@ -111,12 +132,14 @@ Auth is verified in SendGrid before retrying.
 
 **No application code changes when SMTP is configured.** The templates, the
 subjects, the redirect URLs and every call in `src/hooks/useAuth.tsx` stay
-exactly as they are; only the transport changes.
+exactly as they are; only the transport changes. A failed send is a transport
+problem until the auth log says otherwise — start there, not in `src/`.
 
-The previous version of this app used **SendGrid**, so that is the continuity
-option if an account and a verified sender domain already exist. Any provider
-works — what matters is that the from-address domain is verified, or the mail is
-filtered.
+**SendGrid** carries both the auth emails (this section) and the app's own
+event digest (SendGrid's **API**, with its own key — see §6a). One account, one
+verified sender domain, two ways in. Any provider works for the relay — what
+matters is that the from-address domain is verified, or the mail is filtered —
+but moving off SendGrid means changing two transports, not one.
 
 ## 4. Redirect URLs
 
