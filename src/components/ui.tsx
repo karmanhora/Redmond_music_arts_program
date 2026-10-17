@@ -917,7 +917,7 @@ function AnimatedPercent({ value }: { value: number }) {
  * preferred: it is resolved to a short-lived signed URL by the provider. `url`
  * is the legacy external address, used only when no upload exists. If the image
  * fails to load — a lapsed link, an offline phone, a deleted object — the
- * component swaps to initials rather than showing a broken image.
+ * component retries a signed link once before falling back to initials.
  */
 export function Avatar({
   name,
@@ -932,11 +932,13 @@ export function Avatar({
   size?: number;
   className?: string;
 }) {
-  const signed = useSignedAvatarUrl(path);
+  const { url: signed, refresh } = useSignedAvatarUrl(path);
   const [failed, setFailed] = useState(false);
+  const retriedPath = useRef<string | null>(null);
 
   useEffect(() => {
     setFailed(false);
+    retriedPath.current = null;
   }, [path, url]);
 
   const source = failed ? null : path ? signed : url || null;
@@ -950,7 +952,18 @@ export function Avatar({
         height={size}
         loading="lazy"
         decoding="async"
-        onError={() => setFailed(true)}
+        onLoad={() => {
+          retriedPath.current = null;
+          setFailed(false);
+        }}
+        onError={() => {
+          if (path && retriedPath.current !== path) {
+            retriedPath.current = path;
+            refresh();
+            return;
+          }
+          setFailed(true);
+        }}
         className={cn("shrink-0 rounded-full object-cover", className)}
       />
     );

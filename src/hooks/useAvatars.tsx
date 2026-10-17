@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { cachedAvatarUrl, signAvatarPaths } from "../lib/avatar";
+import { cachedAvatarUrl, forgetAvatarUrl, signAvatarPaths } from "../lib/avatar";
 
 /**
  * Turns stored avatar *paths* into displayable signed URLs, one request per
@@ -25,6 +25,7 @@ import { cachedAvatarUrl, signAvatarPaths } from "../lib/avatar";
  */
 interface AvatarUrlState {
   request: (paths: string[]) => void;
+  refresh: (path: string) => void;
   urls: Record<string, string>;
 }
 
@@ -81,7 +82,21 @@ export function AvatarUrlProvider({ children }: { children: ReactNode }) {
     [flush]
   );
 
-  const value = useMemo<AvatarUrlState>(() => ({ request, urls }), [request, urls]);
+  const refresh = useCallback(
+    (path: string) => {
+      forgetAvatarUrl(path);
+      setUrls((prev) => {
+        if (!(path in prev)) return prev;
+        const next = { ...prev };
+        delete next[path];
+        return next;
+      });
+      request([path]);
+    },
+    [request]
+  );
+
+  const value = useMemo<AvatarUrlState>(() => ({ request, refresh, urls }), [request, refresh, urls]);
 
   useEffect(
     () => () => {
@@ -97,9 +112,11 @@ export function AvatarUrlProvider({ children }: { children: ReactNode }) {
  * The signed URL for one stored path, or null while it is being resolved (or
  * when the viewer is not allowed to read it).
  */
-export function useSignedAvatarUrl(path: string | null | undefined): string | null {
+export function useSignedAvatarUrl(
+  path: string | null | undefined
+): { url: string | null; refresh: () => void } {
   const ctx = useContext(AvatarUrlContext);
-  const known = path ? (ctx?.urls[path] ?? cachedAvatarUrl(path)) : null;
+  const known = path ? cachedAvatarUrl(path) : null;
 
   useEffect(() => {
     if (!path || !ctx) return;
@@ -107,5 +124,9 @@ export function useSignedAvatarUrl(path: string | null | undefined): string | nu
     ctx.request([path]);
   }, [path, ctx]);
 
-  return known;
+  const refresh = useCallback(() => {
+    if (path) ctx?.refresh(path);
+  }, [path, ctx]);
+
+  return { url: known, refresh };
 }
