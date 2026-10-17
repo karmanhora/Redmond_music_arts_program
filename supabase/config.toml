@@ -106,16 +106,21 @@ subject = "Your password was changed"
 content_path = "./templates/password_changed_notification.html"
 
 # ----------------------------------------------------------------------------
-# Custom SMTP — commented out, and worth configuring before real use.
+# Custom SMTP — commented out, because the live transport is configured in the
+# dashboard and this block would REPLACE it.
 #
-# The project currently sends through Supabase's built-in sender. That exists
-# for testing: it is rate-limited to a handful of messages an hour and it is not
-# a deliverability story. A class signing up in one lesson will hit the ceiling
-# and the confirmation emails simply will not arrive — which looks exactly like
-# the app being broken, because the new account cannot sign in until it confirms.
+# As of 2026-10-17 the project sends through Brevo's relay
+# (smtp-relay.brevo.com:587, SMTP login + SMTP key), set only in
+# Authentication → Emails → SMTP Settings. Auth email still works if this file
+# is left alone; `supabase config push` with the block below uncommented would
+# point production at smtp.example.com and break it.
 #
-# Set these in the dashboard (Authentication → Emails → SMTP Settings) or
-# uncomment here. The password is read from the environment, never committed.
+# Supabase's built-in sender is NOT a fallback: it only delivers to addresses
+# inside the project's Supabase organization, so every student address is
+# refused (docs/EMAIL_SETUP.md §3).
+#
+# To version-control the transport instead, uncomment and read the password from
+# the environment — never commit a key.
 #
 # [auth.email.smtp]
 # enabled = true

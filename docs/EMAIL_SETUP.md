@@ -68,12 +68,16 @@ They are separate environments; an email template is not inherited.
 
 ## 3. SMTP, and the one thing that will bite you
 
-This project sends through **SendGrid's SMTP relay**, not Supabase's built-in
-sender: host `smtp.sendgrid.net`, port `465`, user `apikey`, and an API key as the
-password, set in **Authentication → Emails → SMTP Settings**. That is dashboard
-state only — the `[auth.email.smtp]` block in `supabase/config.toml` is still
-commented out, so a `supabase config push` would silently replace it. Know that
-before running one.
+This project sends through **Brevo's SMTP relay**, not Supabase's built-in
+sender: host `smtp-relay.brevo.com`, port `587`, user the **SMTP login** Brevo
+shows on its SMTP page (often `<id>@smtp-brevo.com`, not the account email), and
+an **SMTP key** as the password — not an API key. All of it lives in
+**Authentication → Emails → SMTP Settings**, which is dashboard state only: the
+`[auth.email.smtp]` block in `supabase/config.toml` is still commented out, so a
+`supabase config push` would silently replace it. Know that before running one.
+
+The **From** address has to be one Brevo has verified under *Senders* — anything
+else is refused at the relay, whatever the templates say.
 
 What a student sees when any part of that transport fails is the same sentence
 on the phone: **Create account** answers `Error sending confirmation email`, and
@@ -81,25 +85,26 @@ on the phone: **Create account** answers `Error sending confirmation email`, and
 relay. The app maps it to plain language in `src/hooks/useAuth.tsx` (before that
 it was shown verbatim, which reads like the student's mistake), but the sentence
 cannot tell you *why*. The auth log can, and it always carries the transport's
-own answer under `error`.
-
-**The failure of 2026-10-16 → 17 was SendGrid running out of credits.** Every
-attempt — sign-up and the recovery request made to check the fix — logged:
+own answer under `error`. Two real examples from this project:
 
 ```
-path: /signup   status: 500   error_code: unexpected_failure
+# 2026-10-16 — SendGrid account out of credits (trial ended, no free plan since May 2025)
+path: /signup    status: 500   error_code: unexpected_failure
 error: 451 "Authentication failed: Maximum credits exceeded"
+
+# 2026-10-17 — the same request after moving the relay to Brevo
+path: /recover   status: 200   (no `error` field at all)
 ```
 
-`451` is SendGrid refusing the message because the account has no email credits
-left: the free allowance was spent (or the trial ended). The credentials
-authenticated fine, so nothing in this repository, in the templates or in the
-redirect URLs was involved — and there was no code fix. Recover in SendGrid →
-Settings → Account Details / Plan & Billing: look at the remaining credits and
-wait for the reset or upgrade the plan, then send one sign-up and confirm the
-same log line becomes a `200` with no `error`. Reading that log first is the
-difference between a quota failure, a wrong password and an unverified From
-address — to the student they are one sentence.
+So read the log before touching anything. `451` with "Maximum credits exceeded"
+is the provider refusing on billing, not a bad password; `535` is credentials; a
+`550` naming the sender is an unverified From address. None of those is a code
+bug, and all three are one identical sentence on the student's phone.
+
+The SendGrid entries above are history, not a fallback: its trial expired and
+Supabase Auth does **not** fall back to its own sender when a custom relay
+refuses — it fails the request. Going back means paying for a plan that sends
+far more mail than this app ever will.
 
 **If SMTP is ever cleared**, Supabase's built-in sender takes over and it is not
 a spare tyre: since September 2024 it **only delivers to addresses that belong to
@@ -121,25 +126,28 @@ arrive.
 
 To configure a transport — the first time, or to replace one — use
 Authentication → Emails → SMTP Settings (or the commented `[auth.email.smtp]`
-block in `supabase/config.toml`): host, port, user, password and a from-address
-on a domain you control. Then verify the DNS records the provider asks for —
-without them, mail is sent but lands in spam.
+block in `supabase/config.toml`): host, port, user, password and the from-address
+the provider has verified. Then authenticate the domain with the provider and
+verify the DNS records it asks for — without them, mail is sent but lands in
+spam. A verified *single address* (Brevo *Senders*, SendGrid *Single Sender
+Verification*) is enough to start; only a domain lifts the spam-folder risk.
 
-For SendGrid, the SMTP **From** address must also be a verified Sender Identity
-(or belong to an authenticated domain). If an invitation fails with “Error
-sending invite email,” check that the exact From address configured in Supabase
-Auth is verified in SendGrid before retrying.
+If an invitation fails with “Error sending invite email,” check that the exact
+From address configured in Supabase Auth is verified at the provider before
+retrying — that message is the `invite-student` function, which sends through
+its own transport (`SENDGRID_API_KEY`, see §6a), not through the auth relay.
 
 **No application code changes when SMTP is configured.** The templates, the
 subjects, the redirect URLs and every call in `src/hooks/useAuth.tsx` stay
 exactly as they are; only the transport changes. A failed send is a transport
 problem until the auth log says otherwise — start there, not in `src/`.
 
-**SendGrid** carries both the auth emails (this section) and the app's own
-event digest (SendGrid's **API**, with its own key — see §6a). One account, one
-verified sender domain, two ways in. Any provider works for the relay — what
-matters is that the from-address domain is verified, or the mail is filtered —
-but moving off SendGrid means changing two transports, not one.
+**Two transports, not one.** Auth mail goes through Brevo's relay (this
+section); the event digest and the invite function call SendGrid's **API** with
+`SENDGRID_API_KEY` (§6a). They are unrelated: changing the relay does not touch
+them, and a SendGrid outage does not stop sign-ups. Any provider works for the
+relay — what matters is that the from-address is verified there, or the mail is
+filtered.
 
 ## 4. Redirect URLs
 
@@ -179,9 +187,9 @@ minutes, so it belongs in the bell, not in a mailbox.
 
 This app now sends one email of its own (migration 032 + the `event-digest` edge
 function): at most one a day per person, listing the next week's events across
-every program they belong to. It goes through SendGrid's **API** — the same
-provider and the same verified sender that carries the auth emails above, so
-this is not a second vendor.
+every program they belong to. It goes through SendGrid's **API**, with its own
+key and sender — that is a *different* transport from the auth relay in §3, so
+the day it is switched on it is a second vendor, not a free rider on Brevo.
 
 - **Who is owed one** — `public.due_event_digests()` returns the members who are
   active, subscribed, have a confirmed address, are not deactivated, and have at
@@ -210,8 +218,9 @@ this is not a second vendor.
   `PUBLIC_APP_URL`. These are SendGrid **API** credentials for
   `api.sendgrid.com`, *not* the SMTP host/user/password above — those live in
   Dashboard → Auth → SMTP. Nothing has set them yet: `supabase secrets list`
-  showed only the platform's own variables on 2026-10-11, so this is the first
-  thing to create before the digest can send anything.
+  showed only the platform's own variables on 2026-10-11 and again on
+  2026-10-17, so this is the first thing to create before the digest can send
+  anything.
 - **The schedule** — a Supabase Cron job, like the calendar sync. The exact
   statement is in `scripts/migrate/04_functions_config.md` §2. `pg_cron` and
   `pg_net` are not installed on the live project yet, so the job cannot be
